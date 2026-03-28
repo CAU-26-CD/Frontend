@@ -1,7 +1,11 @@
-export default function App() {
+import { Routes, Route } from "react-router-dom";
+
+function App() {
     return (
-        <div className="text-3xl font-bold text-red-500">
-            Tailwind 적용 완료 🚀
-        </div>
-    )
+        <Routes>
+            <Route path="/" element={<div>Home</div>} />
+        </Routes>
+    );
 }
+
+export default App;
