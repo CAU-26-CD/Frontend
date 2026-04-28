@@ -1,47 +1,46 @@
 // src/components/Header.tsx
 
 import { Menu, Bell, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
   return (
     <header className="w-full h-16 border-b border-gray-200 bg-white">
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-6">
         {/* Left */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-8">
           <button className="rounded-lg p-2 hover:bg-gray-100 md:hidden">
             <Menu size={22} />
           </button>
 
-          <h1 className="text-xl font-bold text-gray-900">MyProject</h1>
-        </div>
+          <Link
+            to="/"
+            className="rounded-md text-xl font-bold text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+          >
+            Re:Action
+          </Link>
 
-        {/* Center */}
-        <nav className="hidden items-center gap-8 md:flex">
-          <a
-            href="/"
-            className="text-sm font-medium text-gray-700 hover:text-black"
-          >
-            Home
-          </a>
-          <a
-            href="/projects"
-            className="text-sm font-medium text-gray-700 hover:text-black"
-          >
-            Projects
-          </a>
-          <a
-            href="/members"
-            className="text-sm font-medium text-gray-700 hover:text-black"
-          >
-            Members
-          </a>
-          <a
-            href="/about"
-            className="text-sm font-medium text-gray-700 hover:text-black"
-          >
-            About
-          </a>
-        </nav>
+          <nav className="hidden items-center gap-8 md:flex">
+            <a
+              href="/"
+              className="text-sm font-medium text-gray-700 hover:text-black"
+            >
+              Home
+            </a>
+            <a
+              href="/projects"
+              className="text-sm font-medium text-gray-700 hover:text-black"
+            >
+              Projects
+            </a>
+            <a
+              href="/about"
+              className="text-sm font-medium text-gray-700 hover:text-black"
+            >
+              About
+            </a>
+          </nav>
+        </div>
 
         {/* Right */}
         <div className="flex items-center gap-3">

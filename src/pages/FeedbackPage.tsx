@@ -2,6 +2,7 @@ import { useState } from 'react';
 // 타입 정의
 import type { Actor, Feedback } from '../types/feedback';
 const actors: Actor[] = [
+  //나중에 백엔드 연결해오기!
   { id: 1, name: '이예나', shortcut: 'O' },
   { id: 2, name: '조현정', shortcut: 'I' },
   { id: 3, name: '오지원', shortcut: 'P' },
