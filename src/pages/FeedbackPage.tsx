@@ -31,9 +31,9 @@ export default function RehearsalFeedbackPage() {
   }, [handleStartTimestamp]);
 
   return (
-    <main className="min-h-screen bg-neutral-100 p-4 md:p-8">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[1fr_420px]">
-        <section className="flex flex-col gap-4">
+    <main className="h-full min-h-0 bg-neutral-100">
+      <div className="mx-auto grid h-full min-h-0 max-w-7xl grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-4 lg:grid-cols-[1fr_420px] lg:grid-rows-1">
+        <section className="flex min-h-0 flex-col gap-4">
           <MovementArea />
 
           <ActorTagBar

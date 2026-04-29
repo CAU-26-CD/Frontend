@@ -1,7 +1,9 @@
 // src/components/feedback/FeedbackPanel.tsx
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Actor, Feedback } from '../../types/feedback';
+
+const FEEDBACK_PAGE_SIZE = 15;
 
 type FeedbackPanelProps = {
   feedbacks: Feedback[];
@@ -37,6 +39,11 @@ export default function FeedbackPanel({
   onDelete,
 }: FeedbackPanelProps) {
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const feedbackListRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(FEEDBACK_PAGE_SIZE);
+  const visibleFeedbacks = feedbacks.slice(
+    Math.max(feedbacks.length - visibleCount, 0),
+  );
 
   useEffect(() => {
     if (timestamp) {
@@ -44,10 +51,40 @@ export default function FeedbackPanel({
     }
   }, [timestamp]);
 
+  useEffect(() => {
+    const list = feedbackListRef.current;
+
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [feedbacks.length]);
+
+  const handleFeedbackScroll = () => {
+    const list = feedbackListRef.current;
+
+    if (!list || list.scrollTop > 24 || visibleCount >= feedbacks.length) {
+      return;
+    }
+
+    setVisibleCount((count) =>
+      Math.min(count + FEEDBACK_PAGE_SIZE, feedbacks.length),
+    );
+  };
+
   return (
-    <aside className="flex min-h-[520px] flex-col rounded-3xl bg-neutral-200 p-5">
-      <div className="flex-1 space-y-3 overflow-y-auto">
-        {feedbacks.map((feedback) => {
+    <aside className="flex h-full min-h-0 flex-col rounded-3xl bg-neutral-200 p-5">
+      <div
+        ref={feedbackListRef}
+        onScroll={handleFeedbackScroll}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
+      >
+        {visibleCount < feedbacks.length && (
+          <div className="py-1 text-center text-xs text-neutral-500">
+            위로 스크롤하면 이전 피드백을 불러옵니다
+          </div>
+        )}
+
+        {visibleFeedbacks.map((feedback) => {
           const isEditing = editingId === feedback.id;
 
           return (
