@@ -5,6 +5,7 @@ export type AnalysisStatus = 'idle' | 'analyzing' | 'done' | 'error';
 export interface Actor {
   id: number;
   name: string;
+  //단축키
   shortcut: string;
 }
 
@@ -14,6 +15,7 @@ export interface Feedback {
   actorId: number;
   content: string;
 
+  //이쪽 내용은 나중에 AI 카테고리 분류 시 확장 예정 무시 ㄱㄱ
   aiTags?: FeedbackCategory[];
   analysisStatus?: AnalysisStatus;
   aiSummary?: string;

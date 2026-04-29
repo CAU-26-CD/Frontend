@@ -36,7 +36,7 @@ export default function ActorTagBar({
                 ].join(' ')}
               >
                 <div className="font-semibold">{actor.name}</div>
-                <div className="text-xs opacity-70">“{actor.shortcut}”</div>
+                <div className="text-xs opacity-70">{actor.shortcut}</div>
               </button>
             );
           })}

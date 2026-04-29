@@ -5,9 +5,25 @@ import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
 
+const getShortcutFromEvent = (event: KeyboardEvent) => {
+  if (!event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+    return null;
+  }
+
+  if (event.code.startsWith('Digit')) {
+    return `Shift+${event.code.replace('Digit', '')}`;
+  }
+
+  if (event.code.startsWith('Numpad')) {
+    return `Shift+${event.code.replace('Numpad', '')}`;
+  }
+
+  return null;
+};
+
 export default function RehearsalFeedbackPage() {
   const feedback = useFeedback();
-  const { handleStartTimestamp } = feedback;
+  const { handleStartTimestamp, setSelectedActor } = feedback;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -16,6 +32,15 @@ export default function RehearsalFeedbackPage() {
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         (target instanceof HTMLElement && target.isContentEditable);
+
+      const shortcut = getShortcutFromEvent(event);
+      const matchedActor = actors.find((actor) => actor.shortcut === shortcut);
+
+      if (matchedActor) {
+        event.preventDefault();
+        setSelectedActor(matchedActor);
+        return;
+      }
 
       if (event.code !== 'Space' || isTyping) return;
 
@@ -28,7 +53,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleStartTimestamp]);
+  }, [handleStartTimestamp, setSelectedActor]);
 
   return (
     <main className="h-full min-h-0 bg-neutral-100">
