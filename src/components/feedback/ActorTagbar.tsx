@@ -2,14 +2,12 @@ import type { Actor } from '../../types/feedback.ts';
 
 type Props = {
   actors: Actor[];
-  selectedActor: Actor | null;
-  onSelect: (actor: Actor) => void;
+  selectedActors: Actor[];
 };
 
 export default function ActorTagBar({
   actors,
-  selectedActor,
-  onSelect,
+  selectedActors,
 }: Props) {
   return (
     <section className="rounded-3xl bg-neutral-300 p-5">
@@ -22,12 +20,13 @@ export default function ActorTagBar({
 
         <div className="flex flex-wrap gap-3">
           {actors.map((actor) => {
-            const isSelected = selectedActor?.id === actor.id;
+            const isSelected = selectedActors.some(
+              (selectedActor) => selectedActor.id === actor.id,
+            );
 
             return (
-              <button
+              <div
                 key={actor.id}
-                onClick={() => onSelect(actor)}
                 className={[
                   'rounded-xl px-4 py-2 text-sm transition',
                   isSelected
@@ -36,8 +35,8 @@ export default function ActorTagBar({
                 ].join(' ')}
               >
                 <div className="font-semibold">{actor.name}</div>
-                <div className="text-xs opacity-70">{actor.shortcut}</div>
-              </button>
+                <div className="text-xs opacity-70">/{actor.shortcut}</div>
+              </div>
             );
           })}
         </div>

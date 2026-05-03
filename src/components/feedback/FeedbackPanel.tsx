@@ -1,17 +1,20 @@
 // src/components/feedback/FeedbackPanel.tsx
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Actor, Feedback } from '../../types/feedback';
 
 const FEEDBACK_PAGE_SIZE = 15;
 
 type FeedbackPanelProps = {
+  actors: Actor[];
   feedbacks: Feedback[];
-  selectedActor: Actor | null;
+  selectedActors: Actor[];
   timestamp: string | null;
   content: string;
   editingId: number | null;
   editingContent: string;
+  onActorSelect: (actor: Actor) => void;
+  onActorBackspace: () => void;
   onTimestampStart: () => void;
   onContentChange: (value: string) => void;
   onSubmit: () => void;
@@ -23,12 +26,15 @@ type FeedbackPanelProps = {
 };
 
 export default function FeedbackPanel({
+  actors,
   feedbacks,
-  selectedActor,
+  selectedActors,
   timestamp,
   content,
   editingId,
   editingContent,
+  onActorSelect,
+  onActorBackspace,
   onTimestampStart,
   onContentChange,
   onSubmit,
@@ -40,7 +46,13 @@ export default function FeedbackPanel({
 }: FeedbackPanelProps) {
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const feedbackListRef = useRef<HTMLDivElement>(null);
+  const actorRowRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(FEEDBACK_PAGE_SIZE);
+  const [actorMenuOpen, setActorMenuOpen] = useState(false);
+  const [actorCommandIndex, setActorCommandIndex] = useState<number | null>(
+    null,
+  );
+  const [actorRowActive, setActorRowActive] = useState(false);
   const visibleFeedbacks = feedbacks.slice(
     Math.max(feedbacks.length - visibleCount, 0),
   );
@@ -71,6 +83,93 @@ export default function FeedbackPanel({
     );
   };
 
+  const closeActorMenu = () => {
+    setActorMenuOpen(false);
+    setActorCommandIndex(null);
+  };
+
+  const removeActorCommand = () => {
+    if (actorCommandIndex === null || content[actorCommandIndex] !== '/') {
+      return content;
+    }
+
+    return (
+      content.slice(0, actorCommandIndex) + content.slice(actorCommandIndex + 1)
+    );
+  };
+
+  const selectActorByShortcut = (
+    shortcut: string | undefined,
+    nextContent = content,
+    commandLength = 1,
+  ) => {
+    const matchedActor = actors.find((actor) => actor.shortcut === shortcut);
+
+    if (!matchedActor || actorCommandIndex === null) {
+      return false;
+    }
+
+    onActorSelect(matchedActor);
+    onContentChange(
+      nextContent.slice(0, actorCommandIndex) +
+        nextContent.slice(actorCommandIndex + commandLength),
+    );
+    closeActorMenu();
+    setActorRowActive(false);
+
+    requestAnimationFrame(() => {
+      contentTextareaRef.current?.focus();
+    });
+
+    return true;
+  };
+
+  const openActorCommand = useCallback((commandIndex = content.length) => {
+    if (!timestamp) {
+      onTimestampStart();
+    }
+
+    onContentChange(
+      content.slice(0, commandIndex) + '/' + content.slice(commandIndex),
+    );
+    setActorMenuOpen(true);
+    setActorCommandIndex(commandIndex);
+
+    requestAnimationFrame(() => {
+      const textarea = contentTextareaRef.current;
+
+      textarea?.focus();
+      textarea?.setSelectionRange(commandIndex + 1, commandIndex + 1);
+    });
+  }, [content, onContentChange, onTimestampStart, timestamp]);
+
+  useEffect(() => {
+    if (timestamp || content) return;
+
+    contentTextareaRef.current?.blur();
+  }, [content, timestamp]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      const isTyping =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+
+      if (isTyping || event.key !== '/') return;
+
+      event.preventDefault();
+      openActorCommand();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openActorCommand]);
+
   return (
     <aside className="flex h-full min-h-0 flex-col rounded-3xl bg-neutral-200 p-5">
       <div
@@ -86,6 +185,10 @@ export default function FeedbackPanel({
 
         {visibleFeedbacks.map((feedback) => {
           const isEditing = editingId === feedback.id;
+          const feedbackActorNames = feedback.actorIds
+            .map((actorId) => actors.find((actor) => actor.id === actorId)?.name)
+            .filter(Boolean)
+            .join(', ');
 
           return (
             <div
@@ -96,7 +199,7 @@ export default function FeedbackPanel({
                 <span>{feedback.timestamp}</span>
                 <span>|</span>
                 <span className="font-semibold text-neutral-700">
-                  {feedback.actorId}
+                  {feedbackActorNames}
                 </span>
               </div>
 
@@ -142,39 +245,216 @@ export default function FeedbackPanel({
             onClick={onTimestampStart}
             className="rounded-full bg-white px-3 py-1"
           >
-            타임스탬프
+            타임스탬프 {timestamp ?? '00:00'}
           </button>
-
-          <span>
-            {timestamp ?? '--:--'} | {selectedActor?.name ?? '배우 선택 필요'}
-          </span>
         </div>
 
         <div className="flex gap-2">
-          <textarea
-            ref={contentTextareaRef}
-            value={content}
-            onChange={(e) => onContentChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter' || e.shiftKey) return;
+          <div className="relative flex-1">
+            {actorMenuOpen && (
+              <div className="absolute bottom-full left-0 z-10 mb-2 w-64 overflow-hidden rounded-xl border border-neutral-200 bg-white text-sm shadow-lg">
+                <div className="border-b border-neutral-100 px-3 py-2 text-xs font-medium text-neutral-500">
+                  배우 선택
+                </div>
 
-              e.preventDefault();
-              onSubmit();
-            }}
-            placeholder={
-              timestamp
-                ? '피드백을 입력하세요'
-                : 'Space를 눌러 피드백을 입력하세요'
-            }
-            disabled={!timestamp}
-            className="min-h-[44px] flex-1 resize-none rounded-xl border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none disabled:cursor-not-allowed disabled:text-neutral-400"
-          />
+                <div className="max-h-56 overflow-y-auto py-1">
+                  {actors.map((actor) => (
+                    <button
+                      key={actor.id}
+                      type="button"
+                      onClick={() => {
+                        onActorSelect(actor);
+                        onContentChange(removeActorCommand());
+                        closeActorMenu();
+                        contentTextareaRef.current?.focus();
+                      }}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-neutral-700 hover:bg-neutral-100"
+                    >
+                      <span className="font-medium">{actor.name}</span>
+                      <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
+                        {actor.shortcut}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="border-t border-neutral-100 px-3 py-2 text-xs text-neutral-400">
+                  Space로 닫고 "/ " 입력
+                </div>
+              </div>
+            )}
+
+            <div
+              ref={actorRowRef}
+              tabIndex={0}
+              onClick={() => setActorRowActive(true)}
+              onFocus={() => setActorRowActive(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Backspace') {
+                  e.preventDefault();
+                  onActorBackspace();
+                  return;
+                }
+
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setActorRowActive(false);
+                  contentTextareaRef.current?.focus();
+                }
+              }}
+              className={[
+                'flex min-h-9 flex-wrap items-center gap-2 rounded-t-xl border border-neutral-300 bg-white/60 px-3 py-1.5 text-sm outline-none',
+                actorRowActive ? 'border-neutral-600' : '',
+              ].join(' ')}
+            >
+              {selectedActors.length > 0 ? (
+                selectedActors.map((actor) => (
+                  <span
+                    key={actor.id}
+                    className="rounded-full bg-neutral-800 px-3 py-1 text-xs font-medium text-white"
+                  >
+                    {actor.name}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-neutral-400">
+                  /번호로 배우를 선택하세요
+                </span>
+              )}
+            </div>
+
+            <textarea
+              ref={contentTextareaRef}
+              value={content}
+              onFocus={() => {
+                setActorRowActive(false);
+
+                if (!timestamp) {
+                  onTimestampStart();
+                }
+              }}
+              onChange={(e) => {
+                const nextContent = e.target.value;
+                const commandValue =
+                  actorCommandIndex === null
+                    ? ''
+                    : nextContent.slice(
+                        actorCommandIndex,
+                        actorCommandIndex + 2,
+                      );
+
+                if (
+                  actorMenuOpen &&
+                  commandValue.length === 2 &&
+                  commandValue.startsWith('/') &&
+                  selectActorByShortcut(commandValue[1], nextContent, 2)
+                ) {
+                  return;
+                }
+
+                onContentChange(nextContent);
+
+                if (
+                  actorMenuOpen &&
+                  (actorCommandIndex === null ||
+                    nextContent[actorCommandIndex] !== '/')
+                ) {
+                  closeActorMenu();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Backspace' && e.shiftKey) {
+                  e.preventDefault();
+                  onActorBackspace();
+                  return;
+                }
+
+                if (
+                  e.key === 'Enter' &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing
+                ) {
+                  e.preventDefault();
+                  closeActorMenu();
+                  onSubmit();
+                  return;
+                }
+
+                if (actorRowActive) {
+                  if (e.key === 'Backspace') {
+                    e.preventDefault();
+                    onActorBackspace();
+                    return;
+                  }
+
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setActorRowActive(false);
+                    return;
+                  }
+                }
+
+                if (!timestamp && e.key === ' ') {
+                  e.preventDefault();
+                  onTimestampStart();
+                  return;
+                }
+
+                if (actorMenuOpen) {
+                  if (selectActorByShortcut(e.key)) {
+                    e.preventDefault();
+                    return;
+                  }
+
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeActorMenu();
+                    return;
+                  }
+
+                  if (e.key === ' ') {
+                    closeActorMenu();
+                    return;
+                  }
+                }
+
+                if (e.key === '/') {
+                  e.preventDefault();
+                  openActorCommand(e.currentTarget.selectionStart);
+                  return;
+                }
+
+                if (
+                  e.key === 'ArrowUp' &&
+                  e.currentTarget.selectionStart === 0
+                ) {
+                  e.preventDefault();
+                  setActorRowActive(true);
+                  e.currentTarget.blur();
+                  actorRowRef.current?.focus();
+                  return;
+                }
+              }}
+              placeholder={
+                timestamp
+                  ? '피드백을 입력하세요'
+                  : '클릭하거나 Space를 눌러 피드백을 입력하세요'
+              }
+              readOnly={!timestamp}
+              className="min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none"
+            />
+          </div>
 
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={() => {
+              closeActorMenu();
+              onSubmit();
+            }}
             className="rounded-xl bg-neutral-800 px-4 text-sm font-medium text-white disabled:bg-neutral-400"
-            disabled={!selectedActor || !timestamp || !content.trim()}
+            disabled={
+              selectedActors.length === 0 || !timestamp || !content.trim()
+            }
           >
             등록
           </button>

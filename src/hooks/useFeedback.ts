@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import type { Actor, Feedback } from '../types/feedback';
 
 export function useFeedback() {
-  const [selectedActor, setSelectedActor] = useState<Actor | null>(null);
+  const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -18,12 +18,12 @@ export function useFeedback() {
   }, []);
 
   const handleSubmit = () => {
-    if (!selectedActor || !timestamp || !content.trim()) return;
+    if (selectedActors.length === 0 || !timestamp || !content.trim()) return;
 
     const newFeedback: Feedback = {
       id: Date.now(),
       timestamp,
-      actorId: selectedActor.id,
+      actorIds: selectedActors.map((actor) => actor.id),
       content,
       aiTags: [],
       analysisStatus: 'idle',
@@ -32,6 +32,16 @@ export function useFeedback() {
     setFeedbacks((prev) => [...prev, newFeedback]);
     setContent('');
     setTimestamp(null);
+  };
+
+  const addSelectedActor = (actor: Actor) => {
+    setSelectedActors((prev) =>
+      prev.some((item) => item.id === actor.id) ? prev : [...prev, actor],
+    );
+  };
+
+  const removeLastSelectedActor = () => {
+    setSelectedActors((prev) => prev.slice(0, -1));
   };
 
   const handleEdit = (feedback: Feedback) => {
@@ -72,14 +82,15 @@ export function useFeedback() {
   };
 
   return {
-    selectedActor,
+    selectedActors,
     timestamp,
     content,
     feedbacks,
     editingId,
     editingContent,
 
-    setSelectedActor,
+    addSelectedActor,
+    removeLastSelectedActor,
     setContent,
     setEditingContent,
 

@@ -12,7 +12,7 @@ export interface Actor {
 export interface Feedback {
   id: number;
   timestamp: string;
-  actorId: number;
+  actorIds: number[];
   content: string;
 
   //이쪽 내용은 나중에 AI 카테고리 분류 시 확장 예정 무시 ㄱㄱ

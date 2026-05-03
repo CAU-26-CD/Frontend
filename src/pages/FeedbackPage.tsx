@@ -5,25 +5,9 @@ import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
 
-const getShortcutFromEvent = (event: KeyboardEvent) => {
-  if (!event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
-    return null;
-  }
-
-  if (event.code.startsWith('Digit')) {
-    return `Shift+${event.code.replace('Digit', '')}`;
-  }
-
-  if (event.code.startsWith('Numpad')) {
-    return `Shift+${event.code.replace('Numpad', '')}`;
-  }
-
-  return null;
-};
-
 export default function RehearsalFeedbackPage() {
   const feedback = useFeedback();
-  const { handleStartTimestamp, setSelectedActor } = feedback;
+  const { handleStartTimestamp } = feedback;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -32,15 +16,6 @@ export default function RehearsalFeedbackPage() {
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         (target instanceof HTMLElement && target.isContentEditable);
-
-      const shortcut = getShortcutFromEvent(event);
-      const matchedActor = actors.find((actor) => actor.shortcut === shortcut);
-
-      if (matchedActor) {
-        event.preventDefault();
-        setSelectedActor(matchedActor);
-        return;
-      }
 
       if (event.code !== 'Space' || isTyping) return;
 
@@ -53,7 +28,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleStartTimestamp, setSelectedActor]);
+  }, [handleStartTimestamp]);
 
   return (
     <main className="h-full min-h-0 bg-neutral-100">
@@ -63,18 +38,20 @@ export default function RehearsalFeedbackPage() {
 
           <ActorTagBar
             actors={actors}
-            selectedActor={feedback.selectedActor}
-            onSelect={feedback.setSelectedActor}
+            selectedActors={feedback.selectedActors}
           />
         </section>
 
         <FeedbackPanel
+          actors={actors}
           feedbacks={feedback.feedbacks}
-          selectedActor={feedback.selectedActor}
+          selectedActors={feedback.selectedActors}
           timestamp={feedback.timestamp}
           content={feedback.content}
           editingId={feedback.editingId}
           editingContent={feedback.editingContent}
+          onActorSelect={feedback.addSelectedActor}
+          onActorBackspace={feedback.removeLastSelectedActor}
           onTimestampStart={feedback.handleStartTimestamp}
           onContentChange={feedback.setContent}
           onSubmit={feedback.handleSubmit}
