@@ -8,7 +8,7 @@ export const instance = axios.create({
 // 요청 인터셉터
 instance.interceptors.request.use((config) => {
   // 토큰 넣기 가능
-  returnconfig;
+  return config;
 });
 
 // 응답 인터셉터
@@ -16,6 +16,6 @@ instance.interceptors.response.use(
   (res) => res,
   (err) => {
     // 에러 처리 (401 등)
-    returnPromise.reject(err);
+    return Promise.reject(err);
   },
 );

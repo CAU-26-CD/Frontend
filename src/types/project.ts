@@ -6,3 +6,13 @@ export interface Project {
   date: string;
   status: ProjectStatus;
 }
+
+export interface JoinProjectForm {
+  code: string;
+}
+
+export interface CreateProjectForm {
+  name: string;
+  description: string;
+  memo: string;
+}

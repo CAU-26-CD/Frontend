@@ -1,4 +1,5 @@
 import type { Project } from '../types/project';
+import projectCardIcon from '../images/icon/ProjectCard.svg';
 
 type ProjectCardProps = {
   project: Project;
@@ -6,14 +7,22 @@ type ProjectCardProps = {
 
 export default function ProjectCard({ project }: ProjectCardProps) {
   return (
-    <div className="flex flex-col items-center">
-      <div className="flex h-[144px] w-[294px] items-center justify-center rounded-[22px] bg-[#d9d9d9]">
-        <span className="text-[25px] font-medium text-black">
+    <article className="flex w-[236px] flex-col items-center">
+      <div className="relative flex h-[114px] w-[236px] items-center justify-center text-[#17100f]">
+        <img
+          src={projectCardIcon}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-contain"
+        />
+        <h3 className="relative z-10 max-w-[68%] text-center text-[15px] font-semibold leading-tight">
           {project.title}
-        </span>
+        </h3>
       </div>
 
-      <span className="mt-3 text-[20px] text-[#777]">{project.date}</span>
-    </div>
+      <time className="mt-2 text-[10px] font-medium text-[#b4aca4]">
+        {project.date}
+      </time>
+    </article>
   );
 }
