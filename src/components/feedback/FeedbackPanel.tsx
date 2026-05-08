@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Actor, Feedback } from '../../types/feedback';
 
 const FEEDBACK_PAGE_SIZE = 15;
+const URGENT_MARK_PATTERN = /!{3,}/;
 
 type FeedbackPanelProps = {
   actors: Actor[];
@@ -23,6 +24,7 @@ type FeedbackPanelProps = {
   onEditSave: (id: number) => void;
   onEditCancel: () => void;
   onDelete: (id: number) => void;
+  onToggleUrgent: (id: number) => void;
 };
 
 export default function FeedbackPanel({
@@ -43,6 +45,7 @@ export default function FeedbackPanel({
   onEditSave,
   onEditCancel,
   onDelete,
+  onToggleUrgent,
 }: FeedbackPanelProps) {
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const feedbackListRef = useRef<HTMLDivElement>(null);
@@ -53,6 +56,7 @@ export default function FeedbackPanel({
     null,
   );
   const [actorRowActive, setActorRowActive] = useState(false);
+  const isUrgentMode = URGENT_MARK_PATTERN.test(content);
   const visibleFeedbacks = feedbacks.slice(
     Math.max(feedbacks.length - visibleCount, 0),
   );
@@ -193,7 +197,10 @@ export default function FeedbackPanel({
           return (
             <div
               key={feedback.id}
-              className="group rounded-2xl bg-white/60 p-3 text-sm text-neutral-700"
+              className={[
+                'group rounded-2xl p-3 text-sm text-neutral-700 transition-colors',
+                feedback.isUrgent ? 'bg-rose-50/70' : 'bg-white/60',
+              ].join(' ')}
             >
               <div className="mb-1 flex items-center gap-2 text-neutral-500">
                 <span>{feedback.timestamp}</span>
@@ -204,41 +211,78 @@ export default function FeedbackPanel({
               </div>
 
               {isEditing ? (
-                <textarea
-                  value={editingContent}
-                  onChange={(e) => onEditContentChange(e.target.value)}
-                  autoFocus
-                  className="min-h-[72px] w-full resize-none rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 outline-none focus:border-neutral-500"
-                />
+                <div className="space-y-2">
+                  {URGENT_MARK_PATTERN.test(editingContent) && (
+                    <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                      긴급
+                    </span>
+                  )}
+                  <textarea
+                    value={editingContent}
+                    onChange={(e) => onEditContentChange(e.target.value)}
+                    autoFocus
+                    className={[
+                      'min-h-[72px] w-full resize-none rounded-xl border px-3 py-2 text-sm text-neutral-700 outline-none focus:border-neutral-500',
+                      URGENT_MARK_PATTERN.test(editingContent)
+                        ? 'border-rose-200 bg-rose-50/70'
+                        : 'border-neutral-300 bg-white',
+                    ].join(' ')}
+                  />
+                </div>
               ) : (
                 <p className="whitespace-pre-wrap">{feedback.content}</p>
               )}
 
-              <div className="mt-2 flex gap-2 text-xs text-neutral-500 opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                {isEditing ? (
-                  <>
-                    <button
-                      onClick={() => onEditSave(feedback.id)}
-                      disabled={!editingContent.trim()}
-                      className="disabled:text-neutral-300"
-                    >
-                      저장
-                    </button>
-                    <button onClick={onEditCancel}>취소</button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={() => onEdit(feedback)}>수정</button>
-                    <button onClick={() => onDelete(feedback.id)}>삭제</button>
-                  </>
-                )}
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="flex gap-2 text-xs text-neutral-500 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={() => onEditSave(feedback.id)}
+                        disabled={!editingContent.trim()}
+                        className="disabled:text-neutral-300"
+                      >
+                        저장
+                      </button>
+                      <button onClick={onEditCancel}>취소</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => onEdit(feedback)}>수정</button>
+                      <button onClick={() => onDelete(feedback.id)}>삭제</button>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onToggleUrgent(feedback.id)}
+                  className={[
+                    'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                    feedback.isUrgent
+                      ? 'border-rose-200 bg-white/70 text-rose-700 hover:bg-white'
+                      : 'border-neutral-300 bg-white/60 text-neutral-400 hover:border-neutral-400 hover:text-neutral-600',
+                  ].join(' ')}
+                  aria-pressed={feedback.isUrgent}
+                  aria-label={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
+                  title={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
+                >
+                  긴급
+                </button>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-4 rounded-2xl border border-neutral-400 bg-neutral-100 p-3">
+      <div
+        className={[
+          'mt-4 rounded-2xl border p-3 transition-colors',
+          isUrgentMode
+            ? 'border-rose-200 bg-rose-50/70'
+            : 'border-neutral-400 bg-neutral-100',
+        ].join(' ')}
+      >
         <div className="mb-2 flex flex-wrap gap-2 text-xs text-neutral-500">
           <button
             type="button"
@@ -247,6 +291,11 @@ export default function FeedbackPanel({
           >
             타임스탬프 {timestamp ?? '00:00'}
           </button>
+          {isUrgentMode && (
+            <span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1 font-semibold text-rose-700">
+              긴급
+            </span>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -304,6 +353,7 @@ export default function FeedbackPanel({
               }}
               className={[
                 'flex min-h-9 flex-wrap items-center gap-2 rounded-t-xl border border-neutral-300 bg-white/60 px-3 py-1.5 text-sm outline-none',
+                isUrgentMode ? 'bg-white/75' : '',
                 actorRowActive ? 'border-neutral-600' : '',
               ].join(' ')}
             >
@@ -441,7 +491,10 @@ export default function FeedbackPanel({
                   : '클릭하거나 Space를 눌러 피드백을 입력하세요'
               }
               readOnly={!timestamp}
-              className="min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none"
+              className={[
+                'min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-neutral-300 px-3 py-2 text-sm outline-none transition-colors',
+                isUrgentMode ? 'bg-rose-50/70' : 'bg-transparent',
+              ].join(' ')}
             />
           </div>
 

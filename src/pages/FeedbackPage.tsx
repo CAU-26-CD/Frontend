@@ -60,6 +60,7 @@ export default function RehearsalFeedbackPage() {
           onEditSave={feedback.handleEditSave}
           onEditCancel={feedback.handleEditCancel}
           onDelete={feedback.handleDelete}
+          onToggleUrgent={feedback.handleToggleUrgent}
         />
       </div>
     </main>

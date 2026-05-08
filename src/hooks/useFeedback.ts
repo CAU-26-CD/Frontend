@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import type { Actor, Feedback } from '../types/feedback';
 
+const URGENT_MARK_PATTERN = /!{3,}/;
+
 export function useFeedback() {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export function useFeedback() {
       timestamp,
       actorIds: selectedActors.map((actor) => actor.id),
       content,
+      isUrgent: URGENT_MARK_PATTERN.test(content),
       aiTags: [],
       analysisStatus: 'idle',
     };
@@ -63,6 +66,7 @@ export function useFeedback() {
           ? {
               ...item,
               content: editingContent,
+              isUrgent: URGENT_MARK_PATTERN.test(editingContent),
               aiTags: [],
               analysisStatus: 'idle',
             }
@@ -79,6 +83,19 @@ export function useFeedback() {
     if (editingId === id) {
       handleEditCancel();
     }
+  };
+
+  const handleToggleUrgent = (id: number) => {
+    setFeedbacks((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              isUrgent: !item.isUrgent,
+            }
+          : item,
+      ),
+    );
   };
 
   return {
@@ -100,5 +117,6 @@ export function useFeedback() {
     handleEditCancel,
     handleEditSave,
     handleDelete,
+    handleToggleUrgent,
   };
 }
