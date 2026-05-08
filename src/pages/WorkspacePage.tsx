@@ -3,12 +3,14 @@ import { projectDummy } from '../data/projectDummy';
 import ProjectCardItem from '../components/ProjectCard';
 import Sidebar from '../components/sidebar/Sidebar';
 
-export default function ProjectPage() {
+export default function WorkspacePage() {
   const inProgressProjects = projectDummy.filter(
     (project) => project.status === 'inProgress',
   );
 
-  const allProjects = projectDummy;
+  const completedProjects = projectDummy.filter(
+    (project) => project.status !== 'inProgress',
+  );
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
@@ -66,7 +68,7 @@ export default function ProjectPage() {
               <section className="px-6 py-5">
                 <div className="mb-5 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-[#bdb6af]">
-                    ALL ({allProjects.length})
+                    ALL ({completedProjects.length})
                   </h2>
 
                   <button className="flex h-7 items-center gap-2 rounded border border-white/25 px-3 text-xs text-[#d6cec6] transition hover:border-white/45 hover:text-white">
@@ -76,7 +78,7 @@ export default function ProjectPage() {
                 </div>
 
                 <div className="grid grid-cols-[repeat(auto-fill,236px)] gap-x-5 gap-y-6">
-                  {allProjects.map((project) => (
+                  {completedProjects.map((project) => (
                     <ProjectCardItem key={project.id} project={project} />
                   ))}
                 </div>

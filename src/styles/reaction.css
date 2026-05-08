@@ -154,3 +154,25 @@
 .reaction-start-button:hover::before {
   transform: translateX(80%) rotate(8deg);
 }
+
+.reaction-project-card::before {
+  position: absolute;
+  inset: -55% -28%;
+  z-index: 1;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgb(255 255 255 / 0%) 35%,
+    rgb(255 255 255 / 32%) 50%,
+    rgb(255 255 255 / 0%) 65%,
+    transparent 100%
+  );
+  content: '';
+  pointer-events: none;
+  transform: translateX(-86%) rotate(8deg);
+  transition: transform 700ms ease;
+}
+
+.group:hover .reaction-project-card::before {
+  transform: translateX(86%) rotate(8deg);
+}

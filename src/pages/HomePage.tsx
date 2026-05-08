@@ -46,7 +46,7 @@ export default function HomePage() {
         </div>
 
         <Link
-          to="/projects"
+          to="/projects/new"
           className="reaction-start-button group relative mb-2 inline-flex h-12 items-center justify-center overflow-hidden rounded-full border border-[#eee7dc]/65 px-10 text-sm font-semibold text-[#f5efe8] transition duration-500 hover:-translate-y-1 hover:border-white hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eee7dc]/70"
         >
           <span className="absolute inset-0 translate-y-full rounded-full bg-[#eee7dc]/15 transition duration-500 group-hover:translate-y-0" />
