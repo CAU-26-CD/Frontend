@@ -86,3 +86,71 @@
   border-color: var(--reaction-wine);
   box-shadow: 0 0 0 2px rgb(111 28 37 / 20%);
 }
+
+.reaction-home-vignette {
+  background:
+    radial-gradient(circle at 50% 12%, rgb(120 35 43 / 34%) 0, transparent 34%),
+    linear-gradient(180deg, rgb(0 0 0 / 8%) 0%, rgb(0 0 0 / 72%) 86%);
+  pointer-events: none;
+}
+
+.reaction-mark {
+  width: 86px;
+  height: 64px;
+  background: var(--reaction-paper);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 22%,
+    48% 22%,
+    48% 36%,
+    100% 62%,
+    100% 100%,
+    0 100%,
+    0 78%,
+    52% 78%,
+    52% 64%,
+    0 38%
+  );
+  filter: drop-shadow(0 12px 24px rgb(0 0 0 / 28%));
+}
+
+.reaction-spotlight {
+  background:
+    radial-gradient(
+      ellipse at 50% 28%,
+      rgb(245 239 232 / 82%) 0%,
+      rgb(214 205 196 / 62%) 20%,
+      rgb(93 76 73 / 32%) 43%,
+      rgb(0 0 0 / 0%) 73%
+    );
+}
+
+.reaction-spotlight::after {
+  position: absolute;
+  inset: auto 10% 0;
+  height: 56%;
+  background: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / 72%) 82%);
+  content: '';
+  pointer-events: none;
+}
+
+.reaction-start-button::before {
+  position: absolute;
+  inset: -55% -28%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgb(255 255 255 / 0%) 35%,
+    rgb(255 255 255 / 34%) 50%,
+    rgb(255 255 255 / 0%) 65%,
+    transparent 100%
+  );
+  content: '';
+  transform: translateX(-80%) rotate(8deg);
+  transition: transform 700ms ease;
+}
+
+.reaction-start-button:hover::before {
+  transform: translateX(80%) rotate(8deg);
+}
