@@ -1,6 +1,7 @@
-import { ChevronDown, Plus, Search, Settings } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { projectDummy } from '../data/projectDummy';
 import ProjectCardItem from '../components/ProjectCard';
+import Sidebar from '../components/sidebar/Sidebar';
 
 export default function ProjectPage() {
   const inProgressProjects = projectDummy.filter(
@@ -14,29 +15,14 @@ export default function ProjectPage() {
       <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
 
       <div className="relative z-10 flex min-h-screen w-full">
-        <aside className="flex w-16 shrink-0 flex-col items-center border-r border-white/15 pt-28">
-          <nav className="flex flex-col items-center gap-4">
-            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/35 text-xs font-semibold text-white">
-              홈
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eee7dc] text-[#2d1715] transition hover:bg-white">
-              <Plus size={22} strokeWidth={2.5} />
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eee7dc] text-[#2d1715] transition hover:bg-white">
-              <Search size={18} strokeWidth={2.5} />
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eee7dc] text-[#2d1715] transition hover:bg-white">
-              <Settings size={18} strokeWidth={2.5} />
-            </button>
-          </nav>
-        </aside>
+        <Sidebar />
 
         <div className="min-w-0 flex-1 px-6 py-8">
           <header className="flex items-start justify-between">
             <div>
               <h1 className="font-serif text-[40px] leading-none">Re:Action</h1>
               <p className="mt-4 text-sm text-[#bcb2aa]">
-                My Projects &gt; 실비아, 샬단
+                My Projects &gt; 실비아, 샬다
               </p>
             </div>
 
