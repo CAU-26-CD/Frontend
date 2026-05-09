@@ -5,6 +5,7 @@ import type { Actor, Feedback } from '../../types/feedback';
 
 const FEEDBACK_PAGE_SIZE = 15;
 const URGENT_MARK_PATTERN = /!{3,}/;
+const MOVEMENT_FEEDBACK_PREFIX = '[동선]';
 
 type FeedbackPanelProps = {
   actors: Actor[];
@@ -193,13 +194,20 @@ export default function FeedbackPanel({
             .map((actorId) => actors.find((actor) => actor.id === actorId)?.name)
             .filter(Boolean)
             .join(', ');
+          const isMovementFeedback = feedback.content.startsWith(
+            MOVEMENT_FEEDBACK_PREFIX,
+          );
 
           return (
             <div
               key={feedback.id}
               className={[
                 'group rounded-2xl p-3 text-sm text-neutral-700 transition-colors',
-                feedback.isUrgent ? 'bg-rose-50/70' : 'bg-white/60',
+                feedback.isUrgent
+                  ? 'bg-rose-50/70'
+                  : isMovementFeedback
+                    ? 'border border-orange-200 bg-orange-50/80'
+                    : 'bg-white/60',
               ].join(' ')}
             >
               <div className="mb-1 flex items-center gap-2 text-neutral-500">
@@ -208,6 +216,11 @@ export default function FeedbackPanel({
                 <span className="font-semibold text-neutral-700">
                   {feedbackActorNames}
                 </span>
+                {isMovementFeedback && (
+                  <span className="rounded-full border border-orange-200 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                    동선
+                  </span>
+                )}
               </div>
 
               {isEditing ? (

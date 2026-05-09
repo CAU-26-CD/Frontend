@@ -34,7 +34,15 @@ export default function RehearsalFeedbackPage() {
     <main className="h-full min-h-0 bg-neutral-100">
       <div className="mx-auto grid h-full min-h-0 max-w-7xl grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-4 lg:grid-cols-[1fr_420px] lg:grid-rows-1">
         <section className="flex min-h-0 flex-col gap-4">
-          <MovementArea />
+          <MovementArea
+            actors={actors}
+            selectedActors={feedback.selectedActors}
+            timestamp={feedback.timestamp}
+            content={feedback.content}
+            onTimestampStart={feedback.handleStartTimestamp}
+            onContentChange={feedback.setContent}
+            onSubmit={feedback.handleSubmit}
+          />
 
           <ActorTagBar
             actors={actors}
