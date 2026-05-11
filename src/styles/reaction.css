@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'against';
+  src: url('../assets/fonts/against%20regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --reaction-bg: #1b0708;
   --reaction-paper: #eee7dc;
@@ -39,19 +47,6 @@
   bottom: -210px;
 }
 
-.reaction-top-light {
-  width: min(424px, 68vw);
-  height: min(270px, 42vw);
-  border-radius: 212px 212px 100px 100px;
-  background: linear-gradient(
-    180deg,
-    rgb(255 250 229 / 56%) 0%,
-    rgb(153 152 135 / 6%) 67.96%
-  );
-  filter: blur(50px);
-  pointer-events: none;
-}
-
 .reaction-panel-ticket {
   background: var(--reaction-paper);
   clip-path: polygon(
@@ -89,50 +84,110 @@
 
 .reaction-home-vignette {
   background:
-    radial-gradient(circle at 50% 12%, rgb(120 35 43 / 34%) 0, transparent 34%),
-    linear-gradient(180deg, rgb(0 0 0 / 8%) 0%, rgb(0 0 0 / 72%) 86%);
+    radial-gradient(circle at 50% 16%, rgb(123 35 44 / 30%) 0, transparent 32%),
+    linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 56%) 86%);
   pointer-events: none;
 }
 
-.reaction-mark {
-  width: 86px;
-  height: 64px;
-  background: var(--reaction-paper);
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% 22%,
-    48% 22%,
-    48% 36%,
-    100% 62%,
-    100% 100%,
-    0 100%,
-    0 78%,
-    52% 78%,
-    52% 64%,
-    0 38%
-  );
-  filter: drop-shadow(0 12px 24px rgb(0 0 0 / 28%));
+.reaction-logo-font {
+  font-family: against, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
-.reaction-spotlight {
-  background:
-    radial-gradient(
-      ellipse at 50% 28%,
-      rgb(245 239 232 / 82%) 0%,
-      rgb(214 205 196 / 62%) 20%,
-      rgb(93 76 73 / 32%) 43%,
-      rgb(0 0 0 / 0%) 73%
-    );
+.reaction-subtitle {
+  font-family:
+    'Pretendard Variable',
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    sans-serif;
+  letter-spacing: 0;
 }
 
-.reaction-spotlight::after {
+.reaction-value {
+  cursor: default;
+  isolation: isolate;
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-value::before {
   position: absolute;
-  inset: auto 10% 0;
-  height: 56%;
-  background: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / 72%) 82%);
+  top: 42px;
+  left: 50%;
+  z-index: 1;
+  width: 88px;
+  height: 42px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgb(255 248 238 / 34%) 0%,
+    rgb(255 248 238 / 12%) 46%,
+    transparent 76%
+  );
   content: '';
+  opacity: 0;
   pointer-events: none;
+  transform: translateX(-50%) scale(0.72);
+  transition:
+    opacity 520ms ease,
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-value-light {
+  opacity: 0.72;
+  filter: brightness(0.92) saturate(0.92);
+  transform: translateX(-50%) translateY(8px) scale(0.94);
+  transition:
+    opacity 620ms ease,
+    filter 620ms ease,
+    transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-value-text {
+  text-shadow: 0 4px 18px rgb(0 0 0 / 48%);
+  transition:
+    color 420ms ease,
+    text-shadow 420ms ease,
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-value-grid:hover .reaction-value:not(:hover) .reaction-value-light {
+  opacity: 0.5;
+}
+
+.reaction-value:hover {
+  transform: translateY(-5px);
+}
+
+.reaction-value:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.reaction-value:hover .reaction-value-light {
+  opacity: 1;
+  filter: brightness(1.28) saturate(1.05)
+    drop-shadow(0 0 20px rgb(239 230 222 / 28%));
+  transform: translateX(-50%) translateY(-4px) scale(1.04);
+}
+
+.reaction-value:hover .reaction-value-text {
+  color: #fffaf2;
+  text-shadow:
+    0 0 14px rgb(255 247 236 / 42%),
+    0 6px 22px rgb(0 0 0 / 58%);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reaction-value,
+  .reaction-value::before,
+  .reaction-value-light,
+  .reaction-value-text {
+    transition: none;
+  }
 }
 
 .reaction-start-button::before {
