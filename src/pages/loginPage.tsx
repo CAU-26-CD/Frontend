@@ -4,6 +4,11 @@ import { Eye, EyeOff } from 'lucide-react';
 import { postLogin } from '../apis/auth';
 import loginCard from '../images/icon/loginCard.svg';
 
+type LoginValidationErrors = {
+  email?: string;
+  password?: string;
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -11,10 +16,29 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [validationErrors, setValidationErrors] =
+    useState<LoginValidationErrors>({});
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
+
+    const nextValidationErrors: LoginValidationErrors = {};
+
+    if (!email.trim()) {
+      nextValidationErrors.email = '아이디를 입력하세요';
+    }
+
+    if (!password.trim()) {
+      nextValidationErrors.password = '비밀번호를 입력하세요';
+    }
+
+    if (Object.keys(nextValidationErrors).length > 0) {
+      setValidationErrors(nextValidationErrors);
+      return;
+    }
+
+    setValidationErrors({});
     setIsSubmitting(true);
 
     try {
@@ -48,6 +72,7 @@ export default function LoginPage() {
 
         <form
           onSubmit={handleSubmit}
+          noValidate
           className="reaction-login-card relative mx-auto h-[303px] w-full max-w-[362px] px-[34px] pb-12 pt-[50px] text-[#2d1715]"
         >
           <img
@@ -68,12 +93,31 @@ export default function LoginPage() {
             <input
               id="login-id"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="reaction-login-input h-[35px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setValidationErrors((current) => ({
+                  ...current,
+                  email: undefined,
+                }));
+              }}
+              className={`reaction-login-input h-[35px] w-full rounded-full border bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition ${
+                validationErrors.email ? '!border-[#9f1f2d]' : 'border-white/85'
+              }`}
               placeholder="아이디를 입력해주세요"
               autoComplete="username"
-              required
+              aria-invalid={Boolean(validationErrors.email)}
+              aria-describedby={
+                validationErrors.email ? 'login-id-error' : undefined
+              }
             />
+            {validationErrors.email && (
+              <p
+                id="login-id-error"
+                className="reaction-ui-font -mt-[5px] pl-3 text-[10px] font-semibold text-[#9f1f2d]"
+              >
+                {validationErrors.email}
+              </p>
+            )}
 
             <div className="relative">
               <label className="sr-only" htmlFor="login-password">
@@ -82,12 +126,25 @@ export default function LoginPage() {
               <input
                 id="login-password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="reaction-login-input h-[35px] w-full rounded-full border border-white/100 bg-transparent px-10 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setValidationErrors((current) => ({
+                    ...current,
+                    password: undefined,
+                  }));
+                }}
+                className={`reaction-login-input h-[35px] w-full rounded-full border bg-transparent px-10 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition ${
+                  validationErrors.password
+                    ? '!border-[#9f1f2d]'
+                    : 'border-white/100'
+                }`}
                 placeholder="비밀번호를 입력해주세요"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
-                required
+                aria-invalid={Boolean(validationErrors.password)}
+                aria-describedby={
+                  validationErrors.password ? 'login-password-error' : undefined
+                }
               />
               <button
                 type="button"
@@ -98,6 +155,14 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            {validationErrors.password && (
+              <p
+                id="login-password-error"
+                className="reaction-ui-font -mt-[5px] pl-3 text-[10px] font-semibold text-[#9f1f2d]"
+              >
+                {validationErrors.password}
+              </p>
+            )}
 
             <button
               type="submit"
