@@ -14,5 +14,5 @@ export interface JoinProjectForm {
 export interface CreateProjectForm {
   name: string;
   description: string;
-  memo: string;
+  joinCode: string;
 }

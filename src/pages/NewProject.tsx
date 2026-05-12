@@ -1,5 +1,7 @@
-import { ArrowRight } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import DesignedHeader from '../components/sidebar/DesignedHeader';
+import createProjectCard from '../images/icon/create-project-card.svg';
+import loginCard from '../images/icon/loginCard.svg';
 import type { CreateProjectForm, JoinProjectForm } from '../types/project';
 
 const initialJoinForm: JoinProjectForm = {
@@ -9,7 +11,7 @@ const initialJoinForm: JoinProjectForm = {
 const initialCreateForm: CreateProjectForm = {
   name: '',
   description: '',
-  memo: '',
+  joinCode: '',
 };
 
 export default function NewProject() {
@@ -29,30 +31,27 @@ export default function NewProject() {
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
-      <div className="reaction-top-light absolute right-14 top-[-72px] z-0" />
+      <DesignedHeader />
 
-      <header className="relative z-10 flex h-20 items-center justify-end gap-8 px-8 text-sm md:px-12">
-        <p>
-          Hi, <span className="font-bold">JIWON</span>
-        </p>
-        <button className="underline underline-offset-2 transition hover:text-white">
-          logout
-        </button>
-      </header>
-
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-5xl flex-col items-center justify-center gap-12 px-8 pb-16 md:flex-row md:gap-20">
+      <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center gap-12 px-8 pb-16 pt-[118px] md:flex-row md:gap-24">
         <form
           onSubmit={handleJoinSubmit}
-          className="reaction-panel-ticket reaction-panel-shadow flex h-[430px] w-full max-w-[300px] flex-col px-9 py-8 text-center text-[#17100f]"
+          noValidate
+          className="reaction-login-card relative flex h-[303px] w-full max-w-[362px] flex-col px-[34px] pb-[30px] pt-[55px] text-center text-[#17100f]"
         >
-          <p className="text-lg">already created</p>
+          <img
+            src={loginCard}
+            alt=""
+            className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+            aria-hidden="true"
+          />
 
-          <h1 className="mt-16 font-serif text-[34px] leading-[1.05]">
+          <h1 className="reaction-logo-font relative z-10 text-[31px] leading-[0.98] text-[#1d1513]">
             ENTER
-            <span className="block">JOIN CODE</span>
+            <span className="mt-2 block">JOIN CODE</span>
           </h1>
 
-          <div className="mt-auto flex items-center gap-4 pb-1">
+          <div className="relative z-10 mt-auto space-y-[10px]">
             <label className="sr-only" htmlFor="join-code">
               Join code
             </label>
@@ -62,30 +61,37 @@ export default function NewProject() {
               onChange={(event) =>
                 setJoinForm({ code: event.target.value.toUpperCase() })
               }
-              className="h-10 min-w-0 flex-1 border-0 border-b-2 border-[#17100f] bg-transparent text-center font-serif text-2xl tracking-[0.45em] outline-none"
+              className="reaction-login-input h-[40px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+              placeholder="코드를 입력해 주세요"
               maxLength={4}
-              required
             />
             <button
               type="submit"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#b9bab6] text-[#5b5d5c] transition hover:bg-[#d2d2cf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
-              aria-label="Enter join code"
+              className="reaction-ui-font h-[40px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35"
             >
-              <ArrowRight size={20} strokeWidth={2.4} />
+              JOIN
             </button>
           </div>
         </form>
 
         <form
           onSubmit={handleCreateSubmit}
-          className="reaction-panel-ticket reaction-panel-shadow flex h-[430px] w-full max-w-[300px] flex-col px-9 py-7 text-[#17100f]"
+          noValidate
+          className="reaction-login-card relative flex h-[547px] w-full max-w-[380px] flex-col px-[45px] pb-[64px] pt-[76px] text-[#17100f]"
         >
-          <h2 className="text-center font-serif text-[31px] leading-[0.98]">
+          <img
+            src={createProjectCard}
+            alt=""
+            className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+            aria-hidden="true"
+          />
+
+          <h2 className="reaction-logo-font relative z-10 text-center text-[37px] leading-[0.88] text-[#1d1513]">
             CREATE
-            <span className="block text-[26px]">NEW Project</span>
+            <span className="mt-2 block text-[31px]">NEW Project</span>
           </h2>
 
-          <div className="mt-10 space-y-3">
+          <div className="relative z-10 mt-[92px] space-y-[10px]">
             <label className="sr-only" htmlFor="project-name">
               Name
             </label>
@@ -98,10 +104,9 @@ export default function NewProject() {
                   name: event.target.value,
                 }))
               }
-              className="reaction-input h-10 w-full rounded-xl border px-4 text-sm font-semibold outline-none transition"
-              placeholder="NAME (영/한 15자 내외)"
+              className="reaction-login-input h-[40px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+              placeholder="이름 (영/한 15자 내외)"
               maxLength={15}
-              required
             />
 
             <label className="sr-only" htmlFor="project-description">
@@ -116,32 +121,32 @@ export default function NewProject() {
                   description: event.target.value,
                 }))
               }
-              className="reaction-input h-10 w-full rounded-xl border px-4 text-sm font-semibold outline-none transition"
+              className="reaction-login-input h-[40px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
               placeholder="소속 및 설명 (20자 내외)"
               maxLength={20}
-              required
             />
 
-            <label className="sr-only" htmlFor="project-memo">
-              Memo
+            <label className="sr-only" htmlFor="project-join-code">
+              Join code
             </label>
             <input
-              id="project-memo"
-              value={createForm.memo}
+              id="project-join-code"
+              value={createForm.joinCode}
               onChange={(event) =>
                 setCreateForm((form) => ({
                   ...form,
-                  memo: event.target.value,
+                  joinCode: event.target.value.toUpperCase(),
                 }))
               }
-              className="reaction-input h-10 w-full rounded-xl border px-4 text-sm outline-none transition"
-              maxLength={30}
+              className="reaction-login-input h-[40px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+              placeholder="join code 생성"
+              maxLength={4}
             />
           </div>
 
           <button
             type="submit"
-            className="mt-auto pb-1 text-center font-serif text-[31px] font-semibold transition hover:text-[#6f1c25] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
+            className="reaction-ui-font relative z-10 mt-auto h-[40px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35"
           >
             CREATE
           </button>
