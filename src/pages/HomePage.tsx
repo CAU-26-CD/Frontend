@@ -23,7 +23,7 @@ export default function HomePage() {
         >
           Contact
         </a>
-        <Link to="/projects/new" className="transition hover:text-white">
+        <Link to="/project/new" className="transition hover:text-white">
           Sign up
         </Link>
         <Link to="/login" className="transition hover:text-white">

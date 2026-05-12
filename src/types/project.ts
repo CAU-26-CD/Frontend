@@ -5,6 +5,8 @@ export interface Project {
   title: string;
   date: string;
   status: ProjectStatus;
+  description?: string;
+  liked?: boolean;
 }
 
 export interface JoinProjectForm {

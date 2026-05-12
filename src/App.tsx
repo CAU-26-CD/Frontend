@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout';
 import FeedbackPage from './pages/FeedbackPage';
 import LoginPage from './pages/loginPage';
 import NewProject from './pages/NewProject';
+import ProjectPage from './pages/ProjectPage';
 import WorkspacePage from './pages/WorkspacePage';
 import HomePage from './pages/HomePage';
 
@@ -11,12 +12,13 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<HomePage />} />
-      <Route path="/projects/new" element={<NewProject />} />
-      <Route path="/projects" element={<WorkspacePage />} />
+      <Route path="/projects" element={<ProjectPage />} />
+      <Route path="/project/new" element={<NewProject />} />
+      <Route path="/workspace/:projectId" element={<WorkspacePage />} />
       <Route element={<MainLayout />}>
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route
-          path="/projects/:projectId/feedback"
+          path="/workspace/:projectId/feedback"
           element={<FeedbackPage />}
         />
       </Route>

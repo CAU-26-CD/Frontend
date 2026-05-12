@@ -48,7 +48,7 @@ export default function LoginPage() {
         localStorage.setItem('accessToken', response.accessToken);
       }
 
-      navigate('/projects');
+      navigate('/project');
     } catch (error) {
       console.error('로그인 실패:', error);
       setErrorMessage('ID 또는 비밀번호를 확인해 주세요.');

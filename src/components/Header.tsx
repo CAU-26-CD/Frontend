@@ -28,7 +28,7 @@ const Header = () => {
               Home
             </a>
             <a
-              href="/projects"
+              href="/project"
               className="text-sm font-medium text-gray-700 hover:text-black"
             >
               Projects
