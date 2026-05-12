@@ -15,7 +15,10 @@ function App() {
       <Route path="/projects" element={<WorkspacePage />} />
       <Route element={<MainLayout />}>
         <Route path="/feedback" element={<FeedbackPage />} />
-        <Route path="/projects/:projectId/feedback" element={<FeedbackPage />} />
+        <Route
+          path="/projects/:projectId/feedback"
+          element={<FeedbackPage />}
+        />
       </Route>
     </Routes>
   );

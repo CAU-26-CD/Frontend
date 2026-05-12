@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { postLogin } from '../apis/auth';
+import loginCard from '../images/icon/loginCard.svg';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -8,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -31,12 +34,13 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
-      <div className="reaction-top-light absolute left-1/2 top-[-48px] z-0 -translate-x-1/2" />
+    <main className="reaction-bg reaction-login-page relative min-h-screen overflow-hidden text-[#eee7dc]">
+      <div className="reaction-login-glow absolute left-1/2 top-[-24px] z-0 -translate-x-1/2" />
+      <div className="reaction-home-vignette absolute inset-0 z-0" />
 
-      <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-6xl items-center gap-12 px-8 py-12 md:grid-cols-[1fr_420px] md:px-14">
-        <div className="select-none">
-          <h1 className="font-serif text-[clamp(4.4rem,12vw,9.5rem)] leading-[0.82] tracking-normal text-[#f2eadf] drop-shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+      <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-[1040px] items-center gap-12 px-8 py-12 md:grid-cols-[1fr_370px] md:px-14">
+        <div className="select-none justify-self-center md:justify-self-start">
+          <h1 className="reaction-logo-font text-[clamp(5.2rem,13vw,9.6rem)] leading-[0.78] text-[#f5eee4] drop-shadow-[0_18px_42px_rgba(0,0,0,0.46)]">
             Re:
             <span className="mt-5 block text-[0.56em]">Action</span>
           </h1>
@@ -44,27 +48,34 @@ export default function LoginPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="reaction-panel-ticket reaction-panel-shadow relative mx-auto w-full max-w-[350px] px-5 pb-7 pt-4 text-[#2d1715]"
+          className="reaction-login-card relative mx-auto h-[303px] w-full max-w-[362px] px-[34px] pb-12 pt-[50px] text-[#2d1715]"
         >
-          <h2 className="mb-4 text-center font-serif text-xl font-semibold">
+          <img
+            src={loginCard}
+            alt=""
+            className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+            aria-hidden="true"
+          />
+
+          <h2 className="reaction-logo-font relative z-10 mb-8 text-center text-[31px] leading-none text-[#1d1513]">
             LOGIN
           </h2>
 
-          <div className="grid grid-cols-[1fr_70px] gap-3">
-            <div className="space-y-2">
-              <label className="sr-only" htmlFor="login-id">
-                ID
-              </label>
-              <input
-                id="login-id"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="reaction-input h-10 w-full rounded-md border px-4 text-center font-serif text-sm outline-none transition"
-                placeholder="ID"
-                autoComplete="username"
-                required
-              />
+          <div className="relative z-10 space-y-[10px]">
+            <label className="sr-only" htmlFor="login-id">
+              ID
+            </label>
+            <input
+              id="login-id"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="reaction-login-input h-[35px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+              placeholder="아이디를 입력해주세요"
+              autoComplete="username"
+              required
+            />
 
+            <div className="relative">
               <label className="sr-only" htmlFor="login-password">
                 Password
               </label>
@@ -72,36 +83,57 @@ export default function LoginPage() {
                 id="login-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="reaction-input h-10 w-full rounded-md border px-4 text-center font-serif text-sm outline-none transition"
-                placeholder="PASSWORD"
-                type="password"
+                className="reaction-login-input h-[35px] w-full rounded-full border border-white/100 bg-transparent px-10 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
+                placeholder="비밀번호를 입력해주세요"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="absolute right-4 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-[#2d1715] transition hover:text-[#6f1c25] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="reaction-input h-full min-h-22 rounded-md border font-serif text-xs font-semibold transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Login"
+              className="reaction-ui-font h-[35px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35 disabled:cursor-not-allowed disabled:opacity-65"
             >
-              {isSubmitting ? '...' : ''}
+              {isSubmitting ? '로그인 중' : '로그인'}
             </button>
           </div>
 
-          {errorMessage && (
-            <p className="mt-3 text-center text-xs font-medium text-[#7a1d24]">
-              {errorMessage}
-            </p>
-          )}
+          <p className="reaction-ui-font relative z-10 mt-2 min-h-[14px] text-center text-[10px] font-semibold text-[#7a1d24]">
+            {isSubmitting ? '로그인 중입니다.' : errorMessage}
+          </p>
 
-          <button
-            type="button"
-            className="mt-7 h-10 w-full font-serif text-base font-semibold text-[#17100f] transition hover:text-[#6f1c25] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
-          >
-            SIGN UP
-          </button>
+          <div className="reaction-ui-font relative z-10 mt-[6px] flex items-center justify-center gap-3 text-[10px] font-medium text-[#2d1715]/70">
+            <button
+              type="button"
+              className="transition hover:text-[#6f1c25] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
+            >
+              아이디 찾기
+            </button>
+            <span className="h-[9px] w-px bg-[#2d1715]/35" />
+            <button
+              type="button"
+              className="transition hover:text-[#6f1c25] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
+            >
+              비밀번호 찾기
+            </button>
+            <span className="h-[9px] w-px bg-[#2d1715]/35" />
+            <button
+              type="button"
+              className="transition hover:text-[#6f1c25] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/30"
+            >
+              회원가입
+            </button>
+          </div>
         </form>
       </section>
     </main>
