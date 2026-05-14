@@ -1,10 +1,17 @@
 import { ChevronDown } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { projectDummy } from '../data/projectDummy';
 import ProjectCardItem from '../components/ProjectCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 
 export default function WorkspacePage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const selectedProject = projectDummy.find(
+    (project) => project.id === Number(projectId),
+  );
+  const projectTitle = selectedProject?.title ?? 'Unknown Project';
+
   const inProgressProjects = projectDummy.filter(
     (project) => project.status === 'inProgress',
   );
@@ -22,6 +29,10 @@ export default function WorkspacePage() {
         <Sidebar />
 
         <div className="min-w-0 flex-1 px-3 pb-8 pt-[clamp(132px,18vh,174px)] sm:px-5 lg:px-8">
+          <p className="reaction-ui-font px-2 text-xs font-semibold text-[#bcb2aa] sm:px-4 md:px-6">
+            My Projects / {projectTitle}
+          </p>
+
           <div className="grid min-h-[calc(100vh-clamp(164px,22vh,212px))] grid-cols-1 gap-y-6 md:grid-cols-[minmax(104px,12vw)_minmax(0,1fr)]">
             <aside className="px-2 py-3 sm:px-4 md:py-5">
               <h2 className="mb-2 text-xs font-bold underline underline-offset-4">

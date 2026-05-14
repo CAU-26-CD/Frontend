@@ -9,8 +9,8 @@ type ProjectCardProps = {
 export default function ProjectCard({ project }: ProjectCardProps) {
   const projectPath =
     project.status === 'inProgress'
-      ? `/workspace/${project.id}/feedback`
-      : `/workspace/${project.id}`;
+      ? `/project/${project.id}/feedback`
+      : `/project/${project.id}`;
   const statusLabel =
     project.status === 'inProgress' ? '피드백 작성으로 이동' : '리포트 준비 중';
 

@@ -14,13 +14,10 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/projects" element={<ProjectPage />} />
       <Route path="/project/new" element={<NewProject />} />
-      <Route path="/workspace/:projectId" element={<WorkspacePage />} />
+      <Route path="/project/:projectId" element={<WorkspacePage />} />
       <Route element={<MainLayout />}>
         <Route path="/feedback" element={<FeedbackPage />} />
-        <Route
-          path="/workspace/:projectId/feedback"
-          element={<FeedbackPage />}
-        />
+        <Route path="/project/:projectId/feedback" element={<FeedbackPage />} />
       </Route>
     </Routes>
   );
