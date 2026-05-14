@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { projectDummy } from '../data/projectDummy';
 import ProjectCardItem from '../components/ProjectCard';
 import Sidebar from '../components/sidebar/Sidebar';
+import DesignedHeader from '../components/sidebar/DesignedHeader';
 
 export default function WorkspacePage() {
   const inProgressProjects = projectDummy.filter(
@@ -14,31 +15,14 @@ export default function WorkspacePage() {
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
+      <DesignedHeader align="left" />
       <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
 
       <div className="relative z-10 flex min-h-screen w-full">
         <Sidebar />
 
-        <div className="min-w-0 flex-1 px-6 py-8">
-          <header className="flex items-start justify-between">
-            <div>
-              <h1 className="font-serif text-[40px] leading-none">Re:Action</h1>
-              <p className="mt-4 text-sm text-[#bcb2aa]">
-                My Projects &gt; 실비아, 샬다
-              </p>
-            </div>
-
-            <div className="flex items-center gap-8 pt-2 text-sm">
-              <p>
-                Hi, <span className="font-bold">JIWON</span>
-              </p>
-              <button className="underline underline-offset-2 transition hover:text-white">
-                logout
-              </button>
-            </div>
-          </header>
-
-          <div className="mt-5 grid min-h-[calc(100vh-9.5rem)] grid-cols-[136px_minmax(0,1fr)] border-t border-white/15">
+        <div className="min-w-0 flex-1 px-6 pb-8 pt-[154px]">
+          <div className="grid min-h-[calc(100vh-11.625rem)] grid-cols-[136px_minmax(0,1fr)] border-t border-white/15">
             <aside className="border-r border-white/15 px-5 py-5">
               <h2 className="mb-2 text-xs font-bold underline underline-offset-4">
                 CATEGORY
