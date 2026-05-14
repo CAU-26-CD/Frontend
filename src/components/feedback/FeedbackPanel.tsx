@@ -176,14 +176,14 @@ export default function FeedbackPanel({
   }, [openActorCommand]);
 
   return (
-    <aside className="flex h-full min-h-0 flex-col rounded-3xl bg-neutral-200 p-5">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/42 bg-[#efe6de]/58 p-5 text-[#2d1715] shadow-[inset_0_1px_0_rgba(255,255,255,0.76),inset_0_18px_42px_rgba(255,248,239,0.28),inset_0_-28px_56px_rgba(67,27,27,0.16),0_28px_70px_rgba(0,0,0,0.24)] backdrop-blur-xl backdrop-saturate-150">
       <div
         ref={feedbackListRef}
         onScroll={handleFeedbackScroll}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
       >
         {visibleCount < feedbacks.length && (
-          <div className="py-1 text-center text-xs text-neutral-500">
+          <div className="py-1 text-center text-xs text-[#806b61]">
             위로 스크롤하면 이전 피드백을 불러옵니다
           </div>
         )}
@@ -202,22 +202,22 @@ export default function FeedbackPanel({
             <div
               key={feedback.id}
               className={[
-                'group rounded-2xl p-3 text-sm text-neutral-700 transition-colors',
+                'group rounded-xl border p-3 text-sm text-[#2d1715] transition-colors',
                 feedback.isUrgent
-                  ? 'bg-rose-50/70'
+                  ? 'border-[#ffd0d0]/72 bg-[#ff6f6f]/26 shadow-[inset_0_1px_0_rgba(255,255,255,0.74),inset_0_0_28px_rgba(255,255,255,0.16),0_0_22px_rgba(255,105,105,0.20),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150'
                   : isMovementFeedback
-                    ? 'border border-orange-200 bg-orange-50/80'
-                    : 'bg-white/60',
+                    ? 'border-[#ffe7cf]/66 bg-[#f4b36f]/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_0_28px_rgba(255,255,255,0.14),0_0_20px_rgba(244,179,111,0.16),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150'
+                    : 'border-white/48 bg-white/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.74),inset_0_0_26px_rgba(255,255,255,0.14),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150',
               ].join(' ')}
             >
-              <div className="mb-1 flex items-center gap-2 text-neutral-500">
+              <div className="mb-1 flex items-center gap-2 text-[#806b61]">
                 <span>{feedback.timestamp}</span>
                 <span>|</span>
-                <span className="font-semibold text-neutral-700">
+                <span className="font-semibold text-[#2d1715]">
                   {feedbackActorNames}
                 </span>
                 {isMovementFeedback && (
-                  <span className="rounded-full border border-orange-200 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                  <span className="rounded-full border border-[#c59b74] bg-[#fff8ef]/75 px-2 py-0.5 text-[10px] font-semibold text-[#8a4734]">
                     동선
                   </span>
                 )}
@@ -226,7 +226,7 @@ export default function FeedbackPanel({
               {isEditing ? (
                 <div className="space-y-2">
                   {URGENT_MARK_PATTERN.test(editingContent) && (
-                    <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                    <span className="inline-flex rounded-full border border-[#ffb4b4]/70 bg-[#b71c1c]/86 px-2 py-0.5 text-[10px] font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_6px_14px_rgba(126,20,20,0.24)] backdrop-blur-md">
                       긴급
                     </span>
                   )}
@@ -235,10 +235,10 @@ export default function FeedbackPanel({
                     onChange={(e) => onEditContentChange(e.target.value)}
                     autoFocus
                     className={[
-                      'min-h-[72px] w-full resize-none rounded-xl border px-3 py-2 text-sm text-neutral-700 outline-none focus:border-neutral-500',
+                      'min-h-[72px] w-full resize-none rounded-xl border px-3 py-2 text-sm text-[#2d1715] outline-none transition focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15',
                       URGENT_MARK_PATTERN.test(editingContent)
-                        ? 'border-rose-200 bg-rose-50/70'
-                        : 'border-neutral-300 bg-white',
+                        ? 'border-[#ffd0d0]/72 bg-[#ff6f6f]/24 backdrop-blur-lg'
+                        : 'border-white/42 bg-white/24 backdrop-blur-lg',
                     ].join(' ')}
                   />
                 </div>
@@ -247,22 +247,37 @@ export default function FeedbackPanel({
               )}
 
               <div className="mt-2 flex items-end justify-between gap-3">
-                <div className="flex gap-2 text-xs text-neutral-500 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                <div className="flex gap-2 text-xs font-semibold text-[#806b61] opacity-100 md:opacity-0 md:group-hover:opacity-100">
                   {isEditing ? (
                     <>
                       <button
                         onClick={() => onEditSave(feedback.id)}
                         disabled={!editingContent.trim()}
-                        className="disabled:text-neutral-300"
+                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
                       >
                         저장
                       </button>
-                      <button onClick={onEditCancel}>취소</button>
+                      <button
+                        onClick={onEditCancel}
+                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B]"
+                      >
+                        취소
+                      </button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => onEdit(feedback)}>수정</button>
-                      <button onClick={() => onDelete(feedback.id)}>삭제</button>
+                      <button
+                        onClick={() => onEdit(feedback)}
+                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B]"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => onDelete(feedback.id)}
+                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B]"
+                      >
+                        삭제
+                      </button>
                     </>
                   )}
                 </div>
@@ -273,8 +288,8 @@ export default function FeedbackPanel({
                   className={[
                     'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
                     feedback.isUrgent
-                      ? 'border-rose-200 bg-white/70 text-rose-700 hover:bg-white'
-                      : 'border-neutral-300 bg-white/60 text-neutral-400 hover:border-neutral-400 hover:text-neutral-600',
+                      ? 'border-[#ffb4b4]/72 bg-[#b71c1c]/88 text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.26),inset_0_-8px_16px_rgba(76,0,0,0.20),0_6px_16px_rgba(126,20,20,0.28)] backdrop-blur-lg hover:bg-[#a81414]/92'
+                      : 'border-white/34 bg-white/18 text-[#806b61] shadow-[inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-8px_16px_rgba(67,27,27,0.08)] backdrop-blur-lg hover:border-white/50 hover:bg-white/30 hover:text-[#431B1B]',
                   ].join(' ')}
                   aria-pressed={feedback.isUrgent}
                   aria-label={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
@@ -290,22 +305,22 @@ export default function FeedbackPanel({
 
       <div
         className={[
-          'mt-4 rounded-2xl border p-3 transition-colors',
+          'mt-4 rounded-xl border p-3 transition-colors',
           isUrgentMode
-            ? 'border-rose-200 bg-rose-50/70'
-            : 'border-neutral-400 bg-neutral-100',
+            ? 'border-[#ffb4b4]/70 bg-[#ffd6d6]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),inset_0_-12px_24px_rgba(123,20,20,0.16),0_8px_20px_rgba(126,20,20,0.14)] backdrop-blur-sm'
+            : 'border-white/42 bg-[#fff8ef]/52 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-12px_24px_rgba(67,27,27,0.08)] backdrop-blur-sm',
         ].join(' ')}
       >
-        <div className="mb-2 flex flex-wrap gap-2 text-xs text-neutral-500">
+        <div className="mb-2 flex flex-wrap gap-2 text-xs text-[#806b61]">
           <button
             type="button"
             onClick={onTimestampStart}
-            className="rounded-full bg-white px-3 py-1"
+            className="rounded-full border border-white/38 bg-white/22 px-3 py-1 font-semibold text-[#2d1715] shadow-[inset_0_1px_0_rgba(255,255,255,0.68),inset_0_-8px_16px_rgba(67,27,27,0.08),0_8px_18px_rgba(67,27,27,0.10)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
           >
             타임스탬프 {timestamp ?? '00:00'}
           </button>
           {isUrgentMode && (
-            <span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1 font-semibold text-rose-700">
+            <span className="rounded-full border border-[#ffb4b4]/72 bg-[#b71c1c]/88 px-3 py-1 font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.26),inset_0_-8px_16px_rgba(76,0,0,0.20),0_6px_16px_rgba(126,20,20,0.28)] backdrop-blur-lg">
               긴급
             </span>
           )}
@@ -314,8 +329,8 @@ export default function FeedbackPanel({
         <div className="flex gap-2">
           <div className="relative flex-1">
             {actorMenuOpen && (
-              <div className="absolute bottom-full left-0 z-10 mb-2 w-64 overflow-hidden rounded-xl border border-neutral-200 bg-white text-sm shadow-lg">
-                <div className="border-b border-neutral-100 px-3 py-2 text-xs font-medium text-neutral-500">
+              <div className="absolute bottom-full left-0 z-10 mb-2 w-64 overflow-hidden rounded-xl border border-[#c8b7aa] bg-[#fff8ef] text-sm shadow-lg">
+                <div className="border-b border-[#e2d5cb] px-3 py-2 text-xs font-semibold text-[#806b61]">
                   배우 선택
                 </div>
 
@@ -330,17 +345,17 @@ export default function FeedbackPanel({
                         closeActorMenu();
                         contentTextareaRef.current?.focus();
                       }}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-neutral-700 hover:bg-neutral-100"
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-[#2d1715] hover:bg-[#eadbd0]"
                     >
                       <span className="font-medium">{actor.name}</span>
-                      <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
+                      <span className="rounded-full bg-[#efe6de] px-2 py-0.5 text-xs text-[#806b61]">
                         {actor.shortcut}
                       </span>
                     </button>
                   ))}
                 </div>
 
-                <div className="border-t border-neutral-100 px-3 py-2 text-xs text-neutral-400">
+                <div className="border-t border-[#e2d5cb] px-3 py-2 text-xs text-[#9b8a80]">
                   Space로 닫고 "/ " 입력
                 </div>
               </div>
@@ -365,22 +380,22 @@ export default function FeedbackPanel({
                 }
               }}
               className={[
-                'flex min-h-9 flex-wrap items-center gap-2 rounded-t-xl border border-neutral-300 bg-white/60 px-3 py-1.5 text-sm outline-none',
-                isUrgentMode ? 'bg-white/75' : '',
-                actorRowActive ? 'border-neutral-600' : '',
+                'flex min-h-9 flex-wrap items-center gap-2 rounded-t-xl border border-white/36 bg-white/22 px-3 py-1.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] outline-none backdrop-blur-lg transition',
+                isUrgentMode ? 'border-[#d94141]/70 bg-[#ffd6d6]/56' : '',
+                actorRowActive ? 'border-[#431B1B] ring-2 ring-[#431B1B]/15' : '',
               ].join(' ')}
             >
               {selectedActors.length > 0 ? (
                 selectedActors.map((actor) => (
                   <span
                     key={actor.id}
-                    className="rounded-full bg-neutral-800 px-3 py-1 text-xs font-medium text-white"
+                    className="rounded-full border border-white/20 bg-[#431B1B]/76 px-3 py-1 text-xs font-medium text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),inset_0_-8px_14px_rgba(0,0,0,0.16)] backdrop-blur-md"
                   >
                     {actor.name}
                   </span>
                 ))
               ) : (
-                <span className="text-xs text-neutral-400">
+                <span className="text-xs text-[#9b8a80]">
                   /번호로 배우를 선택하세요
                 </span>
               )}
@@ -505,8 +520,8 @@ export default function FeedbackPanel({
               }
               readOnly={!timestamp}
               className={[
-                'min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-neutral-300 px-3 py-2 text-sm outline-none transition-colors',
-                isUrgentMode ? 'bg-rose-50/70' : 'bg-transparent',
+                'min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-white/36 px-3 py-2 text-sm text-[#2d1715] shadow-[inset_0_-10px_20px_rgba(67,27,27,0.06)] outline-none backdrop-blur-lg transition-colors placeholder:text-[#9b8a80]',
+                isUrgentMode ? 'bg-[#ffd6d6]/56' : 'bg-white/18',
               ].join(' ')}
             />
           </div>
@@ -517,7 +532,7 @@ export default function FeedbackPanel({
               closeActorMenu();
               onSubmit();
             }}
-            className="rounded-xl bg-neutral-800 px-4 text-sm font-medium text-white disabled:bg-neutral-400"
+            className="rounded-xl border border-white/24 bg-[#431B1B]/78 px-5 text-sm font-semibold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),inset_0_-12px_20px_rgba(0,0,0,0.18),0_12px_24px_rgba(67,27,27,0.22)] backdrop-blur-lg transition hover:bg-[#431B1B]/90 disabled:border-white/18 disabled:bg-[#b9a89c]/58 disabled:text-[#efe6de]"
             disabled={
               selectedActors.length === 0 || !timestamp || !content.trim()
             }

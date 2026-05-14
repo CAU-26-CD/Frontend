@@ -16,20 +16,22 @@ function ProjectTile({
   onToggleLiked: (projectId: number) => void;
 }) {
   return (
-    <article className="group w-[178px]">
+    <article className="group w-full max-w-[236px]">
       <div className="relative">
         <Link
           to={`/project/${project.id}/workspace`}
-          className="relative flex h-[90px] w-[178px] items-center justify-center outline-none transition group-hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-white/70"
+          className="relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] outline-none transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03] group-hover:drop-shadow-[0_18px_24px_rgba(0,0,0,0.36)] focus-visible:ring-2 focus-visible:ring-white/70"
           aria-label={`${project.title} 프로젝트로 이동`}
         >
           <img
             src={projectCardImage}
             alt=""
-            className="absolute inset-0 h-full w-full"
+            className="absolute inset-0 h-full w-full object-contain transition duration-500 group-hover:brightness-110"
             aria-hidden="true"
           />
-          <h3 className="relative z-10 max-w-[78%] text-center text-[17px] font-medium text-[#17100f]">
+          <span className="absolute inset-x-5 inset-y-3 translate-y-full rounded-[28px] bg-[#eee7dc]/20 transition duration-500 group-hover:translate-y-0" />
+          <span className="absolute inset-x-4 inset-y-2 rounded-[30px] opacity-0 shadow-[0_0_42px_rgba(238,231,220,0.34)] transition duration-500 group-hover:opacity-100" />
+          <h3 className="relative z-10 max-w-[68%] text-center text-[15px] font-semibold leading-tight transition duration-500 group-hover:text-[#4b201b]">
             {project.title}
           </h3>
         </Link>
@@ -48,7 +50,7 @@ function ProjectTile({
         </button>
       </div>
 
-      <p className="mt-2 truncate text-[10px] font-medium text-[#efe6de]">
+      <p className="mt-2 truncate text-[10px] font-medium text-[#b4aca4] transition duration-500 group-hover:text-[#eee7dc]">
         {project.description ?? project.date}
       </p>
     </article>
@@ -128,8 +130,8 @@ export default function ProjectPage() {
             </h2>
           </div>
 
-          <div className="min-h-[124px]">
-            <div className="flex flex-wrap gap-x-6 gap-y-7">
+          <div className="min-h-[150px]">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
               {likedProjects.map((project) => (
                 <ProjectTile
                   key={project.id}
@@ -159,7 +161,7 @@ export default function ProjectPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fill,178px)] gap-x-7 gap-y-7">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
             {allProjects.map((project) => (
               <ProjectTile
                 key={project.id}

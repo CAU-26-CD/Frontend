@@ -110,21 +110,21 @@ export default function MovementArea({
 
   return (
     <section
-      className="min-h-0 flex-1 rounded-3xl bg-neutral-300 p-6"
+      className="min-h-0 flex-1 rounded-[28px] border border-white/42 bg-[#efe6de]/58 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.76),inset_0_18px_42px_rgba(255,248,239,0.28),inset_0_-28px_56px_rgba(67,27,27,0.16),0_28px_70px_rgba(0,0,0,0.24)] backdrop-blur-xl backdrop-saturate-150"
       onKeyDown={handleKeyDown}
     >
-      <div className="flex h-full min-h-0 flex-col rounded-2xl bg-neutral-200 p-4">
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-neutral-300">
-          <div className="absolute left-[10%] right-[32%] top-[7%] border-t border-neutral-700" />
-          <div className="absolute left-[68%] top-[7%] h-[36%] w-[28%] origin-top-left rotate-[31deg] border-t border-neutral-700" />
-          <div className="absolute left-[6%] top-[55%] h-[20%] w-[22%] origin-top-left -rotate-45 border-t border-neutral-700" />
-          <div className="absolute left-[77%] top-[46%] h-[36%] w-[24%] origin-top-left rotate-[55deg] border-t border-neutral-700" />
-          <div className="absolute inset-x-0 top-[39%] border-t border-dashed border-neutral-400" />
+      <div className="flex h-full min-h-0 flex-col rounded-[22px] border border-white/36 bg-[#fff8ef]/36 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.64),inset_0_-18px_40px_rgba(67,27,27,0.11)]">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[18px] bg-[#efe6de]/52 shadow-[inset_0_20px_44px_rgba(255,255,255,0.20),inset_0_-24px_48px_rgba(67,27,27,0.12)]">
+          <div className="absolute left-[10%] right-[32%] top-[7%] border-t border-[#3a201d]/70" />
+          <div className="absolute left-[68%] top-[7%] h-[36%] w-[28%] origin-top-left rotate-[31deg] border-t border-[#3a201d]/70" />
+          <div className="absolute left-[6%] top-[55%] h-[20%] w-[22%] origin-top-left -rotate-45 border-t border-[#3a201d]/70" />
+          <div className="absolute left-[77%] top-[46%] h-[36%] w-[24%] origin-top-left rotate-[55deg] border-t border-[#3a201d]/70" />
+          <div className="absolute inset-x-0 top-[39%] border-t border-dashed border-[#8d7a70]" />
 
           {STAGE_BLOCKS.map((block) => (
             <div
               key={block.id}
-              className="absolute bg-neutral-500"
+              className="absolute bg-[#5f4640]"
               style={{
                 left: `${block.x}%`,
                 top: `${block.y}%`,
@@ -143,10 +143,10 @@ export default function MovementArea({
                 type="button"
                 onClick={() => handlePointClick(point.id)}
                 className={[
-                  'absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg text-sm font-semibold shadow-md transition',
+                  'absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-sm font-semibold shadow-md transition',
                   isPicked
-                    ? 'bg-orange-500 text-white ring-2 ring-white/80'
-                    : 'bg-orange-200 text-neutral-700 hover:-translate-y-[55%] hover:bg-orange-300',
+                    ? 'border border-white/24 bg-[#431B1B]/78 text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-10px_16px_rgba(0,0,0,0.16),0_8px_18px_rgba(67,27,27,0.20)] ring-2 ring-[#fff8ef]/70 backdrop-blur-lg'
+                    : 'border border-white/40 bg-white/24 text-[#2d1715] shadow-[inset_0_1px_0_rgba(255,255,255,0.64),inset_0_-8px_16px_rgba(67,27,27,0.08),0_8px_18px_rgba(67,27,27,0.10)] backdrop-blur-lg hover:-translate-y-[55%] hover:bg-white/36',
                 ].join(' ')}
                 style={{ left: `${point.x}%`, top: `${point.y}%` }}
                 aria-label={`${point.id}번 위치 선택`}
@@ -157,15 +157,15 @@ export default function MovementArea({
           })}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-neutral-600">
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#604942]">
           {movementPath.length > 0 ? (
             <div className="flex min-w-0 items-center gap-1 overflow-x-auto pr-2">
               {movementPath.map((pointId, index) => (
                 <div key={`${pointId}-${index}`} className="flex items-center">
                   {index > 0 && (
-                    <span className="mx-1 h-px w-5 shrink-0 bg-orange-300" />
+                    <span className="mx-1 h-px w-5 shrink-0 bg-[#b58b82]" />
                   )}
-                  <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-orange-500 px-2 text-[11px] font-bold text-white shadow-sm">
+                  <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-white/22 bg-[#431B1B]/78 px-2 text-[11px] font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),inset_0_-8px_14px_rgba(0,0,0,0.16)] backdrop-blur-md">
                     {pointId}
                   </span>
                 </div>
@@ -180,7 +180,7 @@ export default function MovementArea({
           <button
             type="button"
             onClick={handleReset}
-            className="shrink-0 rounded-full bg-white/70 px-3 py-1 font-semibold text-neutral-700 transition hover:bg-white"
+            className="shrink-0 rounded-full border border-white/38 bg-white/22 px-3 py-1 font-semibold text-[#2d1715] shadow-[inset_0_1px_0_rgba(255,255,255,0.64),inset_0_-8px_16px_rgba(67,27,27,0.08)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
           >
             초기화
           </button>
