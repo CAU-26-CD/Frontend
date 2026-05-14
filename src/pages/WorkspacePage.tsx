@@ -25,11 +25,11 @@ export default function WorkspacePage() {
       <DesignedHeader align="left" />
       <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
 
-      <div className="relative z-10 min-h-screen w-full pl-[clamp(52px,5vw,72px)]">
+      <div className="relative z-10 min-h-screen w-full pl-12">
         <Sidebar />
 
-        <div className="min-w-0 flex-1 px-3 pb-8 pt-[clamp(132px,18vh,174px)] sm:px-5 lg:px-8">
-          <p className="reaction-ui-font px-2 text-xs font-semibold text-[#bcb2aa] sm:px-4 md:px-6">
+        <div className="min-w-0 flex-1 px-3 pb-8 pt-28 sm:px-5 lg:px-8">
+          <p className="reaction-ui-font px-2 text-s font-semibold text-[#bcb2aa] sm:px-4">
             My Projects / {projectTitle}
           </p>
 
