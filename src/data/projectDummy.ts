@@ -60,18 +60,4 @@ export const projectDummy: Project[] = [
     status: 'completed',
     description: '중앙대 MU:ON | 제2회 정기공연',
   },
-  {
-    id: 9,
-    title: 'Someday',
-    date: '중앙대 MU:ON | 제2회 정기공연',
-    status: 'completed',
-    description: '중앙대 MU:ON | 제2회 정기공연',
-  },
-  {
-    id: 10,
-    title: 'Someday',
-    date: '중앙대 MU:ON | 제2회 정기공연',
-    status: 'completed',
-    description: '중앙대 MU:ON | 제2회 정기공연',
-  },
 ];

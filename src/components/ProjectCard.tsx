@@ -17,11 +17,11 @@ export default function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Link
       to={projectPath}
-      className="group flex w-[236px] flex-col items-center rounded-lg outline-none transition duration-500 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#eee7dc]/70"
+      className="group flex w-full max-w-[236px] flex-col items-center rounded-lg outline-none transition duration-500 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#eee7dc]/70"
       aria-label={`${project.title} ${statusLabel}`}
     >
       <article className="flex w-full flex-col items-center">
-        <div className="reaction-project-card relative flex h-[114px] w-[236px] items-center justify-center overflow-hidden text-[#17100f] transition duration-500 group-hover:scale-[1.03] group-hover:drop-shadow-[0_18px_24px_rgba(0,0,0,0.36)]">
+        <div className="reaction-project-card relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] transition duration-500 group-hover:scale-[1.03] group-hover:drop-shadow-[0_18px_24px_rgba(0,0,0,0.36)]">
           <img
             src={projectCardIcon}
             alt=""
