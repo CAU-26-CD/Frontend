@@ -19,7 +19,7 @@ function ProjectTile({
     <article className="group w-[178px]">
       <div className="relative">
         <Link
-          to={`/project/${project.id}`}
+          to={`/project/${project.id}/workspace`}
           className="relative flex h-[90px] w-[178px] items-center justify-center outline-none transition group-hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-white/70"
           aria-label={`${project.title} 프로젝트로 이동`}
         >

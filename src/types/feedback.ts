@@ -2,6 +2,16 @@ export type FeedbackCategory = 'movement' | 'acting' | 'emotion';
 
 export type AnalysisStatus = 'idle' | 'analyzing' | 'done' | 'error';
 
+export type FeedbackSessionStatus = 'inProgress' | 'completed';
+
+export interface FeedbackSession {
+  id: number;
+  projectId: number;
+  title: string;
+  date: string;
+  status: FeedbackSessionStatus;
+}
+
 export interface Actor {
   id: number;
   name: string;

@@ -1,23 +1,29 @@
 import { ChevronDown } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { projectDummy } from '../data/projectDummy';
-import ProjectCardItem from '../components/ProjectCard';
+import { feedbackSessionDummy } from '../data/feedbackSessionDummy';
+import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const numericProjectId = Number(projectId);
   const selectedProject = projectDummy.find(
-    (project) => project.id === Number(projectId),
+    (project) => project.id === numericProjectId,
   );
   const projectTitle = selectedProject?.title ?? 'Unknown Project';
 
-  const inProgressProjects = projectDummy.filter(
-    (project) => project.status === 'inProgress',
+  const feedbackSessions = feedbackSessionDummy.filter(
+    (session) => session.projectId === numericProjectId,
   );
 
-  const completedProjects = projectDummy.filter(
-    (project) => project.status !== 'inProgress',
+  const inProgressSessions = feedbackSessions.filter(
+    (session) => session.status === 'inProgress',
+  );
+
+  const completedSessions = feedbackSessions.filter(
+    (session) => session.status !== 'inProgress',
   );
 
   return (
@@ -49,13 +55,17 @@ export default function WorkspacePage() {
                 <div className="mb-4 flex items-center gap-2">
                   <span className="h-4 w-4 rounded-full bg-[#b4b5b3]" />
                   <h2 className="text-sm font-semibold text-[#bdb6af]">
-                    In Progress ({inProgressProjects.length})
+                    In Progress ({inProgressSessions.length})
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
-                  {inProgressProjects.map((project) => (
-                    <ProjectCardItem key={project.id} project={project} />
+                  {inProgressSessions.map((session) => (
+                    <FeedbackSessionCard
+                      key={session.id}
+                      projectId={numericProjectId}
+                      session={session}
+                    />
                   ))}
                 </div>
               </section>
@@ -63,7 +73,7 @@ export default function WorkspacePage() {
               <section className="px-2 py-3 sm:px-4 md:px-6 md:py-5">
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-sm font-semibold text-[#bdb6af]">
-                    ALL ({completedProjects.length})
+                    ALL ({completedSessions.length})
                   </h2>
 
                   <button className="flex h-7 items-center gap-2 rounded border border-white/25 px-3 text-xs text-[#d6cec6] transition hover:border-white/45 hover:text-white">
@@ -73,8 +83,12 @@ export default function WorkspacePage() {
                 </div>
 
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
-                  {completedProjects.map((project) => (
-                    <ProjectCardItem key={project.id} project={project} />
+                  {completedSessions.map((session) => (
+                    <FeedbackSessionCard
+                      key={session.id}
+                      projectId={numericProjectId}
+                      session={session}
+                    />
                   ))}
                 </div>
               </section>
