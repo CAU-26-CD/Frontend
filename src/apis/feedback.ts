@@ -24,3 +24,11 @@ export const createFeedback = async (
 
   return res.data;
 };
+
+export const getFeedbacks = async (
+  sessionId: number,
+): Promise<CreateFeedbackResponse[]> => {
+  const res = await instance.get(`/api/v1/sessions/${sessionId}/feedbacks`);
+
+  return res.data;
+};

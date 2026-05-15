@@ -214,10 +214,14 @@ export default function FeedbackPanel({
             >
               <div className="mb-1 flex items-center gap-2 text-[#806b61]">
                 <span>{feedback.timestamp}</span>
-                <span>|</span>
-                <span className="font-semibold text-[#2d1715]">
-                  {feedbackActorNames}
-                </span>
+                {feedbackActorNames && (
+                  <>
+                    <span>|</span>
+                    <span className="font-semibold text-[#2d1715]">
+                      {feedbackActorNames}
+                    </span>
+                  </>
+                )}
                 {isMovementFeedback && (
                   <span className="rounded-full border border-[#c59b74] bg-[#fff8ef]/75 px-2 py-0.5 text-[10px] font-semibold text-[#8a4734]">
                     동선

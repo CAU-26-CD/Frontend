@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { createFeedback } from '../apis/feedback';
+import { useCallback, useEffect, useState } from 'react';
+import { createFeedback, getFeedbacks } from '../apis/feedback';
 import type { Actor, Feedback } from '../types/feedback';
 
 const URGENT_MARK_PATTERN = /!{3,}/;
@@ -10,6 +10,13 @@ const timestampToSeconds = (value: string) => {
   return Number(minutes) * 60 + Number(seconds);
 };
 
+const secondsToTimestamp = (value: number) => {
+  const minutes = Math.floor(value / 60);
+  const seconds = value % 60;
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 export function useFeedback(sessionId?: number) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
@@ -18,6 +25,47 @@ export function useFeedback(sessionId?: number) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId || Number.isNaN(sessionId)) return;
+
+    let ignore = false;
+
+    const loadFeedbacks = async () => {
+      setIsLoadingFeedbacks(true);
+
+      try {
+        const fetchedFeedbacks = await getFeedbacks(sessionId);
+
+        if (ignore) return;
+
+        setFeedbacks(
+          fetchedFeedbacks.map((feedback) => ({
+            id: feedback.feedback_id,
+            timestamp: secondsToTimestamp(feedback.video_offset_seconds),
+            actorIds: [],
+            content: feedback.content,
+            isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
+            aiTags: [],
+            analysisStatus: 'idle',
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to load feedbacks', error);
+      } finally {
+        if (!ignore) {
+          setIsLoadingFeedbacks(false);
+        }
+      }
+    };
+
+    void loadFeedbacks();
+
+    return () => {
+      ignore = true;
+    };
+  }, [sessionId]);
 
   const handleStartTimestamp = useCallback(() => {
     const now = new Date();
@@ -34,7 +82,20 @@ export function useFeedback(sessionId?: number) {
     const feedbackActorIds = selectedActors.map((actor) => actor.id);
     const feedbackContent = content;
     const feedbackTimestamp = timestamp;
+    const temporaryFeedbackId = Date.now();
+    const optimisticFeedback: Feedback = {
+      id: temporaryFeedbackId,
+      timestamp: feedbackTimestamp,
+      actorIds: feedbackActorIds,
+      content: feedbackContent,
+      isUrgent: URGENT_MARK_PATTERN.test(feedbackContent),
+      aiTags: [],
+      analysisStatus: 'idle',
+    };
 
+    setFeedbacks((prev) => [...prev, optimisticFeedback]);
+    setContent('');
+    setTimestamp(null);
     setIsSubmitting(true);
 
     try {
@@ -53,9 +114,11 @@ export function useFeedback(sessionId?: number) {
         analysisStatus: 'idle',
       };
 
-      setFeedbacks((prev) => [...prev, newFeedback]);
-      setContent('');
-      setTimestamp(null);
+      setFeedbacks((prev) =>
+        prev.map((feedback) =>
+          feedback.id === temporaryFeedbackId ? newFeedback : feedback,
+        ),
+      );
     } catch (error) {
       console.error('Failed to create feedback', error);
     } finally {
@@ -140,6 +203,7 @@ export function useFeedback(sessionId?: number) {
     editingId,
     editingContent,
     isSubmitting,
+    isLoadingFeedbacks,
 
     addSelectedActor,
     toggleSelectedActor,
