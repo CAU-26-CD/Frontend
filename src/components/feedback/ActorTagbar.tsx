@@ -12,15 +12,15 @@ export default function ActorTagBar({
   onActorSelect,
 }: Props) {
   return (
-    <section className="rounded-2xl border border-[#d3c3b7] bg-[#efe6de] p-5 shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="shrink-0 border-b border-[#b9a89c] pb-3 text-center text-sm font-bold text-[#431B1B] md:border-b-0 md:border-r md:pb-0 md:pr-5">
+    <section className="flex h-full min-h-[112px] rounded-2xl border border-[#d3c3b7] bg-[#efe6de] px-6 py-4 shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
+      <div className="flex h-full w-full flex-col gap-3 md:flex-row md:items-stretch">
+        <div className="flex h-full min-w-[88px] shrink-0 items-center justify-center border-b border-[#b9a89c] pb-3 text-center text-xs font-bold text-[#431B1B] md:border-b-0 md:border-r md:pb-0 md:pr-6">
           ACTOR
           <br />
           TAG
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
           {actors.map((actor) => {
             const isSelected = selectedActors.some(
               (selectedActor) => selectedActor.id === actor.id,
@@ -32,7 +32,7 @@ export default function ActorTagBar({
                 onClick={() => onActorSelect(actor)}
                 key={actor.id}
                 className={[
-                  'flex min-h-10 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_-10px_18px_rgba(67,27,27,0.08),0_10px_24px_rgba(67,27,27,0.10)] backdrop-blur-xl backdrop-saturate-150 transition',
+                  'flex min-h-10 min-w-[104px] flex-1 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_-10px_18px_rgba(67,27,27,0.08),0_10px_24px_rgba(67,27,27,0.10)] backdrop-blur-xl backdrop-saturate-150 transition md:flex-none',
                   isSelected
                     ? 'border-white/35 bg-[#431B1B]/72 text-[#fff8ef] hover:bg-[#431B1B]/84'
                     : 'border-white/45 bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]',

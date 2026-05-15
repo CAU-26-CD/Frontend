@@ -1,6 +1,7 @@
 import { ChevronDown, Heart, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getMyProjects } from '../apis/project';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import { projectDummy } from '../data/projectDummy';
 import addSign from '../images/icon/add_sign.svg';
@@ -20,18 +21,16 @@ function ProjectTile({
       <div className="relative">
         <Link
           to={`/project/${project.id}/workspace`}
-          className="relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] outline-none transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03] group-hover:drop-shadow-[0_18px_24px_rgba(0,0,0,0.36)] focus-visible:ring-2 focus-visible:ring-white/70"
+          className="relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] outline-none transition duration-300 group-hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-white/70"
           aria-label={`${project.title} 프로젝트로 이동`}
         >
           <img
             src={projectCardImage}
             alt=""
-            className="absolute inset-0 h-full w-full object-contain transition duration-500 group-hover:brightness-110"
+            className="absolute inset-0 h-full w-full object-contain"
             aria-hidden="true"
           />
-          <span className="absolute inset-x-5 inset-y-3 translate-y-full rounded-[28px] bg-[#eee7dc]/20 transition duration-500 group-hover:translate-y-0" />
-          <span className="absolute inset-x-4 inset-y-2 rounded-[30px] opacity-0 shadow-[0_0_42px_rgba(238,231,220,0.34)] transition duration-500 group-hover:opacity-100" />
-          <h3 className="relative z-10 max-w-[68%] text-center text-[15px] font-semibold leading-tight transition duration-500 group-hover:text-[#4b201b]">
+          <h3 className="relative z-10 max-w-[68%] text-center text-[15px] font-semibold leading-tight">
             {project.title}
           </h3>
         </Link>
@@ -50,7 +49,7 @@ function ProjectTile({
         </button>
       </div>
 
-      <p className="mt-2 truncate text-[10px] font-medium text-[#b4aca4] transition duration-500 group-hover:text-[#eee7dc]">
+      <p className="mt-2 truncate text-[10px] font-medium text-[#b4aca4]">
         {project.description ?? project.date}
       </p>
     </article>
@@ -60,6 +59,27 @@ function ProjectTile({
 export default function ProjectPage() {
   const [projects, setProjects] = useState<Project[]>(projectDummy);
   const [searchValue, setSearchValue] = useState('');
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const myProjects = await getMyProjects();
+
+        setProjects(
+          myProjects.map((project) => ({
+            id: project.project_id,
+            title: project.title,
+            date: project.created_at,
+            description: project.description,
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to load projects', error);
+      }
+    };
+
+    void loadProjects();
+  }, []);
 
   const filteredProjects = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
@@ -92,7 +112,7 @@ export default function ProjectPage() {
       <DesignedHeader align="left" />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1120px] flex-col px-10 pb-20 pt-[154px]">
-        <div className="absolute right-[86px] top-[72px] flex items-center gap-5">
+        <div className="absolute right-[86px] top-12 flex items-center gap-5">
           <label className="relative block h-[31px] w-[160px] sm:w-[220px]">
             <span className="sr-only">프로젝트 검색</span>
             <img

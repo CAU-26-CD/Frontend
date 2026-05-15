@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Settings, Video } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { actors } from '../data/actors';
 import { feedbackSessionDummy } from '../data/feedbackSessionDummy';
@@ -63,13 +64,33 @@ export default function RehearsalFeedbackPage() {
       <DesignedHeader align="left" />
       <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
 
-      <div className="relative z-10 mx-auto flex h-screen w-full max-w-7xl flex-col overflow-hidden px-4 pb-8 pt-28 sm:px-6 lg:px-8">
-        <p className="reaction-ui-font mb-5 shrink-0 text-xs font-semibold text-[#bcb2aa]">
-          My Project / {projectTitle} / {sessionTitle}
-        </p>
+      <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1320px] flex-col overflow-hidden px-4 pb-7 pt-24 sm:px-6 lg:px-12">
+        <div className="reaction-ui-font flex shrink-0 items-center justify-between gap-4 text-sm font-semibold text-[#eee7dc]">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate">
+              My Projects / {projectTitle} / {sessionTitle}
+            </span>
+            <Video
+              size={20}
+              fill="#D15757"
+              stroke="#D15757"
+              strokeWidth={2.4}
+              className="shrink-0"
+              aria-hidden="true"
+            />
+          </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-4 overflow-hidden lg:grid-cols-[1fr_420px] lg:grid-rows-1">
-          <section className="flex min-h-0 flex-col gap-4">
+          <button
+            type="button"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#eee7dc] transition hover:bg-white/12 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            aria-label="설정"
+          >
+            <Settings size={17} strokeWidth={2.3} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
+          <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4">
             <MovementArea
               actors={actors}
               selectedActors={feedback.selectedActors}

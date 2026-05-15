@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import movePanelBg from '../../images/icon/move-pannel-bg.svg';
 import type { Actor } from '../../types/feedback';
 
 const MOVEMENT_FEEDBACK_PREFIX = '[동선]';
@@ -110,21 +111,28 @@ export default function MovementArea({
 
   return (
     <section
-      className="min-h-0 flex-1 rounded-2xl border border-[#d3c3b7] bg-[#efe6de] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.18)]"
+      className="relative min-h-[360px] flex-[1_1_auto] overflow-hidden"
       onKeyDown={handleKeyDown}
     >
-      <div className="flex h-full min-h-0 flex-col rounded-xl border border-[#d3c3b7] bg-[#f6efe7] p-4">
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-[#efe6de] shadow-inner">
-          <div className="absolute left-[10%] right-[32%] top-[7%] border-t border-[#3a201d]/70" />
-          <div className="absolute left-[68%] top-[7%] h-[36%] w-[28%] origin-top-left rotate-[31deg] border-t border-[#3a201d]/70" />
-          <div className="absolute left-[6%] top-[55%] h-[20%] w-[22%] origin-top-left -rotate-45 border-t border-[#3a201d]/70" />
-          <div className="absolute left-[77%] top-[46%] h-[36%] w-[24%] origin-top-left rotate-[55deg] border-t border-[#3a201d]/70" />
-          <div className="absolute inset-x-0 top-[39%] border-t border-dashed border-[#8d7a70]" />
+      <img
+        src={movePanelBg}
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-fill"
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 flex h-full min-h-0 flex-col p-[clamp(18px,2.2vw,28px)]">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] bg-[#431B1B]">
+          <div className="absolute left-[10%] right-[32%] top-[7%] border-t border-[#DF8181]/55" />
+          <div className="absolute left-[68%] top-[7%] h-[36%] w-[28%] origin-top-left rotate-[31deg] border-t border-[#DF8181]/55" />
+          <div className="absolute left-[6%] top-[55%] h-[20%] w-[22%] origin-top-left -rotate-45 border-t border-[#DF8181]/55" />
+          <div className="absolute left-[77%] top-[46%] h-[36%] w-[24%] origin-top-left rotate-[55deg] border-t border-[#DF8181]/55" />
+          <div className="absolute inset-x-0 top-[39%] border-t border-dashed border-[#DF8181]/35" />
 
           {STAGE_BLOCKS.map((block) => (
             <div
               key={block.id}
-              className="absolute bg-[#5f4640]"
+              className="absolute border border-[#DF8181]/50 bg-[#5B2A2A]"
               style={{
                 left: `${block.x}%`,
                 top: `${block.y}%`,
@@ -143,10 +151,10 @@ export default function MovementArea({
                 type="button"
                 onClick={() => handlePointClick(point.id)}
                 className={[
-                  'absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-sm font-semibold shadow-md transition',
+                  'absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-sm font-semibold transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DF8181]/65',
                   isPicked
-                    ? 'bg-[#431B1B] text-[#fff8ef] ring-2 ring-[#fff8ef]/80'
-                    : 'bg-[#fff8ef] text-[#2d1715] ring-1 ring-[#c8b7aa] hover:-translate-y-[55%] hover:bg-[#ead2c7]',
+                    ? 'border-[#DF8181] bg-[#DF8181] text-[#431B1B]'
+                    : 'border-[#DF8181]/80 bg-[#431B1B] text-[#EFE6DE]',
                 ].join(' ')}
                 style={{ left: `${point.x}%`, top: `${point.y}%` }}
                 aria-label={`${point.id}번 위치 선택`}
@@ -163,16 +171,16 @@ export default function MovementArea({
               {movementPath.map((pointId, index) => (
                 <div key={`${pointId}-${index}`} className="flex items-center">
                   {index > 0 && (
-                    <span className="mx-1 h-px w-5 shrink-0 bg-[#b58b82]" />
+                    <span className="mx-1 h-px w-5 shrink-0 bg-[#DF8181]/70" />
                   )}
-                  <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-[#431B1B] px-2 text-[11px] font-bold text-[#fff8ef] shadow-sm">
+                  <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[#DF8181] bg-[#431B1B] px-2 text-[11px] font-bold text-[#EFE6DE]">
                     {pointId}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <span className="truncate">
+            <span className="truncate text-[#431B1B]">
               번호를 순서대로 클릭하면 동선 피드백이 입력됩니다
             </span>
           )}
@@ -180,7 +188,7 @@ export default function MovementArea({
           <button
             type="button"
             onClick={handleReset}
-            className="shrink-0 rounded-full border border-[#c8b7aa] bg-[#fff8ef] px-3 py-1 font-semibold text-[#2d1715] transition hover:border-[#431B1B] hover:text-[#431B1B]"
+            className="shrink-0 rounded-full border border-[#431B1B] bg-transparent px-3 py-1 font-semibold text-[#431B1B] transition hover:scale-105"
           >
             초기화
           </button>

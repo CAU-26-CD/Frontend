@@ -11,11 +11,42 @@ export type CreateCameraSessionResponse = {
   expires_at: string;
 };
 
+export type CreateProjectSessionRequest = {
+  title: string;
+};
+
+export type CreateProjectSessionResponse = {
+  session_id: number;
+  project_id: number;
+  title: string;
+  created_at: string;
+};
+
 export type CameraSessionStatusResponse = {
   session_id: string;
   status: string;
   connected_at: string | null;
   video_url: string | null;
+};
+
+export const createProjectSession = async (
+  projectId: number,
+  data: CreateProjectSessionRequest,
+): Promise<CreateProjectSessionResponse> => {
+  const res = await instance.post(
+    `/api/v1/projects/${projectId}/sessions`,
+    data,
+  );
+
+  return res.data;
+};
+
+export const getProjectSessions = async (
+  projectId: number,
+): Promise<CreateProjectSessionResponse[]> => {
+  const res = await instance.get(`/api/v1/projects/${projectId}/sessions`);
+
+  return res.data;
 };
 
 export const createCameraSession = async (

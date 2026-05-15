@@ -30,4 +30,5 @@ export interface Feedback {
   aiTags?: FeedbackCategory[];
   analysisStatus?: AnalysisStatus;
   aiSummary?: string;
+  isPersisted?: boolean;
 }

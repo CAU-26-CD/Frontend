@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createCameraSession } from '../../apis/session';
-import type { CreateCameraSessionResponse } from '../../apis/session';
-import CameraSessionModal from '../modals/CameraSessionModal';
+import { createProjectSession } from '../../apis/session';
 import sidebarAdd from '../../images/icon/sidebar_add.svg';
 import sidebarHome from '../../images/icon/sidebar_home.svg';
 import sidebarLight from '../../images/icon/sidebar-light.png';
@@ -22,9 +20,6 @@ export default function Sidebar() {
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isNamingSession, setIsNamingSession] = useState(false);
   const [sessionNameInput, setSessionNameInput] = useState('새 리허설 세션');
-  const [sessionName, setSessionName] = useState('');
-  const [cameraSession, setCameraSession] =
-    useState<CreateCameraSessionResponse | null>(null);
 
   const handleItemClick = (label: string) => {
     if (label !== '추가' || isCreatingSession) return;
@@ -46,32 +41,27 @@ export default function Sidebar() {
     if (!nextSessionName || isCreatingSession) return;
 
     setIsCreatingSession(true);
-    setSessionName(nextSessionName);
 
     try {
-      const session = await createCameraSession();
+      const nextProjectId = Number(projectId);
 
-      setCameraSession(session);
+      if (Number.isNaN(nextProjectId)) {
+        throw new Error('Cannot create session without a valid project id');
+      }
+
+      const createdProjectSession = await createProjectSession(nextProjectId, {
+        title: nextSessionName,
+      });
+
       setIsNamingSession(false);
+      navigate(
+        `/project/${createdProjectSession.project_id}/workspace/${createdProjectSession.session_id}/feedback`,
+      );
     } catch (error) {
-      console.error('Failed to create camera session', error);
+      console.error('Failed to create session', error);
     } finally {
       setIsCreatingSession(false);
     }
-  };
-
-  const closeCameraSessionModal = () => {
-    setCameraSession(null);
-  };
-
-  const startRehearsal = () => {
-    if (!cameraSession) return;
-
-    const nextProjectId = projectId ?? '1';
-
-    navigate(
-      `/project/${nextProjectId}/workspace/${cameraSession.session_id}/feedback`,
-    );
   };
 
   return (
@@ -152,14 +142,6 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-      )}
-      {cameraSession && (
-        <CameraSessionModal
-          session={cameraSession}
-          sessionName={sessionName}
-          onClose={closeCameraSessionModal}
-          onStart={startRehearsal}
-        />
       )}
     </aside>
   );

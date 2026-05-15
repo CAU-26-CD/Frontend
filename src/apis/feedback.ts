@@ -43,3 +43,16 @@ export const deleteFeedback = async (
     `/api/v1/sessions/${sessionId}/feedbacks/${feedbackId}`,
   );
 };
+
+export const updateFeedback = async (
+  sessionId: FeedbackSessionId,
+  feedbackId: number,
+  data: CreateFeedbackRequest,
+): Promise<CreateFeedbackResponse> => {
+  const res = await instance.patch(
+    `/api/v1/sessions/${sessionId}/feedbacks/${feedbackId}`,
+    data,
+  );
+
+  return res.data;
+};

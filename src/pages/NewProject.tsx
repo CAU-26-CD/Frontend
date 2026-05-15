@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createProject, joinProject } from '../apis/project';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import createProjectCard from '../images/icon/create-project-card.svg';
 import loginCard from '../images/icon/loginCard.svg';
@@ -15,18 +17,62 @@ const initialCreateForm: CreateProjectForm = {
 };
 
 export default function NewProject() {
+  const navigate = useNavigate();
   const [joinForm, setJoinForm] = useState<JoinProjectForm>(initialJoinForm);
   const [createForm, setCreateForm] =
     useState<CreateProjectForm>(initialCreateForm);
+  const [isJoiningProject, setIsJoiningProject] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  const handleJoinSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleJoinSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log('join project:', joinForm);
+
+    if (!joinForm.code.trim() || isJoiningProject) {
+      return;
+    }
+
+    setIsJoiningProject(true);
+
+    try {
+      const project = await joinProject({
+        join_code: joinForm.code.trim().toUpperCase(),
+      });
+
+      navigate(`/project/${project.project_id}/workspace`);
+    } catch (error) {
+      console.error('Failed to join project', error);
+    } finally {
+      setIsJoiningProject(false);
+    }
   };
 
-  const handleCreateSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log('create project:', createForm);
+
+    if (
+      !createForm.name.trim() ||
+      !createForm.description.trim() ||
+      !createForm.joinCode.trim() ||
+      isCreatingProject
+    ) {
+      return;
+    }
+
+    setIsCreatingProject(true);
+
+    try {
+      const project = await createProject({
+        title: createForm.name.trim(),
+        description: createForm.description.trim(),
+        join_code: createForm.joinCode.trim().toUpperCase(),
+      });
+
+      navigate(`/project/${project.project_id}/workspace`);
+    } catch (error) {
+      console.error('Failed to create project', error);
+    } finally {
+      setIsCreatingProject(false);
+    }
   };
 
   return (
@@ -67,9 +113,10 @@ export default function NewProject() {
             />
             <button
               type="submit"
+              disabled={isJoiningProject}
               className="reaction-ui-font h-[40px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35"
             >
-              JOIN
+              {isJoiningProject ? 'JOINING...' : 'JOIN'}
             </button>
           </div>
         </form>
@@ -146,9 +193,10 @@ export default function NewProject() {
 
           <button
             type="submit"
+            disabled={isCreatingProject}
             className="reaction-ui-font relative z-10 mt-auto h-[40px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35"
           >
-            CREATE
+            {isCreatingProject ? 'CREATING...' : 'CREATE'}
           </button>
         </form>
       </section>

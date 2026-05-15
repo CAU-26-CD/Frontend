@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createFeedback, deleteFeedback, getFeedbacks } from '../apis/feedback';
+import {
+  createFeedback,
+  deleteFeedback,
+  getFeedbacks,
+  updateFeedback,
+} from '../apis/feedback';
 import type { FeedbackSessionId } from '../apis/feedback';
 import type { Actor, Feedback } from '../types/feedback';
 
@@ -55,6 +60,7 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
             isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
             aiTags: [],
             analysisStatus: 'idle',
+            isPersisted: true,
           })),
         );
       } catch (error) {
@@ -97,6 +103,7 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
       isUrgent: URGENT_MARK_PATTERN.test(feedbackContent),
       aiTags: [],
       analysisStatus: 'idle',
+      isPersisted: false,
     };
 
     setFeedbacks((prev) => [...prev, optimisticFeedback]);
@@ -118,6 +125,7 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
         isUrgent: URGENT_MARK_PATTERN.test(createdFeedback.content),
         aiTags: [],
         analysisStatus: 'idle',
+        isPersisted: true,
       };
 
       setFeedbacks((prev) =>
@@ -127,6 +135,13 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
       );
     } catch (error) {
       console.error('Failed to create feedback', error);
+      setFeedbacks((prev) =>
+        prev.map((feedback) =>
+          feedback.id === temporaryFeedbackId
+            ? { ...feedback, analysisStatus: 'error' }
+            : feedback,
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -160,16 +175,21 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
     setEditingContent('');
   };
 
-  const handleEditSave = (id: number) => {
+  const handleEditSave = async (id: number) => {
     if (!editingContent.trim()) return;
+
+    const targetFeedback = feedbacks.find((item) => item.id === id);
+    const nextContent = editingContent;
+
+    if (!targetFeedback) return;
 
     setFeedbacks((prev) =>
       prev.map((item) =>
         item.id === id
           ? {
               ...item,
-              content: editingContent,
-              isUrgent: URGENT_MARK_PATTERN.test(editingContent),
+              content: nextContent,
+              isUrgent: URGENT_MARK_PATTERN.test(nextContent),
               aiTags: [],
               analysisStatus: 'idle',
             }
@@ -178,20 +198,65 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
     );
 
     handleEditCancel();
-  };
 
-  const handleDelete = async (id: number) => {
-    if (!hasValidSessionId(sessionId)) {
-      console.error('Cannot delete feedback without a valid session id');
+    if (!targetFeedback.isPersisted) {
       return;
     }
 
+    if (!hasValidSessionId(sessionId)) {
+      console.error('Cannot update feedback without a valid session id');
+      return;
+    }
+
+    try {
+      const updatedFeedback = await updateFeedback(sessionId, id, {
+        content: nextContent,
+        video_offset_seconds: timestampToSeconds(targetFeedback.timestamp),
+      });
+
+      setFeedbacks((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                content: updatedFeedback.content,
+                timestamp: secondsToTimestamp(
+                  updatedFeedback.video_offset_seconds,
+                ),
+                isUrgent: URGENT_MARK_PATTERN.test(updatedFeedback.content),
+                analysisStatus: 'idle',
+                isPersisted: true,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      console.error('Failed to update feedback', error);
+      setFeedbacks((prev) =>
+        prev.map((item) => (item.id === id ? targetFeedback : item)),
+      );
+    }
+  };
+
+  const handleDelete = async (id: number) => {
     const deletedFeedback = feedbacks.find((item) => item.id === id);
+
+    if (!deletedFeedback) return;
 
     setFeedbacks((prev) => prev.filter((item) => item.id !== id));
 
     if (editingId === id) {
       handleEditCancel();
+    }
+
+    if (!deletedFeedback.isPersisted) {
+      return;
+    }
+
+    if (!hasValidSessionId(sessionId)) {
+      console.error('Cannot delete feedback without a valid session id');
+      setFeedbacks((prev) => [...prev, deletedFeedback]);
+      return;
     }
 
     try {

@@ -1,22 +1,55 @@
 import { ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { getProjectSessions } from '../apis/session';
 import { projectDummy } from '../data/projectDummy';
 import { feedbackSessionDummy } from '../data/feedbackSessionDummy';
 import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import type { FeedbackSession } from '../types/feedback';
 
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const numericProjectId = Number(projectId);
+  const [feedbackSessions, setFeedbackSessions] = useState<FeedbackSession[]>(
+    () =>
+      feedbackSessionDummy.filter(
+        (session) => session.projectId === numericProjectId,
+      ),
+  );
   const selectedProject = projectDummy.find(
     (project) => project.id === numericProjectId,
   );
   const projectTitle = selectedProject?.title ?? 'Unknown Project';
 
-  const feedbackSessions = feedbackSessionDummy.filter(
-    (session) => session.projectId === numericProjectId,
-  );
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId)) return;
+
+    const loadSessions = async () => {
+      try {
+        const sessions = await getProjectSessions(numericProjectId);
+        const latestSessionId = sessions.at(-1)?.session_id;
+
+        setFeedbackSessions(
+          sessions.map((session) => ({
+            id: session.session_id,
+            projectId: session.project_id,
+            title: session.title,
+            date: session.created_at,
+            status:
+              session.session_id === latestSessionId
+                ? 'inProgress'
+                : 'completed',
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to load sessions', error);
+      }
+    };
+
+    void loadSessions();
+  }, [numericProjectId]);
 
   const inProgressSessions = feedbackSessions.filter(
     (session) => session.status === 'inProgress',
