@@ -74,6 +74,7 @@ export default function RehearsalFeedbackPage() {
             <ActorTagBar
               actors={actors}
               selectedActors={feedback.selectedActors}
+              onActorSelect={feedback.toggleSelectedActor}
             />
           </section>
 

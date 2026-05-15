@@ -176,7 +176,7 @@ export default function FeedbackPanel({
   }, [openActorCommand]);
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/42 bg-[#efe6de]/58 p-5 text-[#2d1715] shadow-[inset_0_1px_0_rgba(255,255,255,0.76),inset_0_18px_42px_rgba(255,248,239,0.28),inset_0_-28px_56px_rgba(67,27,27,0.16),0_28px_70px_rgba(0,0,0,0.24)] backdrop-blur-xl backdrop-saturate-150">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d3c3b7] bg-[#efe6de] p-5 text-[#2d1715] shadow-[0_24px_60px_rgba(0,0,0,0.18)]">
       <div
         ref={feedbackListRef}
         onScroll={handleFeedbackScroll}
@@ -204,10 +204,10 @@ export default function FeedbackPanel({
               className={[
                 'group rounded-xl border p-3 text-sm text-[#2d1715] transition-colors',
                 feedback.isUrgent
-                  ? 'border-[#ffd0d0]/72 bg-[#ff6f6f]/26 shadow-[inset_0_1px_0_rgba(255,255,255,0.74),inset_0_0_28px_rgba(255,255,255,0.16),0_0_22px_rgba(255,105,105,0.20),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150'
+                  ? 'border-[#ff9d9d]/76 bg-[#fff8ef]/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.78),inset_0_0_24px_rgba(255,77,77,0.18),0_0_18px_rgba(255,77,77,0.22),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150'
                   : isMovementFeedback
-                    ? 'border-[#ffe7cf]/66 bg-[#f4b36f]/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_0_28px_rgba(255,255,255,0.14),0_0_20px_rgba(244,179,111,0.16),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150'
-                    : 'border-white/48 bg-white/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.74),inset_0_0_26px_rgba(255,255,255,0.14),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150',
+                    ? 'border-[#ffe7cf]/66 bg-[#f4b36f]/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_0_26px_rgba(255,255,255,0.14),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150'
+                    : 'border-white/45 bg-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.74),inset_0_0_24px_rgba(255,255,255,0.14),0_10px_26px_rgba(0,0,0,0.10)] backdrop-blur-xl backdrop-saturate-150',
               ].join(' ')}
             >
               <div className="mb-1 flex items-center gap-2 text-[#806b61]">
@@ -226,7 +226,7 @@ export default function FeedbackPanel({
               {isEditing ? (
                 <div className="space-y-2">
                   {URGENT_MARK_PATTERN.test(editingContent) && (
-                    <span className="inline-flex rounded-full border border-[#ffb4b4]/70 bg-[#b71c1c]/86 px-2 py-0.5 text-[10px] font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_6px_14px_rgba(126,20,20,0.24)] backdrop-blur-md">
+                    <span className="inline-flex rounded-full border border-[#d71920] bg-[#d71920] px-2 py-0.5 text-[10px] font-bold text-[#fff8ef]">
                       긴급
                     </span>
                   )}
@@ -237,8 +237,8 @@ export default function FeedbackPanel({
                     className={[
                       'min-h-[72px] w-full resize-none rounded-xl border px-3 py-2 text-sm text-[#2d1715] outline-none transition focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15',
                       URGENT_MARK_PATTERN.test(editingContent)
-                        ? 'border-[#ffd0d0]/72 bg-[#ff6f6f]/24 backdrop-blur-lg'
-                        : 'border-white/42 bg-white/24 backdrop-blur-lg',
+                        ? 'border-[#d71920]/55 bg-[#fff8ef]/30'
+                        : 'border-[#c8b7aa] bg-[#fff8ef]',
                     ].join(' ')}
                   />
                 </div>
@@ -253,13 +253,13 @@ export default function FeedbackPanel({
                       <button
                         onClick={() => onEditSave(feedback.id)}
                         disabled={!editingContent.trim()}
-                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
+                        className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
                       >
                         저장
                       </button>
                       <button
                         onClick={onEditCancel}
-                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B]"
+                        className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                       >
                         취소
                       </button>
@@ -268,13 +268,13 @@ export default function FeedbackPanel({
                     <>
                       <button
                         onClick={() => onEdit(feedback)}
-                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B]"
+                        className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                       >
                         수정
                       </button>
                       <button
                         onClick={() => onDelete(feedback.id)}
-                        className="rounded-full border border-white/30 bg-white/18 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.58)] backdrop-blur-md transition hover:bg-white/32 hover:text-[#431B1B]"
+                        className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                       >
                         삭제
                       </button>
@@ -288,8 +288,8 @@ export default function FeedbackPanel({
                   className={[
                     'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
                     feedback.isUrgent
-                      ? 'border-[#ffb4b4]/72 bg-[#b71c1c]/88 text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.26),inset_0_-8px_16px_rgba(76,0,0,0.20),0_6px_16px_rgba(126,20,20,0.28)] backdrop-blur-lg hover:bg-[#a81414]/92'
-                      : 'border-white/34 bg-white/18 text-[#806b61] shadow-[inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-8px_16px_rgba(67,27,27,0.08)] backdrop-blur-lg hover:border-white/50 hover:bg-white/30 hover:text-[#431B1B]',
+                      ? 'border-white/35 bg-[#d71920]/88 text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_6px_16px_rgba(215,25,32,0.24)] backdrop-blur-lg hover:bg-[#bd1016]'
+                      : 'border-white/35 bg-white/20 text-[#806b61] shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg hover:bg-white/34 hover:text-[#431B1B]',
                   ].join(' ')}
                   aria-pressed={feedback.isUrgent}
                   aria-label={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
@@ -307,20 +307,20 @@ export default function FeedbackPanel({
         className={[
           'mt-4 rounded-xl border p-3 transition-colors',
           isUrgentMode
-            ? 'border-[#ffb4b4]/70 bg-[#ffd6d6]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),inset_0_-12px_24px_rgba(123,20,20,0.16),0_8px_20px_rgba(126,20,20,0.14)] backdrop-blur-sm'
-            : 'border-white/42 bg-[#fff8ef]/52 shadow-[inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-12px_24px_rgba(67,27,27,0.08)] backdrop-blur-sm',
+            ? 'border-[#ff9d9d]/76 bg-[#fff8ef]/24 shadow-[inset_0_0_22px_rgba(255,77,77,0.16),0_0_16px_rgba(255,77,77,0.16)]'
+            : 'border-[#c8b7aa] bg-[#fff8ef]/70',
         ].join(' ')}
       >
         <div className="mb-2 flex flex-wrap gap-2 text-xs text-[#806b61]">
           <button
             type="button"
             onClick={onTimestampStart}
-            className="rounded-full border border-white/38 bg-white/22 px-3 py-1 font-semibold text-[#2d1715] shadow-[inset_0_1px_0_rgba(255,255,255,0.68),inset_0_-8px_16px_rgba(67,27,27,0.08),0_8px_18px_rgba(67,27,27,0.10)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
+            className="rounded-full border border-[#c8b7aa] bg-[#fff8ef] px-3 py-1 font-semibold text-[#2d1715] transition hover:border-[#431B1B] hover:text-[#431B1B]"
           >
             타임스탬프 {timestamp ?? '00:00'}
           </button>
           {isUrgentMode && (
-            <span className="rounded-full border border-[#ffb4b4]/72 bg-[#b71c1c]/88 px-3 py-1 font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.26),inset_0_-8px_16px_rgba(76,0,0,0.20),0_6px_16px_rgba(126,20,20,0.28)] backdrop-blur-lg">
+            <span className="rounded-full border border-[#d71920] bg-[#d71920] px-3 py-1 font-bold text-[#fff8ef]">
               긴급
             </span>
           )}
@@ -380,8 +380,10 @@ export default function FeedbackPanel({
                 }
               }}
               className={[
-                'flex min-h-9 flex-wrap items-center gap-2 rounded-t-xl border border-white/36 bg-white/22 px-3 py-1.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] outline-none backdrop-blur-lg transition',
-                isUrgentMode ? 'border-[#d94141]/70 bg-[#ffd6d6]/56' : '',
+                'flex min-h-9 flex-wrap items-center gap-2 rounded-t-xl border border-[#c8b7aa] bg-[#fff8ef]/80 px-3 py-1.5 text-sm outline-none transition',
+                isUrgentMode
+                  ? 'border-[#d71920]/55 bg-[#fff8ef]/30 shadow-[inset_0_0_18px_rgba(255,77,77,0.14)]'
+                  : '',
                 actorRowActive ? 'border-[#431B1B] ring-2 ring-[#431B1B]/15' : '',
               ].join(' ')}
             >
@@ -389,7 +391,7 @@ export default function FeedbackPanel({
                 selectedActors.map((actor) => (
                   <span
                     key={actor.id}
-                    className="rounded-full border border-white/20 bg-[#431B1B]/76 px-3 py-1 text-xs font-medium text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),inset_0_-8px_14px_rgba(0,0,0,0.16)] backdrop-blur-md"
+                    className="rounded-full border border-white/24 bg-[#431B1B]/76 px-3 py-1 text-xs font-medium text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_18px_rgba(67,27,27,0.12)] backdrop-blur-lg"
                   >
                     {actor.name}
                   </span>
@@ -520,8 +522,8 @@ export default function FeedbackPanel({
               }
               readOnly={!timestamp}
               className={[
-                'min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-white/36 px-3 py-2 text-sm text-[#2d1715] shadow-[inset_0_-10px_20px_rgba(67,27,27,0.06)] outline-none backdrop-blur-lg transition-colors placeholder:text-[#9b8a80]',
-                isUrgentMode ? 'bg-[#ffd6d6]/56' : 'bg-white/18',
+                'min-h-[44px] w-full resize-none rounded-b-xl border border-t-0 border-[#c8b7aa] px-3 py-2 text-sm text-[#2d1715] outline-none transition-colors placeholder:text-[#9b8a80]',
+                isUrgentMode ? 'bg-[#fff8ef]/24' : 'bg-[#fff8ef]/45',
               ].join(' ')}
             />
           </div>
@@ -532,7 +534,7 @@ export default function FeedbackPanel({
               closeActorMenu();
               onSubmit();
             }}
-            className="rounded-xl border border-white/24 bg-[#431B1B]/78 px-5 text-sm font-semibold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),inset_0_-12px_20px_rgba(0,0,0,0.18),0_12px_24px_rgba(67,27,27,0.22)] backdrop-blur-lg transition hover:bg-[#431B1B]/90 disabled:border-white/18 disabled:bg-[#b9a89c]/58 disabled:text-[#efe6de]"
+            className="rounded-xl bg-[#431B1B] px-5 text-sm font-semibold text-[#fff8ef] transition hover:bg-[#2f1212] disabled:bg-[#b9a89c] disabled:text-[#efe6de]"
             disabled={
               selectedActors.length === 0 || !timestamp || !content.trim()
             }

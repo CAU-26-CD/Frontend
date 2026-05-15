@@ -43,6 +43,14 @@ export function useFeedback() {
     );
   };
 
+  const toggleSelectedActor = (actor: Actor) => {
+    setSelectedActors((prev) =>
+      prev.some((item) => item.id === actor.id)
+        ? prev.filter((item) => item.id !== actor.id)
+        : [...prev, actor],
+    );
+  };
+
   const removeLastSelectedActor = () => {
     setSelectedActors((prev) => prev.slice(0, -1));
   };
@@ -107,6 +115,7 @@ export function useFeedback() {
     editingContent,
 
     addSelectedActor,
+    toggleSelectedActor,
     removeLastSelectedActor,
     setContent,
     setEditingContent,
