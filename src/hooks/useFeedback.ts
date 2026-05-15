@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createFeedback, getFeedbacks } from '../apis/feedback';
+import { createFeedback, deleteFeedback, getFeedbacks } from '../apis/feedback';
+import type { FeedbackSessionId } from '../apis/feedback';
 import type { Actor, Feedback } from '../types/feedback';
 
 const URGENT_MARK_PATTERN = /!{3,}/;
@@ -17,7 +18,12 @@ const secondsToTimestamp = (value: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-export function useFeedback(sessionId?: number) {
+const hasValidSessionId = (
+  sessionId: FeedbackSessionId | undefined,
+): sessionId is FeedbackSessionId =>
+  sessionId !== undefined && String(sessionId).trim().length > 0;
+
+export function useFeedback(sessionId?: FeedbackSessionId) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
   const [content, setContent] = useState('');
@@ -28,7 +34,7 @@ export function useFeedback(sessionId?: number) {
   const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(false);
 
   useEffect(() => {
-    if (!sessionId || Number.isNaN(sessionId)) return;
+    if (!hasValidSessionId(sessionId)) return;
 
     let ignore = false;
 
@@ -77,7 +83,7 @@ export function useFeedback(sessionId?: number) {
 
   const handleSubmit = async () => {
     if (selectedActors.length === 0 || !timestamp || !content.trim()) return;
-    if (!sessionId || Number.isNaN(sessionId) || isSubmitting) return;
+    if (!hasValidSessionId(sessionId) || isSubmitting) return;
 
     const feedbackActorIds = selectedActors.map((actor) => actor.id);
     const feedbackContent = content;
@@ -174,11 +180,28 @@ export function useFeedback(sessionId?: number) {
     handleEditCancel();
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
+    if (!hasValidSessionId(sessionId)) {
+      console.error('Cannot delete feedback without a valid session id');
+      return;
+    }
+
+    const deletedFeedback = feedbacks.find((item) => item.id === id);
+
     setFeedbacks((prev) => prev.filter((item) => item.id !== id));
 
     if (editingId === id) {
       handleEditCancel();
+    }
+
+    try {
+      await deleteFeedback(sessionId, id);
+    } catch (error) {
+      console.error('Failed to delete feedback', error);
+
+      if (deletedFeedback) {
+        setFeedbacks((prev) => [...prev, deletedFeedback]);
+      }
     }
   };
 

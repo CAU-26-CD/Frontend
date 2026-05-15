@@ -14,16 +14,25 @@ export default function RehearsalFeedbackPage() {
     projectId: string;
     sessionId: string;
   }>();
-  const numericProjectId = Number(projectId);
-  const numericSessionId = Number(sessionId);
-  const feedback = useFeedback(numericSessionId);
+  const fallbackSession =
+    feedbackSessionDummy.find((session) => session.status === 'inProgress') ??
+    feedbackSessionDummy[0];
+  const parsedProjectId = Number(projectId);
+  const numericProjectId = Number.isNaN(parsedProjectId)
+    ? fallbackSession.projectId
+    : parsedProjectId;
+  const activeSessionId = sessionId ?? String(fallbackSession.id);
+  const numericSessionId = Number(activeSessionId);
+  const feedback = useFeedback(activeSessionId);
   const { handleStartTimestamp } = feedback;
   const selectedProject = projectDummy.find(
     (project) => project.id === numericProjectId,
   );
   const selectedSession = feedbackSessionDummy.find(
     (session) =>
-      session.projectId === numericProjectId && session.id === numericSessionId,
+      session.projectId === numericProjectId &&
+      !Number.isNaN(numericSessionId) &&
+      session.id === numericSessionId,
   );
   const projectTitle = selectedProject?.title ?? 'Unknown Project';
   const sessionTitle = selectedSession?.title ?? 'Unknown Session';

@@ -257,6 +257,7 @@ export default function FeedbackPanel({
                   {isEditing ? (
                     <>
                       <button
+                        type="button"
                         onClick={() => onEditSave(feedback.id)}
                         disabled={!editingContent.trim()}
                         className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
@@ -264,6 +265,7 @@ export default function FeedbackPanel({
                         저장
                       </button>
                       <button
+                        type="button"
                         onClick={onEditCancel}
                         className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                       >
@@ -273,12 +275,14 @@ export default function FeedbackPanel({
                   ) : (
                     <>
                       <button
+                        type="button"
                         onClick={() => onEdit(feedback)}
                         className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                       >
                         수정
                       </button>
                       <button
+                        type="button"
                         onClick={() => onDelete(feedback.id)}
                         className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                       >
