@@ -14,10 +14,10 @@ export default function RehearsalFeedbackPage() {
     projectId: string;
     sessionId: string;
   }>();
-  const feedback = useFeedback();
-  const { handleStartTimestamp } = feedback;
   const numericProjectId = Number(projectId);
   const numericSessionId = Number(sessionId);
+  const feedback = useFeedback(numericSessionId);
+  const { handleStartTimestamp } = feedback;
   const selectedProject = projectDummy.find(
     (project) => project.id === numericProjectId,
   );
@@ -86,6 +86,7 @@ export default function RehearsalFeedbackPage() {
             content={feedback.content}
             editingId={feedback.editingId}
             editingContent={feedback.editingContent}
+            isSubmitting={feedback.isSubmitting}
             onActorSelect={feedback.addSelectedActor}
             onActorBackspace={feedback.removeLastSelectedActor}
             onTimestampStart={feedback.handleStartTimestamp}

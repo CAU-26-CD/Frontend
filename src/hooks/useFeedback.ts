@@ -1,15 +1,23 @@
 import { useCallback, useState } from 'react';
+import { createFeedback } from '../apis/feedback';
 import type { Actor, Feedback } from '../types/feedback';
 
 const URGENT_MARK_PATTERN = /!{3,}/;
 
-export function useFeedback() {
+const timestampToSeconds = (value: string) => {
+  const [minutes = '0', seconds = '0'] = value.split(':');
+
+  return Number(minutes) * 60 + Number(seconds);
+};
+
+export function useFeedback(sessionId?: number) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleStartTimestamp = useCallback(() => {
     const now = new Date();
@@ -19,22 +27,40 @@ export function useFeedback() {
     setTimestamp(`${mm}:${ss}`);
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedActors.length === 0 || !timestamp || !content.trim()) return;
+    if (!sessionId || Number.isNaN(sessionId) || isSubmitting) return;
 
-    const newFeedback: Feedback = {
-      id: Date.now(),
-      timestamp,
-      actorIds: selectedActors.map((actor) => actor.id),
-      content,
-      isUrgent: URGENT_MARK_PATTERN.test(content),
-      aiTags: [],
-      analysisStatus: 'idle',
-    };
+    const feedbackActorIds = selectedActors.map((actor) => actor.id);
+    const feedbackContent = content;
+    const feedbackTimestamp = timestamp;
 
-    setFeedbacks((prev) => [...prev, newFeedback]);
-    setContent('');
-    setTimestamp(null);
+    setIsSubmitting(true);
+
+    try {
+      const createdFeedback = await createFeedback(sessionId, {
+        content: feedbackContent,
+        video_offset_seconds: timestampToSeconds(feedbackTimestamp),
+      });
+
+      const newFeedback: Feedback = {
+        id: createdFeedback.feedback_id,
+        timestamp: feedbackTimestamp,
+        actorIds: feedbackActorIds,
+        content: createdFeedback.content,
+        isUrgent: URGENT_MARK_PATTERN.test(createdFeedback.content),
+        aiTags: [],
+        analysisStatus: 'idle',
+      };
+
+      setFeedbacks((prev) => [...prev, newFeedback]);
+      setContent('');
+      setTimestamp(null);
+    } catch (error) {
+      console.error('Failed to create feedback', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addSelectedActor = (actor: Actor) => {
@@ -113,6 +139,7 @@ export function useFeedback() {
     feedbacks,
     editingId,
     editingContent,
+    isSubmitting,
 
     addSelectedActor,
     toggleSelectedActor,
