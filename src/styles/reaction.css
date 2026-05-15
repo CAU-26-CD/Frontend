@@ -298,3 +298,83 @@
 .group:hover .reaction-project-card::before {
   transform: translateX(86%) rotate(8deg);
 }
+
+.reaction-glass-pill,
+.reaction-glass-field {
+  border: 1px solid rgb(255 255 255 / 30%);
+  background: rgb(67 27 27 / 52%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 16%),
+    0 0 0 1px rgb(255 255 255 / 8%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.reaction-glass-pill {
+  text-shadow: 0 1px 8px rgb(0 0 0 / 18%);
+}
+
+.reaction-glass-pill:hover,
+.reaction-glass-field:hover,
+.reaction-glass-field:focus {
+  border-color: rgb(255 255 255 / 48%);
+  background: rgb(67 27 27 / 62%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 24%),
+    0 0 0 1px rgb(255 255 255 / 12%);
+}
+
+.reaction-glass-field::placeholder {
+  color: rgb(255 248 239 / 58%);
+}
+
+.reaction-rehearsal-start-button::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgb(255 255 255 / 0%) 36%,
+    rgb(255 255 255 / 28%) 50%,
+    rgb(255 255 255 / 0%) 64%,
+    transparent 100%
+  );
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-82%);
+  transition:
+    opacity 180ms ease,
+    transform 680ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-rehearsal-start-button::after {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 62%;
+  height: 1px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 42%);
+  content: '';
+  opacity: 0.72;
+  pointer-events: none;
+  transform: translateX(-50%) scaleX(0.74);
+  transition:
+    opacity 240ms ease,
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reaction-rehearsal-start-button:hover::before {
+  opacity: 1;
+  transform: translateX(82%);
+}
+
+.reaction-rehearsal-start-button:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.reaction-rehearsal-start-button:disabled::before,
+.reaction-rehearsal-start-button:disabled::after {
+  opacity: 0;
+}

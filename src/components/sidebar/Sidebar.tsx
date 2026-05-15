@@ -124,7 +124,7 @@ export default function Sidebar() {
                 }
               }}
               autoFocus
-              className="mt-2 h-11 w-full rounded-xl border border-[#c8b7aa] bg-[#fff8ef]/78 px-3 text-sm font-semibold text-[#2d1715] outline-none transition focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15"
+              className="reaction-glass-field mt-2 h-12 w-full rounded-full px-5 text-sm font-semibold text-[#fff8ef] outline-none transition duration-300 placeholder:text-[#fff8ef]/58 hover:scale-[1.01] focus:scale-[1.01] focus:ring-2 focus:ring-white/35"
               placeholder="예: 5회차 런스루"
             />
 
@@ -143,9 +143,11 @@ export default function Sidebar() {
                   void createNamedSession();
                 }}
                 disabled={!sessionNameInput.trim() || isCreatingSession}
-                className="h-10 rounded-xl bg-[#431B1B] px-5 text-sm font-bold text-[#fff8ef] transition hover:bg-[#2f1212] disabled:bg-[#b9a89c] disabled:text-[#efe6de]"
+                className="reaction-glass-pill reaction-rehearsal-start-button relative h-10 overflow-hidden rounded-full px-5 text-sm font-bold text-[#fff8ef] transition duration-300 hover:scale-[1.025] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-55"
               >
-                {isCreatingSession ? '생성 중' : '생성'}
+                <span className="relative z-10">
+                  {isCreatingSession ? '생성 중' : '생성'}
+                </span>
               </button>
             </div>
           </div>

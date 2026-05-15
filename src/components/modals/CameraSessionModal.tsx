@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCameraSessionStatus } from '../../apis/session';
 import type {
@@ -53,7 +54,7 @@ export default function CameraSessionModal({
   }, [session.session_id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm">
+    <div className="reaction-ui-font fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-white/35 bg-[#efe6de]/88 p-6 text-[#2d1715] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
@@ -66,9 +67,10 @@ export default function CameraSessionModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-[#c8b7aa] px-3 py-1 text-xs font-bold transition hover:border-[#431B1B] hover:text-[#431B1B]"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-white/18 text-[#806b61] shadow-[inset_0_1px_0_rgba(255,255,255,0.64)] backdrop-blur-lg transition hover:border-white/55 hover:bg-white/30 hover:text-[#431B1B] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/25"
+            aria-label="닫기"
           >
-            닫기
+            <X size={18} strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
 
@@ -135,9 +137,9 @@ export default function CameraSessionModal({
           type="button"
           onClick={onStart}
           disabled={!isConnected}
-          className="mt-5 h-11 w-full rounded-xl bg-[#431B1B] text-sm font-bold text-[#fff8ef] transition hover:bg-[#2f1212] disabled:bg-[#b9a89c] disabled:text-[#efe6de]"
+          className="reaction-glass-pill reaction-rehearsal-start-button relative mt-5 h-12 w-full overflow-hidden rounded-full px-5 text-sm font-bold text-[#fff8ef] transition duration-300 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-55"
         >
-          리허설 시작
+          <span className="relative z-10">리허설 시작</span>
         </button>
       </div>
     </div>
