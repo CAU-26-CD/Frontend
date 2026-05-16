@@ -1,6 +1,7 @@
 // src/components/feedback/FeedbackPanel.tsx
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import sirenIcon from '../../images/icon/bitcoin-icons_siren-filled.svg';
 import urgentSirenIcon from '../../images/icon/bitcoin-icons_siren-filled2.svg';
 import type { Actor, Feedback } from '../../types/feedback';
@@ -29,6 +30,7 @@ type FeedbackPanelProps = {
   onEditCancel: () => void;
   onDelete: (id: number) => void;
   onToggleUrgent: (id: number) => void;
+  feedbackListSlot?: ReactNode;
 };
 
 export default function FeedbackPanel({
@@ -51,6 +53,7 @@ export default function FeedbackPanel({
   onEditCancel,
   onDelete,
   onToggleUrgent,
+  feedbackListSlot,
 }: FeedbackPanelProps) {
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const feedbackListRef = useRef<HTMLDivElement>(null);
@@ -205,9 +208,14 @@ export default function FeedbackPanel({
         <div
           ref={feedbackListRef}
           onScroll={handleFeedbackScroll}
-          className="reaction-hidden-scrollbar flex h-full flex-col items-end gap-3 overflow-y-auto pr-3"
+          className={[
+            'reaction-hidden-scrollbar flex h-full flex-col items-end gap-3 pr-3',
+            feedbackListSlot ? 'overflow-hidden' : 'overflow-y-auto',
+          ].join(' ')}
         >
-          {visibleCount < feedbacks.length && (
+          {feedbackListSlot ?? (
+            <>
+              {visibleCount < feedbacks.length && (
             <div className="w-80 max-w-full shrink-0 py-1 text-center text-xs text-[#806b61]">
               위로 스크롤하면 이전 피드백을 불러옵니다
             </div>
@@ -353,6 +361,8 @@ export default function FeedbackPanel({
               </div>
             );
           })}
+            </>
+          )}
         </div>
       </div>
 

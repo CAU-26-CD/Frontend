@@ -19,6 +19,9 @@ export default function Sidebar() {
   const { projectId } = useParams<{ projectId: string }>();
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isNamingSession, setIsNamingSession] = useState(false);
+  const [sessionCreationError, setSessionCreationError] = useState<
+    string | null
+  >(null);
   const [sessionNameInput, setSessionNameInput] = useState('새 리허설 세션');
 
   const handleItemClick = (label: string) => {
@@ -32,6 +35,7 @@ export default function Sidebar() {
     if (isCreatingSession) return;
 
     setIsNamingSession(false);
+    setSessionCreationError(null);
     setSessionNameInput('새 리허설 세션');
   };
 
@@ -41,6 +45,7 @@ export default function Sidebar() {
     if (!nextSessionName || isCreatingSession) return;
 
     setIsCreatingSession(true);
+    setSessionCreationError(null);
 
     try {
       const nextProjectId = Number(projectId);
@@ -49,16 +54,23 @@ export default function Sidebar() {
         throw new Error('Cannot create session without a valid project id');
       }
 
-      const createdProjectSession = await createProjectSession(nextProjectId, {
+      const nextProjectSession = await createProjectSession(nextProjectId, {
         title: nextSessionName,
       });
 
       setIsNamingSession(false);
       navigate(
-        `/project/${createdProjectSession.project_id}/workspace/${createdProjectSession.session_id}/feedback`,
+        `/project/${nextProjectSession.project_id}/workspace/${nextProjectSession.session_id}/feedback`,
+        {
+          state: {
+            openCameraSession: true,
+            projectSessionTitle: nextProjectSession.title,
+          },
+        },
       );
     } catch (error) {
       console.error('Failed to create session', error);
+      setSessionCreationError('세션을 생성하지 못했습니다.');
     } finally {
       setIsCreatingSession(false);
     }
@@ -140,6 +152,11 @@ export default function Sidebar() {
                 </span>
               </button>
             </div>
+            {sessionCreationError && (
+              <p className="mt-3 text-xs font-semibold text-[#A94444]">
+                {sessionCreationError}
+              </p>
+            )}
           </div>
         </div>
       )}
