@@ -96,23 +96,16 @@ export default function LoginPage() {
                 }));
               }}
               className={`reaction-login-input h-[35px] w-full rounded-full border bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition ${
-                validationErrors.email ? '!border-[#9f1f2d]' : 'border-white/85'
+                validationErrors.email
+                  ? 'reaction-login-input-error !border-[#9f1f2d]'
+                  : 'border-white/85'
               }`}
-              placeholder="아이디를 입력해주세요"
+              placeholder={
+                validationErrors.email ?? '아이디를 입력해주세요'
+              }
               autoComplete="username"
               aria-invalid={Boolean(validationErrors.email)}
-              aria-describedby={
-                validationErrors.email ? 'login-id-error' : undefined
-              }
             />
-            {validationErrors.email && (
-              <p
-                id="login-id-error"
-                className="reaction-ui-font -mt-[5px] pl-3 text-[10px] font-semibold text-[#9f1f2d]"
-              >
-                {validationErrors.email}
-              </p>
-            )}
 
             <div className="relative">
               <label className="sr-only" htmlFor="login-password">
@@ -130,16 +123,15 @@ export default function LoginPage() {
                 }}
                 className={`reaction-login-input h-[35px] w-full rounded-full border bg-transparent px-10 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition ${
                   validationErrors.password
-                    ? '!border-[#9f1f2d]'
+                    ? 'reaction-login-input-error !border-[#9f1f2d]'
                     : 'border-white/100'
                 }`}
-                placeholder="비밀번호를 입력해주세요"
+                placeholder={
+                  validationErrors.password ?? '비밀번호를 입력해주세요'
+                }
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 aria-invalid={Boolean(validationErrors.password)}
-                aria-describedby={
-                  validationErrors.password ? 'login-password-error' : undefined
-                }
               />
               <button
                 type="button"
@@ -150,14 +142,6 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {validationErrors.password && (
-              <p
-                id="login-password-error"
-                className="reaction-ui-font -mt-[5px] pl-3 text-[10px] font-semibold text-[#9f1f2d]"
-              >
-                {validationErrors.password}
-              </p>
-            )}
 
             <button
               type="submit"
