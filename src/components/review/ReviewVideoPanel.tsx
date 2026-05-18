@@ -39,10 +39,10 @@ export default function ReviewVideoPanel({ sessionId }: ReviewVideoPanelProps) {
       setIsVideoLoading(true);
 
       try {
-        const nextVideoUrl = await getSessionVideo(sessionId);
+        const video = await getSessionVideo(sessionId);
 
         if (!ignore) {
-          setVideoUrl(nextVideoUrl);
+          setVideoUrl(video.s3_url);
           setVideoMessage('');
         }
       } catch (error) {

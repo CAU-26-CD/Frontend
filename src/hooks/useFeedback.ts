@@ -28,7 +28,10 @@ const hasValidSessionId = (
 ): sessionId is FeedbackSessionId =>
   sessionId !== undefined && String(sessionId).trim().length > 0;
 
-export function useFeedback(sessionId?: FeedbackSessionId) {
+export function useFeedback(
+  sessionId?: FeedbackSessionId,
+  getCurrentOffsetSeconds: () => number = () => 0,
+) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
   const [content, setContent] = useState('');
@@ -80,12 +83,8 @@ export function useFeedback(sessionId?: FeedbackSessionId) {
   }, [sessionId]);
 
   const handleStartTimestamp = useCallback(() => {
-    const now = new Date();
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    const ss = String(now.getSeconds()).padStart(2, '0');
-
-    setTimestamp(`${mm}:${ss}`);
-  }, []);
+    setTimestamp(secondsToTimestamp(getCurrentOffsetSeconds()));
+  }, [getCurrentOffsetSeconds]);
 
   const handleSubmit = async () => {
     if (selectedActors.length === 0 || !timestamp || !content.trim()) return;

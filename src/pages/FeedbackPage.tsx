@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Settings, Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   createCameraSession,
   getCameraSessionStatus,
   getProjectSessions,
+  stopCameraSession,
 } from '../apis/session';
 import type {
+  CameraSessionStatusResponse,
   CreateCameraSessionResponse,
   CreateProjectSessionResponse,
 } from '../apis/session';
@@ -46,13 +48,25 @@ export default function RehearsalFeedbackPage() {
   );
   const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
   const [showEndRehearsalModal, setShowEndRehearsalModal] = useState(false);
+  const [cameraStatusText, setCameraStatusText] = useState('');
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(
+    null,
+  );
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const hasRequestedCameraSessionRef = useRef(false);
   const hasShownUploadCompleteRef = useRef(false);
   const parsedProjectId = Number(projectId);
   const numericProjectId = parsedProjectId;
   const activeSessionId = sessionId ?? '';
   const numericSessionId = Number(activeSessionId);
-  const feedback = useFeedback(activeSessionId);
+  const getCurrentRecordingOffsetSeconds = useCallback(() => {
+    if (recordingStartedAt === null) {
+      return recordingElapsedSeconds;
+    }
+
+    return Math.max(0, Math.floor((Date.now() - recordingStartedAt) / 1000));
+  }, [recordingElapsedSeconds, recordingStartedAt]);
+  const feedback = useFeedback(activeSessionId, getCurrentRecordingOffsetSeconds);
   const { handleStartTimestamp } = feedback;
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
@@ -62,6 +76,33 @@ export default function RehearsalFeedbackPage() {
     currentProjectSession?.title ??
     (Number.isNaN(numericSessionId) ? 'Session' : `Session ${numericSessionId}`);
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
+  const isRecording = cameraStatusText === 'recording';
+  const recordingTime = `${String(Math.floor(recordingElapsedSeconds / 60)).padStart(
+    2,
+    '0',
+  )}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
+
+  const applyCameraStatus = (nextStatus: CameraSessionStatusResponse) => {
+    const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
+
+    setCameraStatusText(normalizedStatus);
+
+    if (normalizedStatus === 'recording') {
+      setRecordingStartedAt((current) => current ?? Date.now());
+    }
+
+    if (normalizedStatus === 'stop' || normalizedStatus === 'stopped') {
+      setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
+      setRecordingStartedAt(null);
+    }
+
+    if (normalizedStatus === 'done' || nextStatus.video_url) {
+      hasShownUploadCompleteRef.current = true;
+      setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
+      setRecordingStartedAt(null);
+      setShowUploadCompleteModal(true);
+    }
+  };
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {
@@ -139,12 +180,7 @@ export default function RehearsalFeedbackPage() {
         const nextStatus = await getCameraSessionStatus(
           cameraSession.session_id,
         );
-        const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
-
-        if (normalizedStatus === 'done' || nextStatus.video_url) {
-          hasShownUploadCompleteRef.current = true;
-          setShowUploadCompleteModal(true);
-        }
+        applyCameraStatus(nextStatus);
       } catch (error) {
         console.error('Failed to get camera session status', error);
       }
@@ -158,7 +194,29 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [cameraSession, isCameraGateOpen]);
+  }, [
+    cameraSession,
+    isCameraGateOpen,
+  ]);
+
+  useEffect(() => {
+    if (recordingStartedAt === null) {
+      return;
+    }
+
+    const updateElapsed = () => {
+      setRecordingElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - recordingStartedAt) / 1000)),
+      );
+    };
+
+    updateElapsed();
+    const intervalId = window.setInterval(updateElapsed, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [recordingStartedAt]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -189,8 +247,25 @@ export default function RehearsalFeedbackPage() {
     navigate(location.pathname, { replace: true, state: null });
   };
 
-  const exitRehearsal = () => {
+  const exitRehearsal = async () => {
     if (Number.isNaN(numericProjectId)) {
+      return;
+    }
+
+    if (cameraSession) {
+      try {
+        const stopStatus = await stopCameraSession(cameraSession.session_id);
+
+        if (stopStatus.toLowerCase() === 'stop') {
+          setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
+          setRecordingStartedAt(null);
+          setCameraStatusText('stop');
+        }
+      } catch (error) {
+        console.error('Failed to stop camera session', error);
+      }
+
+      setShowEndRehearsalModal(false);
       return;
     }
 
@@ -213,6 +288,7 @@ export default function RehearsalFeedbackPage() {
         session={cameraSession}
         sessionName={sessionTitle}
         onStart={startRehearsal}
+        onStatusChange={applyCameraStatus}
         variant="panel"
       />
     ) : (
@@ -251,9 +327,14 @@ export default function RehearsalFeedbackPage() {
               fill="#D15757"
               stroke="#D15757"
               strokeWidth={2.4}
-              className="shrink-0"
+              className={isRecording ? 'reaction-recording-icon shrink-0' : 'shrink-0'}
               aria-hidden="true"
             />
+            {isRecording && (
+              <span className="reaction-recording-time rounded-full border border-[#D15757]/70 bg-[#431B1B]/42 px-2.5 py-1 text-xs font-bold text-[#fff8ef]">
+                REC {recordingTime}
+              </span>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

@@ -33,6 +33,21 @@ export type CameraSessionStatusResponse = {
   video_url: string | null;
 };
 
+export type SessionVideoActor = {
+  actor_id: number;
+  name: string | null;
+  thumbnail_url: string;
+  is_new: boolean;
+};
+
+export type SessionVideoResponse = {
+  video_id: number;
+  s3_url: string;
+  analysis_status: string;
+  analysis_result: unknown;
+  actors: SessionVideoActor[];
+};
+
 export const createProjectSession = async (
   projectId: number,
   data: CreateProjectSessionRequest,
@@ -53,7 +68,9 @@ export const getProjectSessions = async (
   return res.data;
 };
 
-export const getSessionVideo = async (sessionId: number): Promise<string> => {
+export const getSessionVideo = async (
+  sessionId: number,
+): Promise<SessionVideoResponse> => {
   const res = await instance.get(`/api/v1/sessions/${sessionId}/video`);
 
   return res.data;
@@ -119,6 +136,12 @@ export const markCameraSessionDone = async (
       },
     },
   );
+
+  return res.data;
+};
+
+export const stopCameraSession = async (sessionId: string): Promise<string> => {
+  const res = await instance.post(`/api/v1/camera-session/${sessionId}/stop`);
 
   return res.data;
 };

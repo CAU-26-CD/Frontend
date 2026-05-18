@@ -9,6 +9,7 @@ type CameraSessionModalProps = {
   session: CreateCameraSessionResponse;
   sessionName: string;
   onStart: () => void;
+  onStatusChange?: (status: CameraSessionStatusResponse) => void;
   variant?: 'overlay' | 'panel';
 };
 
@@ -16,6 +17,7 @@ export default function CameraSessionModal({
   session,
   sessionName,
   onStart,
+  onStatusChange,
   variant = 'overlay',
 }: CameraSessionModalProps) {
   const [cameraStatus, setCameraStatus] =
@@ -23,13 +25,11 @@ export default function CameraSessionModal({
   const [statusError, setStatusError] = useState<string | null>(null);
   const normalizedStatus = cameraStatus?.status?.toLowerCase() ?? '';
 
-  const isConnected =
-    normalizedStatus === 'connected' ||
-    normalizedStatus === 'done' ||
-    Boolean(cameraStatus?.connected_at);
+  const isConnected = normalizedStatus === 'connected';
+  const isRecording = normalizedStatus === 'recording';
   const isDone =
     normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
-  const canStartRehearsal = isConnected;
+  const canStartRehearsal = isConnected || isRecording;
   const isPanel = variant === 'panel';
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export default function CameraSessionModal({
         const nextStatus = await getCameraSessionStatus(session.session_id);
 
         setCameraStatus(nextStatus);
+        onStatusChange?.(nextStatus);
         setStatusError(null);
       } catch (error) {
         console.error('Failed to get camera session status', error);
@@ -115,7 +116,7 @@ export default function CameraSessionModal({
               : 'mt-5 rounded-xl border border-white/45 bg-white/28 p-4 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] backdrop-blur-xl'
           }
         >
-          {!isConnected && (
+          {!isConnected && !isRecording && !isDone && (
             <div>
               <p className="font-bold">연결할 준비가 완료되었습니다.</p>
               <p className="mt-1 text-[#806b61]">
@@ -134,6 +135,17 @@ export default function CameraSessionModal({
               </p>
               <p className="mt-1 text-[#806b61]">
                 리허설 시작 버튼을 누르면 피드백 입력을 시작합니다.
+              </p>
+            </div>
+          )}
+
+          {isRecording && (
+            <div>
+              <p className="font-bold text-[#431B1B]">
+                리허설을 녹화하고 있습니다.
+              </p>
+              <p className="mt-1 text-[#806b61]">
+                종료 후 업로드가 완료되면 다음 단계로 이동합니다.
               </p>
             </div>
           )}

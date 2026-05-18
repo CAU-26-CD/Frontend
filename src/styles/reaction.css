@@ -560,6 +560,30 @@
   animation: none;
 }
 
+.reaction-recording-icon {
+  animation: reaction-recording-blink 1s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgb(209 87 87 / 72%));
+}
+
+.reaction-recording-time {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 12%),
+    0 0 18px rgb(209 87 87 / 22%);
+}
+
+@keyframes reaction-recording-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.42;
+    transform: scale(0.92);
+  }
+}
+
 @keyframes reaction-ready-button-pulse {
   0%,
   100% {
