@@ -21,6 +21,7 @@ export type CreateProjectSessionResponse = {
   session_id: number;
   project_id: number;
   title: string;
+  s_category?: string;
   created_at: string;
   in_progress?: boolean;
 };

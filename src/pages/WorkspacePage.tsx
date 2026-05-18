@@ -8,6 +8,8 @@ import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import type { FeedbackSession } from '../types/feedback';
 
+const sessionCategories = ['장면별 연습', '런쓰루', '워크쓰루', '텐투텐'];
+
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const numericProjectId = Number(projectId);
@@ -15,6 +17,7 @@ export default function WorkspacePage() {
     [],
   );
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
@@ -34,6 +37,7 @@ export default function WorkspacePage() {
             id: session.session_id,
             projectId: session.project_id,
             title: session.title,
+            category: session.s_category,
             date: session.created_at,
             status:
               session.session_id === latestSessionId
@@ -51,11 +55,15 @@ export default function WorkspacePage() {
     void loadSessions();
   }, [numericProjectId]);
 
-  const inProgressSessions = feedbackSessions.filter(
+  const filteredSessions = selectedCategory
+    ? feedbackSessions.filter((session) => session.category === selectedCategory)
+    : feedbackSessions;
+
+  const inProgressSessions = filteredSessions.filter(
     (session) => session.status === 'inProgress',
   );
 
-  const completedSessions = feedbackSessions.filter(
+  const completedSessions = filteredSessions.filter(
     (session) => session.status !== 'inProgress',
   );
 
@@ -78,8 +86,28 @@ export default function WorkspacePage() {
                 CATEGORY
               </h2>
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-[#eee7dc] md:block md:space-y-1">
-                <li>ㄴ 런스루</li>
-                <li>ㄴ 워크스루</li>
+                {sessionCategories.map((category) => {
+                  const isSelected = selectedCategory === category;
+
+                  return (
+                    <li key={category}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedCategory((current) =>
+                            current === category ? null : category,
+                          )
+                        }
+                        className={[
+                          'text-left transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                          isSelected ? 'text-white underline underline-offset-4' : '',
+                        ].join(' ')}
+                      >
+                        ㄴ {category}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </aside>
 

@@ -8,6 +8,7 @@ export interface FeedbackSession {
   id: number;
   projectId: number;
   title: string;
+  category?: string;
   date: string;
   status: FeedbackSessionStatus;
 }
