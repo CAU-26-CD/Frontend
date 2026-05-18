@@ -186,7 +186,7 @@ export default function NewProject() {
                 }))
               }
               className="reaction-login-input h-[40px] w-full rounded-full border border-white/85 bg-transparent px-5 text-center text-[11px] font-semibold text-[#2d1715] outline-none transition"
-              placeholder="join code 생성"
+              placeholder="JOIN CODE 생성"
               maxLength={4}
             />
           </div>

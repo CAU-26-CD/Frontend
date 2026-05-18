@@ -42,8 +42,9 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await postLogin({ email, password });
-      navigate('/project');
+      const response = await postLogin({ email, password });
+      localStorage.setItem('userEmail', response.email);
+      navigate('/projects');
     } catch (error) {
       console.error('로그인 실패:', error);
       setErrorMessage('ID 또는 비밀번호를 확인해 주세요.');

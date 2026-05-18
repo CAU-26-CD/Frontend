@@ -8,8 +8,16 @@ interface DesignedHeaderProps {
   className?: string;
 }
 
+const getStoredUserEmail = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return localStorage.getItem('userEmail') ?? '';
+};
+
 export default function DesignedHeader({
-  userName = 'JIWON',
+  userName = getStoredUserEmail(),
   onLogout,
   align = 'center',
   className = '',

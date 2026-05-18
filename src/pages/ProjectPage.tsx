@@ -49,7 +49,7 @@ function ProjectTile({
         </button>
       </div>
 
-      <p className="mt-2 truncate text-[10px] font-medium text-[#b4aca4]">
+      <p className="mt-2 truncate text-center text-[10px] font-medium text-[#b4aca4]">
         {project.description ?? project.date}
       </p>
     </article>
