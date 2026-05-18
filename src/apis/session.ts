@@ -14,6 +14,7 @@ export type CreateCameraSessionResponse = {
 
 export type CreateProjectSessionRequest = {
   title: string;
+  s_category: string;
 };
 
 export type CreateProjectSessionResponse = {

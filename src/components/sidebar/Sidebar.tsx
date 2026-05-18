@@ -14,6 +14,8 @@ const sidebarItems = [
   { label: '홈', icon: sidebarHome },
 ];
 
+const sessionCategories = ['장면별 연습', '워크쓰루', '런쓰루', '텐투텐'];
+
 export default function Sidebar() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
@@ -23,11 +25,14 @@ export default function Sidebar() {
     string | null
   >(null);
   const [sessionNameInput, setSessionNameInput] = useState('새 리허설 세션');
+  const [selectedSessionCategory, setSelectedSessionCategory] =
+    useState('장면별 연습');
 
   const handleItemClick = (label: string) => {
     if (label !== '추가' || isCreatingSession) return;
 
     setSessionNameInput('새 리허설 세션');
+    setSelectedSessionCategory('장면별 연습');
     setIsNamingSession(true);
   };
 
@@ -37,6 +42,7 @@ export default function Sidebar() {
     setIsNamingSession(false);
     setSessionCreationError(null);
     setSessionNameInput('새 리허설 세션');
+    setSelectedSessionCategory('장면별 연습');
   };
 
   const createNamedSession = async () => {
@@ -56,6 +62,7 @@ export default function Sidebar() {
 
       const nextProjectSession = await createProjectSession(nextProjectId, {
         title: nextSessionName,
+        s_category: selectedSessionCategory,
       });
 
       setIsNamingSession(false);
@@ -106,7 +113,7 @@ export default function Sidebar() {
             <div className="mb-5">
               <h2 className="text-lg font-bold">새 세션 만들기</h2>
               <p className="mt-1 text-sm font-semibold text-[#806b61]">
-                리허설 세션 이름을 입력하세요.
+                리허설 세션 이름과 카테고리를 입력하세요.
               </p>
             </div>
 
@@ -129,6 +136,33 @@ export default function Sidebar() {
               className="reaction-glass-field mt-2 h-12 w-full rounded-full px-5 text-sm font-semibold text-[#fff8ef] outline-none transition duration-300 placeholder:text-[#fff8ef]/58 hover:scale-[1.01] focus:scale-[1.01] focus:ring-2 focus:ring-white/35"
               placeholder="예: 5회차 런스루"
             />
+
+            <div className="mt-4">
+              <p className="block text-xs font-bold text-[#806b61]">
+                카테고리
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {sessionCategories.map((category) => {
+                  const isSelected = selectedSessionCategory === category;
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setSelectedSessionCategory(category)}
+                      className={[
+                        'h-9 rounded-full border px-3 text-xs font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                        isSelected
+                          ? 'border-[#431B1B] bg-[#431B1B] text-[#fff8ef]'
+                          : 'border-[#c8b7aa] bg-white/26 text-[#806b61] hover:border-[#431B1B] hover:text-[#431B1B]',
+                      ].join(' ')}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="mt-5 flex justify-end gap-2">
               <button
