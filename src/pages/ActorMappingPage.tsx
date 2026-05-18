@@ -3,8 +3,6 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import { actors } from '../data/actors';
-import { feedbackSessionDummy } from '../data/feedbackSessionDummy';
-import { projectDummy } from '../data/projectDummy';
 import fallbackFrameImage from '../images/reaction-bg.png';
 
 type RecognizedFaceFrame = {
@@ -29,17 +27,32 @@ export default function ActorMappingPage() {
     sessionId: string;
   }>();
   const [mappedActors, setMappedActors] = useState<Record<number, number>>({});
+  const [selectedFrameId, setSelectedFrameId] = useState(
+    recognizedFaceFrames[0]?.id ?? 0,
+  );
   const numericProjectId = Number(projectId);
   const numericSessionId = Number(sessionId);
-  const selectedProject = projectDummy.find(
-    (project) => project.id === numericProjectId,
-  );
-  const selectedSession = feedbackSessionDummy.find(
-    (session) =>
-      session.projectId === numericProjectId && session.id === numericSessionId,
-  );
+  const projectTitle = Number.isNaN(numericProjectId)
+    ? 'Project'
+    : `Project ${numericProjectId}`;
+  const sessionTitle = Number.isNaN(numericSessionId)
+    ? 'Session'
+    : `Session ${numericSessionId}`;
   const mappedCount = useMemo(
     () => Object.keys(mappedActors).length,
+    [mappedActors],
+  );
+  const selectedFrame =
+    recognizedFaceFrames.find((frame) => frame.id === selectedFrameId) ??
+    recognizedFaceFrames[0];
+  const sortedFrames = useMemo(
+    () =>
+      [...recognizedFaceFrames].sort((a, b) => {
+        const aMapped = mappedActors[a.id] ? 0 : 1;
+        const bMapped = mappedActors[b.id] ? 0 : 1;
+
+        return aMapped - bMapped || a.id - b.id;
+      }),
     [mappedActors],
   );
 
@@ -52,7 +65,7 @@ export default function ActorMappingPage() {
 
   const handleComplete = () => {
     if (!Number.isNaN(numericProjectId)) {
-      navigate(`/project/${numericProjectId}/workspace`);
+      navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
     }
   };
 
@@ -65,8 +78,7 @@ export default function ActorMappingPage() {
         <div className="reaction-ui-font flex shrink-0 items-center justify-between gap-4 text-sm font-semibold text-[#eee7dc]">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate">
-              My Projects / {selectedProject?.title ?? 'Unknown Project'} /{' '}
-              {selectedSession?.title ?? 'Unknown Session'}
+              My Projects / {projectTitle} / {sessionTitle}
             </span>
             <Video
               size={20}
@@ -93,64 +105,100 @@ export default function ActorMappingPage() {
               {recognizedFaceFrames.length}명의 배우를 인식했습니다. 태그를
               매칭해주세요.
             </h1>
-            <p className="mt-2 text-xs font-semibold text-[#eee7dc]/48">
-              인식된 프레임을 확인하고 오른쪽에서 배우 태그를 선택하세요
-            </p>
           </div>
 
-          <div className="mt-9 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {recognizedFaceFrames.map((frame) => {
+          {selectedFrame && (
+            <div className="mt-6 flex flex-1 items-start justify-center">
+              <article className="grid w-full max-w-[470px] grid-cols-[minmax(150px,0.92fr)_minmax(0,1fr)] gap-8 rounded-[6px] bg-[#efe6de] p-5 text-[#2d1715] shadow-[0_24px_54px_rgba(0,0,0,0.28)]">
+                <div className="relative aspect-[1.05/1] overflow-hidden rounded-[4px] bg-[#aa9d91]">
+                  <img
+                    src={selectedFrame.frameUrl}
+                    alt={`${selectedFrame.timestamp} 인식 프레임`}
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute bottom-2 left-2 rounded-full bg-[#431B1B]/78 px-2.5 py-1 text-[10px] font-bold text-[#fff8ef]">
+                    {selectedFrame.timestamp}
+                  </span>
+                </div>
+
+                <div className="flex min-w-0 flex-col justify-center">
+                  <div className="mb-4 h-9 rounded-[8px] border border-[#b8aca3] bg-white/36" />
+                  <div className="flex flex-col overflow-hidden rounded-[8px] border border-[#c8b7aa] bg-[#f5eee6]">
+                    {actors.map((actor) => {
+                      const isSelected =
+                        mappedActors[selectedFrame.id] === actor.id;
+
+                      return (
+                        <button
+                          key={actor.id}
+                          type="button"
+                          onClick={() =>
+                            handleActorSelect(selectedFrame.id, actor.id)
+                          }
+                          className={[
+                            'flex h-9 items-center justify-center gap-1.5 px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                            isSelected
+                              ? 'bg-[#6f5752] text-[#fff8ef]'
+                              : 'text-[#806b61] hover:bg-[#eadbd0] hover:text-[#431B1B]',
+                          ].join(' ')}
+                        >
+                          {isSelected && (
+                            <Check size={13} strokeWidth={3} aria-hidden />
+                          )}
+                          {actor.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </article>
+            </div>
+          )}
+
+          <div className="mt-7 overflow-x-auto pb-2">
+            <div className="flex min-w-max items-center gap-3 px-3">
+              {sortedFrames.map((frame) => {
               const selectedActorId = mappedActors[frame.id];
+                const selectedActor = actors.find(
+                  (actor) => actor.id === selectedActorId,
+                );
+                const isActive = frame.id === selectedFrameId;
 
               return (
-                <article
+                  <button
                   key={frame.id}
-                  className="grid min-h-[132px] grid-cols-[minmax(94px,0.78fr)_minmax(0,1fr)] gap-3 overflow-hidden rounded-[6px] border border-[#e8ddd2]/70 bg-[#efe6de] p-2.5 text-[#2d1715] shadow-[0_14px_32px_rgba(0,0,0,0.2)]"
+                    type="button"
+                    onClick={() => setSelectedFrameId(frame.id)}
+                    className={[
+                      'grid h-[92px] w-[190px] shrink-0 grid-cols-[70px_minmax(0,1fr)] gap-3 rounded-[6px] border bg-[#efe6de] p-2 text-left text-[#2d1715] shadow-[0_14px_32px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
+                      isActive
+                        ? 'border-[#fff8ef] ring-2 ring-[#fff8ef]/55'
+                        : selectedActor
+                          ? 'border-[#DF8181]/80'
+                          : 'border-[#e8ddd2]/70',
+                    ].join(' ')}
                 >
                   <div className="relative overflow-hidden rounded-[3px] bg-[#aa9d91]">
                     <img
                       src={frame.frameUrl}
                       alt={`${frame.timestamp} 인식 프레임`}
-                      className="h-full w-full object-cover opacity-70 grayscale"
+                        className="h-full w-full object-cover opacity-80 grayscale"
                     />
-                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-[#431B1B]/78 px-2 py-0.5 text-[10px] font-bold text-[#fff8ef]">
-                      {frame.timestamp}
-                    </span>
                   </div>
 
-                  <div className="flex min-w-0 flex-col justify-center gap-2">
-                    <p className="truncate text-[11px] font-bold text-[#806b61]">
-                      Face #{frame.id}
-                    </p>
-
-                    <div className="flex flex-wrap gap-1.5">
-                      {actors.map((actor) => {
-                        const isSelected = selectedActorId === actor.id;
-
-                        return (
-                          <button
-                            key={actor.id}
-                            type="button"
-                            onClick={() => handleActorSelect(frame.id, actor.id)}
-                            className={[
-                              'inline-flex h-7 min-w-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
-                              isSelected
-                                ? 'border-[#431B1B] bg-[#431B1B] text-[#fff8ef]'
-                                : 'border-[#c8b7aa] bg-white/42 text-[#806b61] hover:border-[#431B1B] hover:text-[#431B1B]',
-                            ].join(' ')}
-                          >
-                            {isSelected && (
-                              <Check size={12} strokeWidth={3} aria-hidden />
-                            )}
-                            <span className="truncate">{actor.name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <div className="flex min-w-0 flex-col justify-center">
+                      <div className="h-5 rounded-[5px] border border-[#b8aca3] bg-white/34" />
+                      <p className="mt-2 truncate text-[11px] font-bold text-[#806b61]">
+                        {selectedActor?.name ?? '미매칭'}
+                      </p>
+                      <p className="mt-0.5 text-[10px] font-semibold text-[#806b61]/62">
+                        {frame.timestamp}
+                      </p>
                   </div>
-                </article>
+                  </button>
               );
             })}
+            </div>
           </div>
 
           <div className="mt-6 flex items-center justify-center">

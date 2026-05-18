@@ -53,6 +53,12 @@ export const getProjectSessions = async (
   return res.data;
 };
 
+export const getSessionVideo = async (sessionId: number): Promise<string> => {
+  const res = await instance.get(`/api/v1/sessions/${sessionId}/video`);
+
+  return res.data;
+};
+
 export const completeProjectSession = async (
   projectId: number,
   sessionId: number,

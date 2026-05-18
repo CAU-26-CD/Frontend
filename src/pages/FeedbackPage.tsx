@@ -11,8 +11,6 @@ import type {
   CreateProjectSessionResponse,
 } from '../apis/session';
 import { actors } from '../data/actors';
-import { feedbackSessionDummy } from '../data/feedbackSessionDummy';
-import { projectDummy } from '../data/projectDummy';
 import { useFeedback } from '../hooks/useFeedback';
 import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
@@ -49,32 +47,19 @@ export default function RehearsalFeedbackPage() {
   const [showEndRehearsalModal, setShowEndRehearsalModal] = useState(false);
   const hasRequestedCameraSessionRef = useRef(false);
   const hasShownUploadCompleteRef = useRef(false);
-  const fallbackSession =
-    feedbackSessionDummy.find((session) => session.status === 'inProgress') ??
-    feedbackSessionDummy[0];
   const parsedProjectId = Number(projectId);
-  const numericProjectId = Number.isNaN(parsedProjectId)
-    ? fallbackSession.projectId
-    : parsedProjectId;
-  const activeSessionId = sessionId ?? String(fallbackSession.id);
+  const numericProjectId = parsedProjectId;
+  const activeSessionId = sessionId ?? '';
   const numericSessionId = Number(activeSessionId);
   const feedback = useFeedback(activeSessionId);
   const { handleStartTimestamp } = feedback;
-  const selectedProject = projectDummy.find(
-    (project) => project.id === numericProjectId,
-  );
-  const selectedSession = feedbackSessionDummy.find(
-    (session) =>
-      session.projectId === numericProjectId &&
-      !Number.isNaN(numericSessionId) &&
-      session.id === numericSessionId,
-  );
-  const projectTitle = selectedProject?.title ?? 'Unknown Project';
+  const projectTitle = Number.isNaN(numericProjectId)
+    ? 'Project'
+    : `Project ${numericProjectId}`;
   const sessionTitle =
     routeState?.projectSessionTitle ??
     currentProjectSession?.title ??
-    selectedSession?.title ??
-    'Unknown Session';
+    (Number.isNaN(numericSessionId) ? 'Session' : `Session ${numericSessionId}`);
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
 
   useEffect(() => {

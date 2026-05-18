@@ -2,8 +2,6 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProjectSessions } from '../apis/session';
-import { projectDummy } from '../data/projectDummy';
-import { feedbackSessionDummy } from '../data/feedbackSessionDummy';
 import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
@@ -13,15 +11,11 @@ export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const numericProjectId = Number(projectId);
   const [feedbackSessions, setFeedbackSessions] = useState<FeedbackSession[]>(
-    () =>
-      feedbackSessionDummy.filter(
-        (session) => session.projectId === numericProjectId,
-      ),
+    [],
   );
-  const selectedProject = projectDummy.find(
-    (project) => project.id === numericProjectId,
-  );
-  const projectTitle = selectedProject?.title ?? 'Unknown Project';
+  const projectTitle = Number.isNaN(numericProjectId)
+    ? 'Project'
+    : `Project ${numericProjectId}`;
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId)) return;

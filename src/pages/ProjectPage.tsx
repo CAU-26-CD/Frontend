@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProjects } from '../apis/project';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
-import { projectDummy } from '../data/projectDummy';
 import addSign from '../images/icon/add_sign.svg';
 import projectCardImage from '../images/icon/ProjectCard.svg';
 import searchGradient from '../images/icon/search_gradient.svg';
@@ -57,7 +56,7 @@ function ProjectTile({
 }
 
 export default function ProjectPage() {
-  const [projects, setProjects] = useState<Project[]>(projectDummy);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
@@ -190,6 +189,12 @@ export default function ProjectPage() {
               />
             ))}
           </div>
+
+          {allProjects.length === 0 && (
+            <p className="reaction-ui-font mt-8 text-sm font-semibold text-[#eee7dc]/55">
+              표시할 프로젝트가 없습니다.
+            </p>
+          )}
         </section>
       </div>
     </main>

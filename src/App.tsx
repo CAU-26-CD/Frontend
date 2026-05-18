@@ -4,6 +4,7 @@ import ActorMappingPage from './pages/ActorMappingPage';
 import LoginPage from './pages/loginPage';
 import NewProject from './pages/NewProject';
 import ProjectPage from './pages/ProjectPage';
+import ReviewPage from './pages/ReviewPage';
 import WorkspacePage from './pages/WorkspacePage';
 import HomePage from './pages/HomePage';
 
@@ -23,6 +24,10 @@ function App() {
       <Route
         path="/project/:projectId/workspace/:sessionId/actors"
         element={<ActorMappingPage />}
+      />
+      <Route
+        path="/project/:projectId/workspace/:sessionId/review"
+        element={<ReviewPage />}
       />
     </Routes>
   );

@@ -11,7 +11,10 @@ export default function FeedbackSessionCard({
   projectId,
   session,
 }: FeedbackSessionCardProps) {
-  const sessionPath = `/project/${projectId}/workspace/${session.id}/feedback`;
+  const sessionPath =
+    session.status === 'inProgress'
+      ? `/project/${projectId}/workspace/${session.id}/feedback`
+      : `/project/${projectId}/workspace/${session.id}/review`;
   const sessionDate = session.date.includes('T')
     ? session.date.split('T')[0]
     : session.date.split(' ')[0];
