@@ -1,11 +1,13 @@
 type VideoUploadCompleteModalProps = {
   onCancel: () => void;
   onConfirm: () => void;
+  confirmLabel?: string;
 };
 
 export default function VideoUploadCompleteModal({
   onCancel,
   onConfirm,
+  confirmLabel = '나가기',
 }: VideoUploadCompleteModalProps) {
   return (
     <div className="reaction-ui-font fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm">
@@ -28,7 +30,7 @@ export default function VideoUploadCompleteModal({
             onClick={onConfirm}
             className="reaction-glass-pill reaction-rehearsal-start-button relative h-10 overflow-hidden rounded-full px-6 text-sm font-bold text-[#fff8ef] transition duration-300 hover:scale-[1.025] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
-            <span className="relative z-10">나가기</span>
+            <span className="relative z-10">{confirmLabel}</span>
           </button>
         </div>
       </div>

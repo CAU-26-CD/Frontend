@@ -111,11 +111,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       ignore = true;
     };
-  }, [
-    numericProjectId,
-    numericSessionId,
-    rehearsalStartedStorageKey,
-  ]);
+  }, [numericProjectId, numericSessionId, rehearsalStartedStorageKey]);
 
   useEffect(() => {
     if (
@@ -144,7 +140,11 @@ export default function RehearsalFeedbackPage() {
   }, [isCameraGateOpen, numericSessionId]);
 
   useEffect(() => {
-    if (!cameraSession || isCameraGateOpen || hasShownUploadCompleteRef.current) {
+    if (
+      !cameraSession ||
+      isCameraGateOpen ||
+      hasShownUploadCompleteRef.current
+    ) {
       return;
     }
 
@@ -212,6 +212,15 @@ export default function RehearsalFeedbackPage() {
     navigate(`/project/${numericProjectId}/workspace`);
   };
 
+  const openActorMapping = () => {
+    if (Number.isNaN(numericProjectId)) {
+      return;
+    }
+
+    sessionStorage.removeItem(rehearsalStartedStorageKey);
+    navigate(`/project/${numericProjectId}/workspace/${activeSessionId}/actors`);
+  };
+
   const cameraSessionSlot = isCameraGateOpen ? (
     cameraSession ? (
       <CameraSessionModal
@@ -257,7 +266,7 @@ export default function RehearsalFeedbackPage() {
             <button
               type="button"
               onClick={() => setShowEndRehearsalModal(true)}
-              className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              className="reaction-glass-pill h-8 mb-2 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
               리허설 종료하기
             </button>
@@ -272,7 +281,12 @@ export default function RehearsalFeedbackPage() {
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
-          <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4">
+          <section
+            className={[
+              'grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4 transition',
+              isCameraGateOpen ? 'pointer-events-none opacity-45' : '',
+            ].join(' ')}
+          >
             <MovementArea
               actors={actors}
               selectedActors={feedback.selectedActors}
@@ -311,6 +325,7 @@ export default function RehearsalFeedbackPage() {
             onDelete={feedback.handleDelete}
             onToggleUrgent={feedback.handleToggleUrgent}
             feedbackListSlot={cameraSessionSlot}
+            isInteractionDisabled={isCameraGateOpen}
           />
         </div>
       </div>
@@ -318,7 +333,8 @@ export default function RehearsalFeedbackPage() {
       {showUploadCompleteModal && (
         <VideoUploadCompleteModal
           onCancel={() => setShowUploadCompleteModal(false)}
-          onConfirm={exitRehearsal}
+          onConfirm={openActorMapping}
+          confirmLabel="태그 매칭하기"
         />
       )}
 

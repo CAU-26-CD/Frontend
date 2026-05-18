@@ -31,6 +31,7 @@ type FeedbackPanelProps = {
   onDelete: (id: number) => void;
   onToggleUrgent: (id: number) => void;
   feedbackListSlot?: ReactNode;
+  isInteractionDisabled?: boolean;
 };
 
 export default function FeedbackPanel({
@@ -54,6 +55,7 @@ export default function FeedbackPanel({
   onDelete,
   onToggleUrgent,
   feedbackListSlot,
+  isInteractionDisabled = false,
 }: FeedbackPanelProps) {
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const feedbackListRef = useRef<HTMLDivElement>(null);
@@ -216,157 +218,167 @@ export default function FeedbackPanel({
           {feedbackListSlot ?? (
             <>
               {visibleCount < feedbacks.length && (
-            <div className="w-80 max-w-full shrink-0 py-1 text-center text-xs text-[#806b61]">
-              위로 스크롤하면 이전 피드백을 불러옵니다
-            </div>
-          )}
-
-          {visibleFeedbacks.map((feedback) => {
-            const isEditing = editingId === feedback.id;
-            const feedbackActorNames = feedback.actorIds
-              .map(
-                (actorId) => actors.find((actor) => actor.id === actorId)?.name,
-              )
-              .filter(Boolean)
-              .join(', ');
-            const isMovementFeedback = feedback.content.startsWith(
-              MOVEMENT_FEEDBACK_PREFIX,
-            );
-
-            return (
-              <div
-                key={feedback.id}
-                className={[
-                  'group relative min-h-[86px] w-80 max-w-full shrink-0 overflow-hidden rounded-md border px-3 py-2.5 text-sm transition-colors',
-                  feedback.isUrgent
-                    ? 'border-[#DF8181] bg-[#D15757] text-[#fff8ef] shadow-none'
-                    : isMovementFeedback
-                      ? 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none'
-                      : 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none',
-                ].join(' ')}
-              >
-                <div
-                  className={[
-                    'mb-2 flex items-center gap-1.5 text-[11px] font-bold leading-none',
-                    feedback.isUrgent ? 'text-[#fff8ef]' : 'text-[#2d1715]',
-                  ].join(' ')}
-                >
-                  <span>{feedback.timestamp}</span>
-                  {feedbackActorNames && (
-                    <>
-                      <span>|</span>
-                      <span>{feedbackActorNames}</span>
-                    </>
-                  )}
-                  {isMovementFeedback && (
-                    <span
-                      className={[
-                        'ml-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                        feedback.isUrgent
-                          ? 'border-white/50 bg-white/16 text-[#fff8ef]'
-                          : 'border-[#c59b74] bg-[#fff8ef]/75 text-[#8a4734]',
-                      ].join(' ')}
-                    >
-                      동선
-                    </span>
-                  )}
+                <div className="w-80 max-w-full shrink-0 py-1 text-center text-xs text-[#806b61]">
+                  위로 스크롤하면 이전 피드백을 불러옵니다
                 </div>
+              )}
 
-                {isEditing ? (
-                  <div className="space-y-2">
-                    {URGENT_MARK_PATTERN.test(editingContent) && (
-                      <span className="inline-flex rounded-full border border-[#d71920] bg-[#d71920] px-2 py-0.5 text-[10px] font-bold text-[#fff8ef]">
-                        긴급
-                      </span>
-                    )}
-                    <textarea
-                      value={editingContent}
-                      onChange={(e) => onEditContentChange(e.target.value)}
-                      autoFocus
-                      className={[
-                        'min-h-[72px] w-full resize-none rounded-xl border px-3 py-2 text-sm text-[#2d1715] outline-none transition focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15',
-                        URGENT_MARK_PATTERN.test(editingContent)
-                          ? 'border-[#d71920]/55 bg-[#fff8ef]/30'
-                          : 'border-[#c8b7aa] bg-[#fff8ef]',
-                      ].join(' ')}
-                    />
-                  </div>
-                ) : (
-                  <p
+              {visibleFeedbacks.map((feedback) => {
+                const isEditing = editingId === feedback.id;
+                const feedbackActorNames = feedback.actorIds
+                  .map(
+                    (actorId) =>
+                      actors.find((actor) => actor.id === actorId)?.name,
+                  )
+                  .filter(Boolean)
+                  .join(', ');
+                const isMovementFeedback = feedback.content.startsWith(
+                  MOVEMENT_FEEDBACK_PREFIX,
+                );
+
+                return (
+                  <div
+                    key={feedback.id}
                     className={[
-                      'whitespace-pre-wrap pr-8 text-xs font-semibold leading-relaxed',
-                      feedback.isUrgent ? 'text-[#fff8ef]' : 'text-[#2d1715]',
+                      'group relative min-h-[86px] w-80 max-w-full shrink-0 overflow-hidden rounded-md border px-3 py-2.5 text-sm transition-colors',
+                      feedback.isUrgent
+                        ? 'border-[#DF8181] bg-[#D15757] text-[#fff8ef] shadow-none'
+                        : isMovementFeedback
+                          ? 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none'
+                          : 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none',
                     ].join(' ')}
                   >
-                    {feedback.content}
-                  </p>
-                )}
+                    <div
+                      className={[
+                        'mb-2 flex items-center gap-1.5 text-[11px] font-bold leading-none',
+                        feedback.isUrgent ? 'text-[#fff8ef]' : 'text-[#2d1715]',
+                      ].join(' ')}
+                    >
+                      <span>{feedback.timestamp}</span>
+                      {feedbackActorNames && (
+                        <>
+                          <span>|</span>
+                          <span>{feedbackActorNames}</span>
+                        </>
+                      )}
+                      {isMovementFeedback && (
+                        <span
+                          className={[
+                            'ml-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                            feedback.isUrgent
+                              ? 'border-white/50 bg-white/16 text-[#fff8ef]'
+                              : 'border-[#c59b74] bg-[#fff8ef]/75 text-[#8a4734]',
+                          ].join(' ')}
+                        >
+                          동선
+                        </span>
+                      )}
+                    </div>
 
-                <div className="mt-2 flex items-end justify-between gap-3">
-                  <div className="flex gap-2 text-xs font-semibold text-[#806b61] opacity-100 md:opacity-0 md:group-hover:opacity-100">
                     {isEditing ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onEditSave(feedback.id)}
-                          disabled={!editingContent.trim()}
-                          className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
-                        >
-                          저장
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onEditCancel}
-                          className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
-                        >
-                          취소
-                        </button>
-                      </>
+                      <div className="space-y-2">
+                        {URGENT_MARK_PATTERN.test(editingContent) && (
+                          <span className="inline-flex rounded-full border border-[#d71920] bg-[#d71920] px-2 py-0.5 text-[10px] font-bold text-[#fff8ef]">
+                            긴급
+                          </span>
+                        )}
+                        <textarea
+                          value={editingContent}
+                          onChange={(e) => onEditContentChange(e.target.value)}
+                          autoFocus
+                          className={[
+                            'min-h-[72px] w-full resize-none rounded-xl border px-3 py-2 text-sm text-[#2d1715] outline-none transition focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15',
+                            URGENT_MARK_PATTERN.test(editingContent)
+                              ? 'border-[#d71920]/55 bg-[#fff8ef]/30'
+                              : 'border-[#c8b7aa] bg-[#fff8ef]',
+                          ].join(' ')}
+                        />
+                      </div>
                     ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onEdit(feedback)}
-                          className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
-                        >
-                          수정
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(feedback.id)}
-                          className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
-                        >
-                          삭제
-                        </button>
-                      </>
+                      <p
+                        className={[
+                          'whitespace-pre-wrap pr-8 text-xs font-semibold leading-relaxed',
+                          feedback.isUrgent
+                            ? 'text-[#fff8ef]'
+                            : 'text-[#2d1715]',
+                        ].join(' ')}
+                      >
+                        {feedback.content}
+                      </p>
                     )}
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onToggleUrgent(feedback.id)}
-                    className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                    aria-pressed={feedback.isUrgent}
-                    aria-label={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
-                    title={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
-                  >
-                    <img
-                      src={feedback.isUrgent ? urgentSirenIcon : sirenIcon}
-                      alt=""
-                      className="h-full w-full object-contain"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <div className="flex gap-2 text-xs font-semibold text-[#806b61] opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onEditSave(feedback.id)}
+                              disabled={!editingContent.trim()}
+                              className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
+                            >
+                              저장
+                            </button>
+                            <button
+                              type="button"
+                              onClick={onEditCancel}
+                              className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
+                            >
+                              취소
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onEdit(feedback)}
+                              className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDelete(feedback.id)}
+                              className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
+                            >
+                              삭제
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onToggleUrgent(feedback.id)}
+                        className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        aria-pressed={feedback.isUrgent}
+                        aria-label={
+                          feedback.isUrgent ? '긴급 해제' : '긴급 설정'
+                        }
+                        title={feedback.isUrgent ? '긴급 해제' : '긴급 설정'}
+                      >
+                        <img
+                          src={feedback.isUrgent ? urgentSirenIcon : sirenIcon}
+                          alt=""
+                          className="h-full w-full object-contain"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
       </div>
 
-      <div className="relative h-44 max-w-full shrink-0 rounded-[10px] bg-transparent">
+      <div
+        className={[
+          'relative right-2.5 h-44 w-80 max-w-full shrink-0 self-end rounded-[10px] bg-transparent transition',
+          isInteractionDisabled ? 'pointer-events-none opacity-45' : '',
+        ].join(' ')}
+      >
         <div
           className="pointer-events-none absolute inset-0 rounded-[10px] border-2 border-stone-200/50"
           style={{

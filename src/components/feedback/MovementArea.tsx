@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
 import type { Actor } from '../../types/feedback';
 
@@ -24,6 +24,11 @@ const STAGE_BLOCKS = [
   { id: 'center', x: 48, y: 16, width: 18.5, height: 24 },
 ];
 
+type MovementPoint = {
+  x: number;
+  y: number;
+};
+
 type MovementAreaProps = {
   actors: Actor[];
   selectedActors: Actor[];
@@ -43,10 +48,12 @@ export default function MovementArea({
   onSubmit,
 }: MovementAreaProps) {
   const [movementPath, setMovementPath] = useState<number[]>([]);
+  const [cursorPoint, setCursorPoint] = useState<MovementPoint | null>(null);
 
   useEffect(() => {
     if (!content && !timestamp) {
       setMovementPath([]);
+      setCursorPoint(null);
     }
   }, [content, timestamp]);
 
@@ -86,6 +93,7 @@ export default function MovementArea({
 
   const handleReset = () => {
     applyMovementPath([]);
+    setCursorPoint(null);
   };
 
   const handleUndo = () => {
@@ -94,6 +102,29 @@ export default function MovementArea({
     }
 
     applyMovementPath(movementPath.slice(0, -1));
+  };
+
+  const handleStageMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    if (movementPath.length === 0) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    setCursorPoint({
+      x: ((event.clientX - rect.left) / rect.width) * 100,
+      y: ((event.clientY - rect.top) / rect.height) * 100,
+    });
+  };
+
+  const handleStageDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+
+    if (target instanceof HTMLElement && target.closest('button')) {
+      return;
+    }
+
+    handleReset();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -111,18 +142,23 @@ export default function MovementArea({
 
   return (
     <section
-      className="relative min-h-[360px] flex-[1_1_auto] overflow-hidden"
+      className="relative h-full min-h-[360px] w-full overflow-hidden"
       onKeyDown={handleKeyDown}
     >
-      <img
-        src={movePanelBg}
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-fill"
-        aria-hidden="true"
-      />
+      <div className="relative z-10 grid h-full min-h-0 w-full grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden p-[clamp(18px,2.2vw,28px)]">
+        <img
+          src={movePanelBg}
+          alt=""
+          className="pointer-events-none absolute inset-0 z-0 block h-full w-full max-w-none object-fill"
+          aria-hidden="true"
+        />
 
-      <div className="relative z-10 flex h-full min-h-0 flex-col p-[clamp(18px,2.2vw,28px)]">
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] bg-[#431B1B]">
+        <div
+          className="relative z-10 h-full min-h-0 w-full overflow-hidden rounded-[10px] bg-[#431B1B]"
+          onMouseMove={handleStageMouseMove}
+          onMouseLeave={() => setCursorPoint(null)}
+          onDoubleClick={handleStageDoubleClick}
+        >
           <div className="absolute left-[10%] right-[32%] top-[7%] border-t border-[#DF8181]/55" />
           <div className="absolute left-[68%] top-[7%] h-[36%] w-[28%] origin-top-left rotate-[31deg] border-t border-[#DF8181]/55" />
           <div className="absolute left-[6%] top-[55%] h-[20%] w-[22%] origin-top-left -rotate-45 border-t border-[#DF8181]/55" />
@@ -142,6 +178,145 @@ export default function MovementArea({
             />
           ))}
 
+          <svg
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              {movementPath.slice(1).map((pointId, index) => {
+                const from = MOVEMENT_POINTS.find(
+                  (point) => point.id === movementPath[index],
+                );
+                const to = MOVEMENT_POINTS.find(
+                  (point) => point.id === pointId,
+                );
+
+                if (!from || !to) {
+                  return null;
+                }
+
+                return (
+                  <linearGradient
+                    key={`movement-line-gradient-${index}`}
+                    id={`movement-line-gradient-${index}`}
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stopColor="#f4f4f5" stopOpacity="0.22" />
+                    <stop
+                      offset="100%"
+                      stopColor="#f4f4f5"
+                      stopOpacity="0.95"
+                    />
+                  </linearGradient>
+                );
+              })}
+
+              {movementPath.length > 0 &&
+                cursorPoint &&
+                (() => {
+                  const from = MOVEMENT_POINTS.find(
+                    (point) =>
+                      point.id === movementPath[movementPath.length - 1],
+                  );
+
+                  if (!from) {
+                    return null;
+                  }
+
+                  return (
+                    <linearGradient
+                      id="movement-preview-gradient"
+                      x1={from.x}
+                      y1={from.y}
+                      x2={cursorPoint.x}
+                      y2={cursorPoint.y}
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#f4f4f5"
+                        stopOpacity="0.18"
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="#f4f4f5"
+                        stopOpacity="0.82"
+                      />
+                    </linearGradient>
+                  );
+                })()}
+            </defs>
+
+            {movementPath.slice(1).map((pointId, index) => {
+              const from = MOVEMENT_POINTS.find(
+                (point) => point.id === movementPath[index],
+              );
+              const to = MOVEMENT_POINTS.find((point) => point.id === pointId);
+
+              if (!from || !to) {
+                return null;
+              }
+
+              return (
+                <line
+                  key={`${movementPath[index]}-${pointId}-${index}`}
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  vectorEffect="non-scaling-stroke"
+                  stroke={`url(#movement-line-gradient-${index})`}
+                  strokeWidth="3.3"
+                  strokeLinecap="round"
+                />
+              );
+            })}
+
+            {movementPath.length > 0 &&
+              cursorPoint &&
+              (() => {
+                const from = MOVEMENT_POINTS.find(
+                  (point) => point.id === movementPath[movementPath.length - 1],
+                );
+
+                if (!from) {
+                  return null;
+                }
+
+                return (
+                  <g>
+                    <line
+                      x1={from.x}
+                      y1={from.y}
+                      x2={cursorPoint.x}
+                      y2={cursorPoint.y}
+                      vectorEffect="non-scaling-stroke"
+                      stroke="url(#movement-preview-gradient)"
+                      strokeWidth="3.3"
+                      strokeLinecap="round"
+                    />
+                  </g>
+                );
+              })()}
+          </svg>
+
+          {movementPath.length > 0 && cursorPoint && (
+            <span
+              className="pointer-events-none absolute z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f4f4f5] shadow-[0_0_12px_rgba(244,244,245,0.42)]"
+              style={{
+                left: `${cursorPoint.x}%`,
+                top: `${cursorPoint.y}%`,
+              }}
+              aria-hidden="true"
+            />
+          )}
+
           {MOVEMENT_POINTS.map((point) => {
             const isPicked = movementPath.includes(point.id);
 
@@ -151,7 +326,7 @@ export default function MovementArea({
                 type="button"
                 onClick={() => handlePointClick(point.id)}
                 className={[
-                  'absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-sm font-semibold transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DF8181]/65',
+                  'absolute z-20 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-sm font-semibold transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DF8181]/65',
                   isPicked
                     ? 'border-[#DF8181] bg-[#DF8181] text-[#431B1B]'
                     : 'border-[#DF8181]/80 bg-[#431B1B] text-[#EFE6DE]',
@@ -165,7 +340,7 @@ export default function MovementArea({
           })}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#604942]">
+        <div className="relative z-10 flex min-h-7 items-center justify-between gap-3 text-xs text-[#604942]">
           {movementPath.length > 0 ? (
             <div className="flex min-w-0 items-center gap-1 overflow-x-auto pr-2">
               {movementPath.map((pointId, index) => (

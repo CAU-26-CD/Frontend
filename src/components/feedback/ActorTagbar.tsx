@@ -20,38 +20,46 @@ export default function ActorTagBar({
           TAG
         </div>
 
-        <div className="flex flex-1 flex-wrap items-center gap-3">
-          {actors.map((actor) => {
-            const isSelected = selectedActors.some(
-              (selectedActor) => selectedActor.id === actor.id,
-            );
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {actors.map((actor) => {
+              const isSelected = selectedActors.some(
+                (selectedActor) => selectedActor.id === actor.id,
+              );
 
-            return (
-              <button
-                type="button"
-                onClick={() => onActorSelect(actor)}
-                key={actor.id}
-                className={[
-                  'flex min-h-10 min-w-[104px] flex-1 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_-10px_18px_rgba(67,27,27,0.08),0_10px_24px_rgba(67,27,27,0.10)] backdrop-blur-xl backdrop-saturate-150 transition md:flex-none',
-                  isSelected
-                    ? 'border-white/35 bg-[#431B1B]/72 text-[#fff8ef] hover:bg-[#431B1B]/84'
-                    : 'border-white/45 bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]',
-                ].join(' ')}
-              >
-                <span className="font-semibold leading-none">{actor.name}</span>
-                <span
+              return (
+                <button
+                  type="button"
+                  onClick={() => onActorSelect(actor)}
+                  key={actor.id}
                   className={[
-                    'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none',
+                    'flex min-h-10 min-w-[104px] flex-1 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_-10px_18px_rgba(67,27,27,0.08),0_10px_24px_rgba(67,27,27,0.10)] backdrop-blur-xl backdrop-saturate-150 transition md:flex-none',
                     isSelected
-                      ? 'border border-white/20 bg-white/18 text-[#fff8ef]'
-                      : 'border border-white/35 bg-white/26 text-[#806b61]',
+                      ? 'border-white/35 bg-[#431B1B]/72 text-[#fff8ef] hover:bg-[#431B1B]/84'
+                      : 'border-white/45 bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]',
                   ].join(' ')}
                 >
-                  /{actor.shortcut}
-                </span>
-              </button>
-            );
-          })}
+                  <span className="font-semibold leading-none">
+                    {actor.name}
+                  </span>
+                  <span
+                    className={[
+                      'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none',
+                      isSelected
+                        ? 'border border-white/20 bg-white/18 text-[#fff8ef]'
+                        : 'border border-white/35 bg-white/26 text-[#806b61]',
+                    ].join(' ')}
+                  >
+                    /{actor.shortcut}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="truncate text-[10px] font-semibold text-[#431B1B]/45">
+            Shift+Backspace로 마지막 배우를 삭제할 수 있습니다
+          </p>
         </div>
       </div>
     </section>

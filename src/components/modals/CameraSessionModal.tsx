@@ -168,6 +168,7 @@ export default function CameraSessionModal({
           disabled={!canStartRehearsal}
           className={[
             'reaction-glass-pill reaction-rehearsal-start-button relative w-full shrink-0 overflow-hidden rounded-full px-5 font-bold text-[#fff8ef] transition duration-300 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-55',
+            canStartRehearsal ? 'reaction-rehearsal-start-button-ready' : '',
             isPanel ? 'mt-3 h-10 text-xs' : 'mt-5 h-12 text-sm',
           ].join(' ')}
         >
