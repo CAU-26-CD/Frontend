@@ -2,6 +2,7 @@ import { ChevronDown, Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProjects } from '../apis/project';
+import CardSkeleton from '../components/CardSkeleton';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import addSign from '../images/icon/add_sign.svg';
 import projectCardImage from '../images/icon/ProjectCard.svg';
@@ -57,10 +58,13 @@ function ProjectTile({
 
 export default function ProjectPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
     const loadProjects = async () => {
+      setIsLoadingProjects(true);
+
       try {
         const myProjects = await getMyProjects();
 
@@ -74,6 +78,8 @@ export default function ProjectPage() {
         );
       } catch (error) {
         console.error('Failed to load projects', error);
+      } finally {
+        setIsLoadingProjects(false);
       }
     };
 
@@ -150,15 +156,19 @@ export default function ProjectPage() {
           </div>
 
           <div className="min-h-[150px]">
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
-              {likedProjects.map((project) => (
-                <ProjectTile
-                  key={project.id}
-                  project={project}
-                  onToggleLiked={handleToggleLiked}
-                />
-              ))}
-            </div>
+            {isLoadingProjects ? (
+              <CardSkeleton count={2} />
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
+                {likedProjects.map((project) => (
+                  <ProjectTile
+                    key={project.id}
+                    project={project}
+                    onToggleLiked={handleToggleLiked}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -180,17 +190,21 @@ export default function ProjectPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
-            {allProjects.map((project) => (
-              <ProjectTile
-                key={project.id}
-                project={project}
-                onToggleLiked={handleToggleLiked}
-              />
-            ))}
-          </div>
+          {isLoadingProjects ? (
+            <CardSkeleton count={8} />
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
+              {allProjects.map((project) => (
+                <ProjectTile
+                  key={project.id}
+                  project={project}
+                  onToggleLiked={handleToggleLiked}
+                />
+              ))}
+            </div>
+          )}
 
-          {allProjects.length === 0 && (
+          {!isLoadingProjects && allProjects.length === 0 && (
             <p className="reaction-ui-font mt-8 text-sm font-semibold text-[#eee7dc]/55">
               표시할 프로젝트가 없습니다.
             </p>

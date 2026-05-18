@@ -41,12 +41,18 @@ export default function HomePage() {
             당신의 모습을 기록하고, 분석하세요
           </p>
 
-          <img
-            src={logoIcon}
-            alt=""
-            className="mt-12 h-24 w-28 object-contain"
-            aria-hidden="true"
-          />
+          <div className="reaction-home-logo mt-12 h-24 w-28">
+            <span className="reaction-loading-spinner-glow" aria-hidden="true" />
+            <span className="reaction-loading-particle reaction-loading-particle-1" />
+            <span className="reaction-loading-particle reaction-loading-particle-2" />
+            <span className="reaction-loading-particle reaction-loading-particle-3" />
+            <img
+              src={logoIcon}
+              alt=""
+              className="reaction-home-logo-image relative z-10 h-full w-full object-contain"
+              aria-hidden="true"
+            />
+          </div>
 
           <div className="reaction-value-grid mt-24 grid w-full grid-cols-1 gap-8 s:mt-28 sm:grid-cols-3 sm:gap-8 md:mt-32">
             {homeValues.map((value) => (

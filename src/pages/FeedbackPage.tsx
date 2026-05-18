@@ -15,6 +15,7 @@ import { useFeedback } from '../hooks/useFeedback';
 import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
+import LoadingSpinner from '../components/LoadingSpinner';
 import CameraSessionModal from '../components/modals/CameraSessionModal';
 import EndRehearsalConfirmModal from '../components/modals/EndRehearsalConfirmModal';
 import VideoUploadCompleteModal from '../components/modals/VideoUploadCompleteModal';
@@ -217,13 +218,21 @@ export default function RehearsalFeedbackPage() {
     ) : (
       <div className="reaction-ui-font flex h-full w-full items-center justify-center">
         <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl">
-          <p className="text-base font-bold">카메라 연결 준비 중</p>
+          <LoadingSpinner
+            label="카메라 연결 준비 중"
+            size="sm"
+            className="[&>span:last-child]:text-[#431B1B]/72"
+          />
           <p className="mt-2 text-sm font-semibold text-[#806b61]">
             {cameraSessionError ?? 'QR 연결 세션을 생성하고 있습니다.'}
           </p>
         </div>
       </div>
     )
+  ) : feedback.isLoadingFeedbacks ? (
+    <div className="flex h-full w-full items-center justify-center">
+      <LoadingSpinner label="피드백을 불러오는 중입니다" />
+    </div>
   ) : null;
 
   return (

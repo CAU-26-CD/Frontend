@@ -39,6 +39,7 @@ export default function ReviewPage() {
     sessionId: string;
   }>();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(false);
   const [selectedFeedbackTags, setSelectedFeedbackTags] = useState<string[]>(
     [],
   );
@@ -58,6 +59,8 @@ export default function ReviewPage() {
     let ignore = false;
 
     const loadFeedbacks = async () => {
+      setIsLoadingFeedbacks(true);
+
       try {
         const fetchedFeedbacks = await getFeedbacks(sessionId);
 
@@ -74,6 +77,10 @@ export default function ReviewPage() {
         );
       } catch (error) {
         console.error('Failed to load review feedbacks', error);
+      } finally {
+        if (!ignore) {
+          setIsLoadingFeedbacks(false);
+        }
       }
     };
 
@@ -151,6 +158,7 @@ export default function ReviewPage() {
             feedbackTags={feedbackTags}
             selectedFeedbackTags={selectedFeedbackTags}
             selectedActorIds={selectedActorIds}
+            isLoading={isLoadingFeedbacks}
           />
         </div>
 

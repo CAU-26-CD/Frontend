@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getSessionVideo } from '../../apis/session';
+import LoadingSpinner from '../LoadingSpinner';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
 
 type TimelineMarker = {
@@ -112,8 +113,8 @@ export default function ReviewVideoPanel({ sessionId }: ReviewVideoPanelProps) {
           )}
 
           {isVideoLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#17100f]/30 text-xs font-bold text-[#fff8ef]">
-              영상 정보를 불러오는 중입니다
+            <div className="absolute inset-0 flex items-center justify-center bg-[#17100f]/42">
+              <LoadingSpinner label="영상 정보를 불러오는 중입니다" size="sm" />
             </div>
           )}
 

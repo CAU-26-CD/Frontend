@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProjectSessions } from '../apis/session';
+import CardSkeleton from '../components/CardSkeleton';
 import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
@@ -13,6 +14,7 @@ export default function WorkspacePage() {
   const [feedbackSessions, setFeedbackSessions] = useState<FeedbackSession[]>(
     [],
   );
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
@@ -21,6 +23,8 @@ export default function WorkspacePage() {
     if (Number.isNaN(numericProjectId)) return;
 
     const loadSessions = async () => {
+      setIsLoadingSessions(true);
+
       try {
         const sessions = await getProjectSessions(numericProjectId);
         const latestSessionId = sessions.at(-1)?.session_id;
@@ -39,6 +43,8 @@ export default function WorkspacePage() {
         );
       } catch (error) {
         console.error('Failed to load sessions', error);
+      } finally {
+        setIsLoadingSessions(false);
       }
     };
 
@@ -82,25 +88,30 @@ export default function WorkspacePage() {
                 <div className="mb-4 flex items-center gap-2">
                   <span className="h-4 w-4 rounded-full bg-[#b4b5b3]" />
                   <h2 className="text-sm font-semibold text-[#bdb6af]">
-                    In Progress ({inProgressSessions.length})
+                    In Progress (
+                    {isLoadingSessions ? '-' : inProgressSessions.length})
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
-                  {inProgressSessions.map((session) => (
-                    <FeedbackSessionCard
-                      key={session.id}
-                      projectId={numericProjectId}
-                      session={session}
-                    />
-                  ))}
-                </div>
+                {isLoadingSessions ? (
+                  <CardSkeleton count={2} />
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
+                    {inProgressSessions.map((session) => (
+                      <FeedbackSessionCard
+                        key={session.id}
+                        projectId={numericProjectId}
+                        session={session}
+                      />
+                    ))}
+                  </div>
+                )}
               </section>
 
               <section className="px-2 py-3 sm:px-4 md:px-6 md:py-5">
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-sm font-semibold text-[#bdb6af]">
-                    ALL ({completedSessions.length})
+                    ALL ({isLoadingSessions ? '-' : completedSessions.length})
                   </h2>
 
                   <button className="flex h-7 items-center gap-2 rounded border border-white/25 px-3 text-xs text-[#d6cec6] transition hover:border-white/45 hover:text-white">
@@ -109,15 +120,19 @@ export default function WorkspacePage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
-                  {completedSessions.map((session) => (
-                    <FeedbackSessionCard
-                      key={session.id}
-                      projectId={numericProjectId}
-                      session={session}
-                    />
-                  ))}
-                </div>
+                {isLoadingSessions ? (
+                  <CardSkeleton count={6} />
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
+                    {completedSessions.map((session) => (
+                      <FeedbackSessionCard
+                        key={session.id}
+                        projectId={numericProjectId}
+                        session={session}
+                      />
+                    ))}
+                  </div>
+                )}
               </section>
             </div>
           </div>
