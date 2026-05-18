@@ -29,11 +29,10 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   const login = async (data: LoginRequest) => {
     const res = await postLogin(data);
 
-    if (res.accessToken) {
-      localStorage.setItem('accessToken', res.accessToken);
-    }
-
-    setUser(res.user);
+    setUser({
+      id: res.user_id,
+      email: res.email,
+    });
   };
 
   const logout = async () => {

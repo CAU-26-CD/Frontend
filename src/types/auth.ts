@@ -1,8 +1,7 @@
-// 임의로 일단 설정: 백엔드 요청 다르면 그때 수정
 export interface User {
   id: number;
-  name: string;
   email: string;
+  name?: string;
 }
 
 export interface LoginRequest {
@@ -11,6 +10,6 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  user: User;
-  accessToken?: string;
+  user_id: number;
+  email: string;
 }

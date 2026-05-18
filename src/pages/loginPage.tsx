@@ -42,12 +42,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await postLogin({ email, password });
-
-      if (response.accessToken) {
-        localStorage.setItem('accessToken', response.accessToken);
-      }
-
+      await postLogin({ email, password });
       navigate('/project');
     } catch (error) {
       console.error('로그인 실패:', error);
