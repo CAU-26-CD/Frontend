@@ -86,6 +86,20 @@ export default function WorkspacePage() {
                 CATEGORY
               </h2>
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-[#eee7dc] md:block md:space-y-1">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory(null)}
+                    className={[
+                      'text-left transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                      selectedCategory === null
+                        ? 'text-white underline underline-offset-4'
+                        : '',
+                    ].join(' ')}
+                  >
+                    ㄴ 전체
+                  </button>
+                </li>
                 {sessionCategories.map((category) => {
                   const isSelected = selectedCategory === category;
 
@@ -93,14 +107,12 @@ export default function WorkspacePage() {
                     <li key={category}>
                       <button
                         type="button"
-                        onClick={() =>
-                          setSelectedCategory((current) =>
-                            current === category ? null : category,
-                          )
-                        }
+                        onClick={() => setSelectedCategory(category)}
                         className={[
                           'text-left transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
-                          isSelected ? 'text-white underline underline-offset-4' : '',
+                          isSelected
+                            ? 'text-white underline underline-offset-4'
+                            : '',
                         ].join(' ')}
                       >
                         ㄴ {category}
