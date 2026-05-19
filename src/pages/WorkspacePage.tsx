@@ -30,7 +30,6 @@ export default function WorkspacePage() {
 
       try {
         const sessions = await getProjectSessions(numericProjectId);
-        const latestSessionId = sessions.at(-1)?.session_id;
 
         setFeedbackSessions(
           sessions.map((session) => ({
@@ -39,10 +38,7 @@ export default function WorkspacePage() {
             title: session.title,
             category: session.s_category,
             date: session.created_at,
-            status:
-              session.session_id === latestSessionId
-                ? 'inProgress'
-                : 'completed',
+            status: session.in_progress ? 'inProgress' : 'completed',
           })),
         );
       } catch (error) {
