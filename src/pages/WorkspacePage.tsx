@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProjectSessions } from '../apis/session';
 import CardSkeleton from '../components/CardSkeleton';
@@ -8,7 +8,11 @@ import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import type { FeedbackSession } from '../types/feedback';
 
-const sessionCategories = ['장면별 연습', '런쓰루', '워크쓰루', '텐투텐'];
+const sessionCategories = ['장면별 연습', '런쓰루', '워크쓰루', '텐투텐'] as const;
+
+type SessionCategory = (typeof sessionCategories)[number];
+
+const normalizeSessionCategory = (category: string) => category.trim();
 
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -17,7 +21,8 @@ export default function WorkspacePage() {
     [],
   );
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<SessionCategory | null>(null);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
@@ -36,7 +41,7 @@ export default function WorkspacePage() {
             id: session.session_id,
             projectId: session.project_id,
             title: session.title,
-            category: session.s_category,
+            category: normalizeSessionCategory(session.s_category),
             date: session.created_at,
             status: session.in_progress ? 'inProgress' : 'completed',
           })),
@@ -52,7 +57,11 @@ export default function WorkspacePage() {
   }, [numericProjectId]);
 
   const filteredSessions = selectedCategory
-    ? feedbackSessions.filter((session) => session.category === selectedCategory)
+    ? feedbackSessions.filter(
+        (session) =>
+          session.category !== undefined &&
+          normalizeSessionCategory(session.category) === selectedCategory,
+      )
     : feedbackSessions;
 
   const inProgressSessions = filteredSessions.filter(
@@ -61,6 +70,28 @@ export default function WorkspacePage() {
 
   const completedSessions = filteredSessions.filter(
     (session) => session.status !== 'inProgress',
+  );
+
+  const sessionCategoryCounts = useMemo(
+    () =>
+      sessionCategories.reduce<Record<SessionCategory, number>>(
+        (counts, category) => {
+          counts[category] = feedbackSessions.filter(
+            (session) =>
+              session.category !== undefined &&
+              normalizeSessionCategory(session.category) === category,
+          ).length;
+
+          return counts;
+        },
+        {
+          '장면별 연습': 0,
+          런쓰루: 0,
+          워크쓰루: 0,
+          텐투텐: 0,
+        },
+      ),
+    [feedbackSessions],
   );
 
   return (
@@ -86,14 +117,15 @@ export default function WorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setSelectedCategory(null)}
+                    aria-pressed={selectedCategory === null}
                     className={[
-                      'text-left transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                      'block w-max cursor-pointer rounded-[3px] px-1 py-0.5 text-left transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
                       selectedCategory === null
-                        ? 'text-white underline underline-offset-4'
+                        ? 'bg-white/10 text-white underline underline-offset-4'
                         : '',
                     ].join(' ')}
                   >
-                    ㄴ 전체
+                    ㄴ 전체 ({feedbackSessions.length})
                   </button>
                 </li>
                 {sessionCategories.map((category) => {
@@ -104,14 +136,15 @@ export default function WorkspacePage() {
                       <button
                         type="button"
                         onClick={() => setSelectedCategory(category)}
+                        aria-pressed={isSelected}
                         className={[
-                          'text-left transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                          'block w-max cursor-pointer rounded-[3px] px-1 py-0.5 text-left transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
                           isSelected
-                            ? 'text-white underline underline-offset-4'
+                            ? 'bg-white/10 text-white underline underline-offset-4'
                             : '',
                         ].join(' ')}
                       >
-                        ㄴ {category}
+                        ㄴ {category} ({sessionCategoryCounts[category]})
                       </button>
                     </li>
                   );

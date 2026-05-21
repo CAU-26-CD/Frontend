@@ -85,10 +85,10 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="fixed bottom-0 left-0 top-0 z-30 flex w-[258px] flex-col justify-end overflow-hidden bg-contain bg-left-bottom bg-no-repeat pb-[clamp(48px,9vh,96px)]"
+      className="pointer-events-none fixed bottom-0 left-0 top-0 z-30 flex w-[258px] flex-col justify-end overflow-hidden bg-contain bg-left-bottom bg-no-repeat pb-[clamp(48px,9vh,96px)]"
       style={{ backgroundImage: `url(${sidebarLight})` }}
     >
-      <nav className="self-start ml-[52px] flex flex-col items-center gap-4">
+      <nav className="pointer-events-auto self-start ml-[52px] flex flex-col items-center gap-4">
         {sidebarItems.map((item) => (
           <button
             key={item.label}
@@ -108,7 +108,7 @@ export default function Sidebar() {
         ))}
       </nav>
       {isNamingSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm">
+        <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-white/35 bg-[#efe6de]/90 p-6 text-[#2d1715] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl">
             <div className="mb-5">
               <h2 className="text-lg font-bold">새 세션 만들기</h2>
