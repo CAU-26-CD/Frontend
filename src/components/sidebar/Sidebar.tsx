@@ -29,6 +29,11 @@ export default function Sidebar() {
     useState('장면별 연습');
 
   const handleItemClick = (label: string) => {
+    if (label === '홈') {
+      navigate('/projects');
+      return;
+    }
+
     if (label !== '추가' || isCreatingSession) return;
 
     setSessionNameInput('새 리허설 세션');

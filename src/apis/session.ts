@@ -39,7 +39,12 @@ export type SessionVideoActor = {
   actor_id: number;
   name: string | null;
   thumbnail_url: string;
+  thumbnail_s3_key?: string | null;
   is_new: boolean;
+};
+
+type RawSessionVideoActor = Omit<SessionVideoActor, 'thumbnail_url'> & {
+  thumbnail_url?: string | null;
 };
 
 export type SessionVideoResponse = {
@@ -48,6 +53,126 @@ export type SessionVideoResponse = {
   analysis_status: string;
   analysis_result: unknown;
   actors: SessionVideoActor[];
+};
+
+export type SessionVideoAppearance = {
+  actorId: number;
+  startSeconds: number;
+  endSeconds: number;
+  detectionCount: number;
+};
+
+type RawSessionVideoAppearance = {
+  person_id?: unknown;
+  start_seconds?: unknown;
+  end_seconds?: unknown;
+  detection_count?: unknown;
+};
+
+type RawSessionVideoResponse = Omit<SessionVideoResponse, 'actors'> & {
+  actors: RawSessionVideoActor[];
+};
+
+const FRAME_IMAGE_BASE_URL =
+  import.meta.env.VITE_FRAME_IMAGE_BASE_URL ??
+  import.meta.env.VITE_S3_PUBLIC_BASE_URL ??
+  '';
+
+const toFrameImageUrl = (path: string | null | undefined) => {
+  const trimmedPath = path?.trim();
+
+  if (!trimmedPath) {
+    return '';
+  }
+
+  if (/^(https?:|blob:|data:)/.test(trimmedPath)) {
+    return trimmedPath;
+  }
+
+  if (!FRAME_IMAGE_BASE_URL) {
+    return trimmedPath;
+  }
+
+  return new URL(trimmedPath, FRAME_IMAGE_BASE_URL).href;
+};
+
+const normalizeSessionVideo = (
+  video: RawSessionVideoResponse,
+): SessionVideoResponse => ({
+  ...video,
+  actors: video.actors.map((actor) => ({
+    ...actor,
+    thumbnail_url: toFrameImageUrl(
+      actor.thumbnail_url ?? actor.thumbnail_s3_key,
+    ),
+  })),
+});
+
+const parseAnalysisResult = (analysisResult: unknown) => {
+  if (typeof analysisResult !== 'string') {
+    return analysisResult;
+  }
+
+  try {
+    return JSON.parse(analysisResult);
+  } catch {
+    return null;
+  }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+export const getSessionVideoAppearances = (
+  analysisResult: unknown,
+): SessionVideoAppearance[] => {
+  const parsedResult = parseAnalysisResult(analysisResult);
+  const nestedAnalysisResult = isRecord(parsedResult)
+    ? parseAnalysisResult(parsedResult.analysis_result)
+    : null;
+  const appearances = isRecord(parsedResult)
+    ? parsedResult.appearances
+    : undefined;
+  const nestedAppearances = isRecord(nestedAnalysisResult)
+    ? nestedAnalysisResult.appearances
+    : undefined;
+  const rawAppearances = Array.isArray(appearances)
+    ? appearances
+    : nestedAppearances;
+
+  if (!Array.isArray(rawAppearances)) {
+    return [];
+  }
+
+  return rawAppearances
+    .map((appearance: RawSessionVideoAppearance) => {
+      const actorMatch =
+        typeof appearance.person_id === 'string'
+          ? appearance.person_id.match(/^actor:(\d+)$/)
+          : null;
+      const actorId = actorMatch ? Number(actorMatch[1]) : NaN;
+      const startSeconds = Number(appearance.start_seconds);
+      const endSeconds = Number(appearance.end_seconds);
+      const detectionCount = Number(appearance.detection_count ?? 0);
+
+      if (
+        Number.isNaN(actorId) ||
+        Number.isNaN(startSeconds) ||
+        Number.isNaN(endSeconds)
+      ) {
+        return null;
+      }
+
+      return {
+        actorId,
+        startSeconds,
+        endSeconds,
+        detectionCount: Number.isNaN(detectionCount) ? 0 : detectionCount,
+      };
+    })
+    .filter((appearance): appearance is SessionVideoAppearance =>
+      Boolean(appearance),
+    );
 };
 
 export const createProjectSession = async (
@@ -73,9 +198,11 @@ export const getProjectSessions = async (
 export const getSessionVideo = async (
   sessionId: number,
 ): Promise<SessionVideoResponse> => {
-  const res = await instance.get(`/api/v1/sessions/${sessionId}/video`);
+  const res = await instance.get<RawSessionVideoResponse>(
+    `/api/v1/sessions/${sessionId}/video`,
+  );
 
-  return res.data;
+  return normalizeSessionVideo(res.data);
 };
 
 export const completeProjectSession = async (

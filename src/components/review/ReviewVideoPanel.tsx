@@ -1,72 +1,61 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { getSessionVideo } from '../../apis/session';
+import { useMemo, useState } from 'react';
+import type { SessionVideoAppearance } from '../../apis/session';
+import type { Actor } from '../../types/feedback';
 import LoadingSpinner from '../LoadingSpinner';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
 
-type TimelineMarker = {
-  id: number;
-  left: number;
-  color: string;
-};
-
-const timelineMarkers: TimelineMarker[] = [
-  { id: 1, left: 24, color: '#efe6de' },
-  { id: 2, left: 25.5, color: '#f6e2a8' },
-  { id: 3, left: 33, color: '#f6b3bb' },
-  { id: 4, left: 38, color: '#9bc7e8' },
-  { id: 5, left: 47, color: '#f6e2a8' },
-  { id: 6, left: 72, color: '#431B1B' },
+const actorTimelineColors = [
+  '#f6b3bb',
+  '#f6e2a8',
+  '#9bc7e8',
+  '#c6d8a8',
+  '#d7c4f2',
+  '#efe6de',
 ];
 
 type ReviewVideoPanelProps = {
-  sessionId: number;
+  videoUrl: string;
+  actors: Actor[];
+  appearances: SessionVideoAppearance[];
+  selectedActorIds: number[];
+  isVideoLoading: boolean;
+  videoMessage: string;
 };
 
-export default function ReviewVideoPanel({ sessionId }: ReviewVideoPanelProps) {
-  const [videoUrl, setVideoUrl] = useState('');
-  const [isVideoLoading, setIsVideoLoading] = useState(false);
-  const [videoMessage, setVideoMessage] = useState('');
+export default function ReviewVideoPanel({
+  videoUrl,
+  actors,
+  appearances,
+  selectedActorIds,
+  isVideoLoading,
+  videoMessage,
+}: ReviewVideoPanelProps) {
+  const [videoDuration, setVideoDuration] = useState(0);
+  const actorNamesById = useMemo(
+    () => new Map(actors.map((actor) => [actor.id, actor.name])),
+    [actors],
+  );
+  const visibleAppearances = useMemo(
+    () =>
+      selectedActorIds.length === 0
+        ? appearances
+        : appearances.filter((appearance) =>
+            selectedActorIds.includes(appearance.actorId),
+          ),
+    [appearances, selectedActorIds],
+  );
+  const timelineDuration = Math.max(
+    videoDuration,
+    ...appearances.map((appearance) => appearance.endSeconds),
+    1,
+  );
+  const getActorTimelineColor = (actorId: number) => {
+    const actorIndex = actors.findIndex((actor) => actor.id === actorId);
 
-  useEffect(() => {
-    if (Number.isNaN(sessionId)) {
-      return;
-    }
-
-    let ignore = false;
-
-    const loadVideoUrl = async () => {
-      setIsVideoLoading(true);
-
-      try {
-        const video = await getSessionVideo(sessionId);
-
-        if (!ignore) {
-          setVideoUrl(video.s3_url);
-          setVideoMessage('');
-        }
-      } catch (error) {
-        if (!ignore) {
-          setVideoUrl('');
-          setVideoMessage('영상이 아직 없습니다');
-        }
-
-        if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-          console.error('Failed to load session video', error);
-        }
-      } finally {
-        if (!ignore) {
-          setIsVideoLoading(false);
-        }
-      }
-    };
-
-    void loadVideoUrl();
-
-    return () => {
-      ignore = true;
-    };
-  }, [sessionId]);
+    return actorTimelineColors[
+      Math.max(actorIndex, 0) % actorTimelineColors.length
+    ];
+  };
 
   return (
     <section className="relative h-full min-h-[360px] w-full overflow-hidden">
@@ -84,31 +73,67 @@ export default function ReviewVideoPanel({ sessionId }: ReviewVideoPanelProps) {
               src={videoUrl}
               controls
               preload="metadata"
+              onLoadedMetadata={(event) => {
+                setVideoDuration(event.currentTarget.duration);
+              }}
               className="h-full w-full bg-[#17100f] object-contain"
             >
               <track kind="captions" />
             </video>
           ) : (
-            <div className="absolute inset-x-[4.5%] bottom-[10%] h-[44px]">
-              <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 bg-[#eee7dc]" />
-              <div className="absolute left-0 top-1/2 h-[3px] w-[74%] -translate-y-1/2 bg-[#431B1B]" />
+            <div className="absolute inset-0 bg-[#17100f]" />
+          )}
 
-              {timelineMarkers.map((marker) => (
-                <span
-                  key={marker.id}
-                  className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/45"
-                  style={{
-                    left: `${marker.left}%`,
-                    backgroundColor: marker.color,
-                  }}
-                />
-              ))}
+          {visibleAppearances.length > 0 && (
+            <div className="pointer-events-none absolute inset-x-[4.5%] bottom-[8%] rounded-[8px] border border-white/15 bg-[#17100f]/68 px-3 py-2 backdrop-blur-sm">
+              <div className="relative h-[38px]">
+                <div className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-[#eee7dc]/52" />
+                {visibleAppearances.map((appearance) => {
+                  const left =
+                    (appearance.startSeconds / timelineDuration) * 100;
+                  const width =
+                    ((appearance.endSeconds - appearance.startSeconds) /
+                      timelineDuration) *
+                    100;
+                  const color = getActorTimelineColor(appearance.actorId);
 
-              <button
-                type="button"
-                className="absolute left-1/2 top-[calc(50%+18px)] h-0 w-0 -translate-x-1/2 border-y-[11px] border-l-[18px] border-y-transparent border-l-[#431B1B] transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                aria-label="영상 재생"
-              />
+                  return (
+                    <span
+                      key={`${appearance.actorId}-${appearance.startSeconds}-${appearance.endSeconds}`}
+                      className="absolute top-1/2 h-3 -translate-y-1/2 rounded-full border border-white/45"
+                      style={{
+                        left: `${Math.max(0, left)}%`,
+                        width: `${Math.max(1.5, width)}%`,
+                        backgroundColor: color,
+                      }}
+                      aria-label={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} 등장 구간`}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1">
+                {actors
+                  .filter((actor) =>
+                    visibleAppearances.some(
+                      (appearance) => appearance.actorId === actor.id,
+                    ),
+                  )
+                  .map((actor) => (
+                    <span
+                      key={actor.id}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-[#fff8ef]/82"
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{
+                          backgroundColor: getActorTimelineColor(actor.id),
+                        }}
+                      />
+                      {actor.name}
+                    </span>
+                  ))}
+              </div>
             </div>
           )}
 

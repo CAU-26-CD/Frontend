@@ -6,6 +6,9 @@ import { getSessionVideo, type SessionVideoActor } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 
+const getActorDisplayName = (actor: SessionVideoActor) =>
+  actor.name ?? `배우 ${actor.actor_id}`;
+
 export default function ActorMappingPage() {
   const navigate = useNavigate();
   const { projectId, sessionId } = useParams<{
@@ -184,7 +187,7 @@ export default function ActorMappingPage() {
                   <div className="relative aspect-[1.05/1] overflow-hidden rounded-[4px] bg-[#aa9d91]">
                     <img
                       src={selectedActor.thumbnail_url}
-                      alt={`${selectedActor.name ?? '새 배우'} 썸네일`}
+                      alt={`${getActorDisplayName(selectedActor)} 썸네일`}
                       className="h-full w-full object-cover"
                     />
                     {selectedActor.is_new && (
@@ -251,7 +254,7 @@ export default function ActorMappingPage() {
                         <div className="relative overflow-hidden rounded-[3px] bg-[#aa9d91]">
                           <img
                             src={actor.thumbnail_url}
-                            alt={`${actor.name ?? '새 배우'} 썸네일`}
+                            alt={`${getActorDisplayName(actor)} 썸네일`}
                             className="h-full w-full object-cover opacity-80 grayscale"
                           />
                         </div>
@@ -259,7 +262,7 @@ export default function ActorMappingPage() {
                         <div className="flex min-w-0 flex-col justify-center">
                           <div className="h-5 rounded-[5px] border border-[#b8aca3] bg-white/34" />
                           <p className="mt-2 truncate text-[11px] font-bold text-[#806b61]">
-                            {actor.name ?? '미매칭'}
+                            {getActorDisplayName(actor)}
                           </p>
                           <p className="mt-0.5 text-[10px] font-semibold text-[#806b61]/62">
                             {actor.is_new ? '미매칭' : '매칭됨'}

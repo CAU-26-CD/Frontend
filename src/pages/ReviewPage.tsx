@@ -2,14 +2,19 @@ import { Settings, Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getFeedbacks } from '../apis/feedback';
+import {
+  getSessionVideo,
+  getSessionVideoAppearances,
+  type SessionVideoAppearance,
+  type SessionVideoResponse,
+} from '../apis/session';
 import ReviewFeedbackPanel from '../components/review/ReviewFeedbackPanel';
 import ReviewFilterBar, {
   type ReviewFeedbackTag,
 } from '../components/review/ReviewFilterBar';
 import ReviewVideoPanel from '../components/review/ReviewVideoPanel';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
-import { actors } from '../data/actors';
-import type { Feedback } from '../types/feedback';
+import type { Actor, Feedback } from '../types/feedback';
 
 const feedbackTags: ReviewFeedbackTag[] = [
   { id: 'line', label: '대사', color: '#f7b1bd' },
@@ -28,7 +33,7 @@ const secondsToTimestamp = (value: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const inferActorIds = (content: string) =>
+const inferActorIds = (content: string, actors: Actor[]) =>
   actors
     .filter((actor) => content.includes(actor.name))
     .map((actor) => actor.id);
@@ -40,6 +45,11 @@ export default function ReviewPage() {
   }>();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(false);
+  const [sessionVideo, setSessionVideo] = useState<SessionVideoResponse | null>(
+    null,
+  );
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false);
+  const [videoMessage, setVideoMessage] = useState('');
   const [selectedFeedbackTags, setSelectedFeedbackTags] = useState<string[]>(
     [],
   );
@@ -52,6 +62,64 @@ export default function ReviewPage() {
   const sessionTitle = Number.isNaN(numericSessionId)
     ? 'Session'
     : `Session ${numericSessionId}`;
+  const reviewActors = useMemo<Actor[]>(
+    () =>
+      sessionVideo?.actors.map((actor, index) => ({
+        id: actor.actor_id,
+        name: actor.name ?? `배우 ${actor.actor_id}`,
+        shortcut: String(index + 1),
+      })) ?? [],
+    [sessionVideo],
+  );
+  const actorAppearances = useMemo<SessionVideoAppearance[]>(
+    () =>
+      sessionVideo
+        ? getSessionVideoAppearances(sessionVideo.analysis_result)
+        : [],
+    [sessionVideo],
+  );
+
+  useEffect(() => {
+    if (Number.isNaN(numericSessionId)) return;
+
+    let ignore = false;
+
+    const loadSessionVideo = async () => {
+      setIsLoadingVideo(true);
+
+      try {
+        const video = await getSessionVideo(numericSessionId);
+
+        if (ignore) return;
+
+        setSessionVideo(video);
+        setVideoMessage(
+          video.analysis_status === 'failed'
+            ? '영상 분석에 실패했습니다'
+            : video.s3_url
+              ? ''
+              : '영상이 아직 없습니다',
+        );
+      } catch (error) {
+        if (!ignore) {
+          setSessionVideo(null);
+          setVideoMessage('영상이 아직 없습니다');
+        }
+
+        console.error('Failed to load session video', error);
+      } finally {
+        if (!ignore) {
+          setIsLoadingVideo(false);
+        }
+      }
+    };
+
+    void loadSessionVideo();
+
+    return () => {
+      ignore = true;
+    };
+  }, [numericSessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -70,7 +138,7 @@ export default function ReviewPage() {
           fetchedFeedbacks.map((feedback) => ({
             id: feedback.feedback_id,
             timestamp: secondsToTimestamp(feedback.video_offset_seconds),
-            actorIds: inferActorIds(feedback.content),
+            actorIds: inferActorIds(feedback.content, reviewActors),
             content: feedback.content,
             isUrgent: feedback.content.includes('!!!'),
           })),
@@ -89,7 +157,7 @@ export default function ReviewPage() {
     return () => {
       ignore = true;
     };
-  }, [sessionId]);
+  }, [reviewActors, sessionId]);
 
   const toggleFeedbackTag = (tagId: string) => {
     setSelectedFeedbackTags((current) =>
@@ -141,10 +209,17 @@ export default function ReviewPage() {
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
           <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4">
-            <ReviewVideoPanel sessionId={numericSessionId} />
+            <ReviewVideoPanel
+              videoUrl={sessionVideo?.s3_url ?? ''}
+              actors={reviewActors}
+              appearances={actorAppearances}
+              selectedActorIds={selectedActorIds}
+              isVideoLoading={isLoadingVideo}
+              videoMessage={videoMessage}
+            />
             <ReviewFilterBar
               feedbackTags={feedbackTags}
-              actors={actors}
+              actors={reviewActors}
               selectedFeedbackTags={selectedFeedbackTags}
               selectedActorIds={selectedActorIds}
               onFeedbackTagToggle={toggleFeedbackTag}
@@ -154,7 +229,7 @@ export default function ReviewPage() {
 
           <ReviewFeedbackPanel
             feedbacks={feedbacks}
-            actors={actors}
+            actors={reviewActors}
             feedbackTags={feedbackTags}
             selectedFeedbackTags={selectedFeedbackTags}
             selectedActorIds={selectedActorIds}
