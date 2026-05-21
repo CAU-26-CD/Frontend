@@ -1,16 +1,28 @@
 import { Video } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { mergeActorInto, renameActor } from '../apis/actor';
-import { getSessionVideo, type SessionVideoActor } from '../apis/session';
+import {
+  analyzeSessionVideo,
+  getSessionVideo,
+  type SessionVideoActor,
+} from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 
 const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
+const ANALYSIS_POLL_INTERVAL_MS = 2000;
+const pendingAnalysisStatuses = new Set(['pending', 'uploading', 'processing']);
+
+type ActorMappingRouteState = {
+  shouldAnalyzeVideo?: boolean;
+};
 
 export default function ActorMappingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as ActorMappingRouteState | null;
   const { projectId, sessionId } = useParams<{
     projectId: string;
     sessionId: string;
@@ -22,6 +34,9 @@ export default function ActorMappingPage() {
   const [renameValue, setRenameValue] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState('');
+  const [videoActorsError, setVideoActorsError] = useState<string | null>(null);
+  const hasRequestedAnalysisRef = useRef(false);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
@@ -44,6 +59,10 @@ export default function ActorMappingPage() {
       }),
     [videoActors],
   );
+  const isWaitingForAnalysis =
+    isLoading || pendingAnalysisStatuses.has(analysisStatus);
+  const hasAnalysisFailed = analysisStatus === 'failed';
+  const shouldAnalyzeVideoOnEntry = Boolean(routeState?.shouldAnalyzeVideo);
 
   useEffect(() => {
     if (Number.isNaN(numericSessionId)) {
@@ -52,6 +71,36 @@ export default function ActorMappingPage() {
     }
 
     let ignore = false;
+    let pollTimeoutId: number | undefined;
+
+    const scheduleNextPoll = () => {
+      if (pollTimeoutId !== undefined) {
+        window.clearTimeout(pollTimeoutId);
+      }
+
+      pollTimeoutId = window.setTimeout(
+        () => void loadVideoActors(),
+        ANALYSIS_POLL_INTERVAL_MS,
+      );
+    };
+
+    const requestAnalysis = async () => {
+      if (hasRequestedAnalysisRef.current) {
+        return false;
+      }
+
+      try {
+        hasRequestedAnalysisRef.current = true;
+        await analyzeSessionVideo(numericSessionId);
+        setAnalysisStatus('processing');
+        return true;
+      } catch (error) {
+        hasRequestedAnalysisRef.current = false;
+        console.error('Failed to request video analysis', error);
+        setVideoActorsError('영상 분석 요청에 실패했습니다.');
+        return false;
+      }
+    };
 
     const loadVideoActors = async () => {
       setIsLoading(true);
@@ -61,10 +110,37 @@ export default function ActorMappingPage() {
 
         if (ignore) return;
 
+        const nextAnalysisStatus = video.analysis_status.toLowerCase();
+
+        setAnalysisStatus(nextAnalysisStatus);
         setVideoActors(video.actors);
-        setSelectedActorId(video.actors[0]?.actor_id ?? null);
+        setSelectedActorId(
+          (currentSelectedActorId) =>
+            currentSelectedActorId ?? video.actors[0]?.actor_id ?? null,
+        );
+        setVideoActorsError(null);
+
+        let hasRequestedAnalysis = false;
+
+        const shouldRequestAnalysis =
+          nextAnalysisStatus !== 'processing' &&
+          (nextAnalysisStatus !== 'done' || video.actors.length === 0);
+
+        if (shouldRequestAnalysis) {
+          hasRequestedAnalysis = await requestAnalysis();
+        }
+
+        if (
+          pendingAnalysisStatuses.has(nextAnalysisStatus) ||
+          hasRequestedAnalysis
+        ) {
+          scheduleNextPoll();
+        }
       } catch (error) {
         console.error('Failed to load video actors', error);
+        setVideoActorsError('배우 인식 결과를 불러오지 못했습니다.');
+
+        scheduleNextPoll();
       } finally {
         if (!ignore) {
           setIsLoading(false);
@@ -72,12 +148,34 @@ export default function ActorMappingPage() {
       }
     };
 
-    void loadVideoActors();
+    const startAnalysisAndPolling = async () => {
+      setIsLoading(true);
+
+      const hasRequestedAnalysis = shouldAnalyzeVideoOnEntry
+        ? await requestAnalysis()
+        : false;
+
+      if (!ignore) {
+        await loadVideoActors();
+
+        if (hasRequestedAnalysis) {
+          scheduleNextPoll();
+        }
+      }
+    };
+
+    void startAnalysisAndPolling();
 
     return () => {
       ignore = true;
+      if (pollTimeoutId !== undefined) {
+        window.clearTimeout(pollTimeoutId);
+      }
     };
-  }, [numericSessionId]);
+  }, [
+    numericSessionId,
+    shouldAnalyzeVideoOnEntry,
+  ]);
 
   useEffect(() => {
     setRenameValue(selectedActor?.name ?? '');
@@ -160,7 +258,8 @@ export default function ActorMappingPage() {
           <button
             type="button"
             onClick={handleComplete}
-            className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            disabled={isWaitingForAnalysis || Boolean(videoActorsError)}
+            className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
           >
             매칭 완료
           </button>
@@ -174,12 +273,20 @@ export default function ActorMappingPage() {
             </h1>
           </div>
 
-          {isLoading ? (
+          {isWaitingForAnalysis ? (
             <LoadingSpinner
-              label="배우 인식 결과를 불러오는 중입니다"
+              label="배우 인식 결과를 분석하는 중입니다"
               className="flex-1"
               size="lg"
             />
+          ) : hasAnalysisFailed ? (
+            <div className="flex flex-1 items-center justify-center text-sm font-semibold text-[#eee7dc]/60">
+              영상 분석에 실패했습니다
+            </div>
+          ) : videoActorsError && !selectedActor ? (
+            <div className="flex flex-1 items-center justify-center text-sm font-semibold text-[#eee7dc]/60">
+              {videoActorsError}
+            </div>
           ) : selectedActor ? (
             <>
               <div className="mt-6 flex flex-1 items-start justify-center">

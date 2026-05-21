@@ -205,6 +205,12 @@ export const getSessionVideo = async (
   return normalizeSessionVideo(res.data);
 };
 
+export const analyzeSessionVideo = async (
+  sessionId: number,
+): Promise<void> => {
+  await instance.post(`/api/v1/sessions/${sessionId}/video/analyze`);
+};
+
 export const completeProjectSession = async (
   projectId: number,
   sessionId: number,
