@@ -6,6 +6,8 @@ import {
   getProjectSessions,
   createCameraSession,
   stopCameraSession,
+  getRehearsalSessionStatus,
+  startRehearsalSession,
 } from '../apis/session';
 import type {
   CameraSessionStatusResponse,
@@ -27,6 +29,17 @@ type FeedbackRouteState = {
   openCameraSession?: boolean;
   projectSessionTitle?: string;
 };
+
+const startedRehearsalStatuses = new Set([
+  'start',
+  'started',
+  'true',
+  'recording',
+  'rehearsal_started',
+]);
+
+const isStartedRehearsalStatus = (status: string) =>
+  startedRehearsalStatuses.has(status.trim().toLowerCase());
 
 export default function RehearsalFeedbackPage() {
   const navigate = useNavigate();
@@ -113,6 +126,12 @@ export default function RehearsalFeedbackPage() {
     }
   };
 
+  const enterRehearsal = useCallback(() => {
+    setIsCameraGateOpen(false);
+    sessionStorage.setItem(rehearsalStartedStorageKey, 'true');
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, navigate, rehearsalStartedStorageKey]);
+
   useEffect(() => {
     if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {
       return;
@@ -174,6 +193,36 @@ export default function RehearsalFeedbackPage() {
 
     void openCameraConnection();
   }, [isCameraGateOpen, numericSessionId]);
+
+  useEffect(() => {
+    if (!isCameraGateOpen || Number.isNaN(numericSessionId)) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadRehearsalStatus = async () => {
+      try {
+        const status = await getRehearsalSessionStatus(numericSessionId);
+
+        if (!ignore && isStartedRehearsalStatus(status)) {
+          enterRehearsal();
+        }
+      } catch (error) {
+        console.error('Failed to get rehearsal status', error);
+      }
+    };
+
+    void loadRehearsalStatus();
+    const intervalId = window.setInterval(() => {
+      void loadRehearsalStatus();
+    }, 1000);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(intervalId);
+    };
+  }, [enterRehearsal, isCameraGateOpen, numericSessionId]);
 
   useEffect(() => {
     if (
@@ -247,10 +296,18 @@ export default function RehearsalFeedbackPage() {
     };
   }, [handleStartTimestamp, isCameraGateOpen]);
 
-  const startRehearsal = () => {
-    setIsCameraGateOpen(false);
-    sessionStorage.setItem(rehearsalStartedStorageKey, 'true');
-    navigate(location.pathname, { replace: true, state: null });
+  const startRehearsal = async () => {
+    if (Number.isNaN(numericSessionId)) {
+      return;
+    }
+
+    try {
+      await startRehearsalSession(numericSessionId);
+      enterRehearsal();
+    } catch (error) {
+      console.error('Failed to start rehearsal', error);
+      setCameraSessionError('리허설 시작 상태를 동기화하지 못했습니다.');
+    }
   };
 
   const exitRehearsal = async () => {

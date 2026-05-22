@@ -184,7 +184,10 @@ export const getSessionVideoAppearances = (
 
 const getRawActorAppearances = (actor: SessionVideoActor) => {
   const nestedAppearances =
-    actor.appearances ?? actor.appearance_ranges ?? actor.segments ?? actor.timeline;
+    actor.appearances ??
+    actor.appearance_ranges ??
+    actor.segments ??
+    actor.timeline;
 
   if (Array.isArray(nestedAppearances)) {
     return nestedAppearances;
@@ -274,9 +277,7 @@ export const getSessionVideo = async (
   return normalizeSessionVideo(res.data);
 };
 
-export const analyzeSessionVideo = async (
-  sessionId: number,
-): Promise<void> => {
+export const analyzeSessionVideo = async (sessionId: number): Promise<void> => {
   await instance.post(`/api/v1/sessions/${sessionId}/video/analyze`);
 };
 
@@ -289,6 +290,26 @@ export const completeProjectSession = async (
     {
       in_progress: false,
     },
+  );
+
+  return res.data;
+};
+
+export const startRehearsalSession = async (
+  sessionId: number,
+): Promise<string> => {
+  const res = await instance.post(
+    `/api/v1/projects/${sessionId}/rehearsal/start`,
+  );
+
+  return res.data;
+};
+
+export const getRehearsalSessionStatus = async (
+  sessionId: number,
+): Promise<string> => {
+  const res = await instance.get(
+    `/api/v1/projects/${sessionId}/rehearsal/status`,
   );
 
   return res.data;
