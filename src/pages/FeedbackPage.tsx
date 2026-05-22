@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Settings, Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  createCameraSession,
-  analyzeSessionVideo,
   getCameraSessionStatus,
   getProjectSessions,
+  createCameraSession,
   stopCameraSession,
 } from '../apis/session';
 import type {
@@ -274,23 +273,14 @@ export default function RehearsalFeedbackPage() {
     navigate(`/project/${numericProjectId}/workspace`);
   };
 
-  const openActorMapping = async () => {
+  const openActorMapping = () => {
     if (Number.isNaN(numericProjectId)) {
       return;
     }
 
     sessionStorage.removeItem(rehearsalStartedStorageKey);
-    try {
-      await analyzeSessionVideo(numericSessionId);
-    } catch (error) {
-      console.error('Failed to request video analysis', error);
-    }
 
-    navigate(`/project/${numericProjectId}/workspace/${activeSessionId}/actors`, {
-      state: {
-        shouldAnalyzeVideo: true,
-      },
-    });
+    navigate(`/project/${numericProjectId}/workspace/${activeSessionId}/actors`);
   };
 
   const cameraSessionSlot = isCameraGateOpen ? (

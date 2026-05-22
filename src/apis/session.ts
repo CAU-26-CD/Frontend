@@ -197,9 +197,20 @@ export const getProjectSessions = async (
 
 export const getSessionVideo = async (
   sessionId: number,
+  options?: { refresh?: boolean },
 ): Promise<SessionVideoResponse> => {
   const res = await instance.get<RawSessionVideoResponse>(
     `/api/v1/sessions/${sessionId}/video`,
+    options?.refresh
+      ? {
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+          params: {
+            _ts: Date.now(),
+          },
+        }
+      : undefined,
   );
 
   return normalizeSessionVideo(res.data);

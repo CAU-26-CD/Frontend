@@ -54,6 +54,7 @@ export default function ReviewPage() {
     [],
   );
   const [selectedActorIds, setSelectedActorIds] = useState<number[]>([]);
+  const [actorOnlyPlaybackRequest, setActorOnlyPlaybackRequest] = useState(0);
   const numericProjectId = Number(projectId);
   const numericSessionId = Number(sessionId);
   const projectTitle = Number.isNaN(numericProjectId)
@@ -78,6 +79,10 @@ export default function ReviewPage() {
         : [],
     [sessionVideo],
   );
+  const actorIdsWithTimeline = useMemo(
+    () => [...new Set(actorAppearances.map((appearance) => appearance.actorId))],
+    [actorAppearances],
+  );
 
   useEffect(() => {
     if (Number.isNaN(numericSessionId)) return;
@@ -86,9 +91,12 @@ export default function ReviewPage() {
 
     const loadSessionVideo = async () => {
       setIsLoadingVideo(true);
+      setSessionVideo(null);
 
       try {
-        const video = await getSessionVideo(numericSessionId);
+        const video = await getSessionVideo(numericSessionId, {
+          refresh: true,
+        });
 
         if (ignore) return;
 
@@ -175,6 +183,10 @@ export default function ReviewPage() {
     );
   };
 
+  const requestSelectedActorPlayback = () => {
+    setActorOnlyPlaybackRequest((current) => current + 1);
+  };
+
   const completedCount = useMemo(() => feedbacks.length, [feedbacks.length]);
 
   return (
@@ -216,14 +228,17 @@ export default function ReviewPage() {
               selectedActorIds={selectedActorIds}
               isVideoLoading={isLoadingVideo}
               videoMessage={videoMessage}
+              actorOnlyPlaybackRequest={actorOnlyPlaybackRequest}
             />
             <ReviewFilterBar
               feedbackTags={feedbackTags}
               actors={reviewActors}
               selectedFeedbackTags={selectedFeedbackTags}
               selectedActorIds={selectedActorIds}
+              actorIdsWithTimeline={actorIdsWithTimeline}
               onFeedbackTagToggle={toggleFeedbackTag}
               onActorToggle={toggleActor}
+              onSelectedActorPlayback={requestSelectedActorPlayback}
             />
           </section>
 

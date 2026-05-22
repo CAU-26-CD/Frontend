@@ -1,12 +1,8 @@
 import { Video } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { mergeActorInto, renameActor } from '../apis/actor';
-import {
-  analyzeSessionVideo,
-  getSessionVideo,
-  type SessionVideoActor,
-} from '../apis/session';
+import { getSessionVideo, type SessionVideoActor } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 
@@ -15,14 +11,8 @@ const getActorDisplayName = (actor: SessionVideoActor) =>
 const ANALYSIS_POLL_INTERVAL_MS = 2000;
 const pendingAnalysisStatuses = new Set(['pending', 'uploading', 'processing']);
 
-type ActorMappingRouteState = {
-  shouldAnalyzeVideo?: boolean;
-};
-
 export default function ActorMappingPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const routeState = location.state as ActorMappingRouteState | null;
   const { projectId, sessionId } = useParams<{
     projectId: string;
     sessionId: string;
@@ -36,7 +26,6 @@ export default function ActorMappingPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [videoActorsError, setVideoActorsError] = useState<string | null>(null);
-  const hasRequestedAnalysisRef = useRef(false);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
@@ -62,7 +51,6 @@ export default function ActorMappingPage() {
   const isWaitingForAnalysis =
     isLoading || pendingAnalysisStatuses.has(analysisStatus);
   const hasAnalysisFailed = analysisStatus === 'failed';
-  const shouldAnalyzeVideoOnEntry = Boolean(routeState?.shouldAnalyzeVideo);
 
   useEffect(() => {
     if (Number.isNaN(numericSessionId)) {
@@ -84,24 +72,6 @@ export default function ActorMappingPage() {
       );
     };
 
-    const requestAnalysis = async () => {
-      if (hasRequestedAnalysisRef.current) {
-        return false;
-      }
-
-      try {
-        hasRequestedAnalysisRef.current = true;
-        await analyzeSessionVideo(numericSessionId);
-        setAnalysisStatus('processing');
-        return true;
-      } catch (error) {
-        hasRequestedAnalysisRef.current = false;
-        console.error('Failed to request video analysis', error);
-        setVideoActorsError('영상 분석 요청에 실패했습니다.');
-        return false;
-      }
-    };
-
     const loadVideoActors = async () => {
       setIsLoading(true);
 
@@ -120,20 +90,7 @@ export default function ActorMappingPage() {
         );
         setVideoActorsError(null);
 
-        let hasRequestedAnalysis = false;
-
-        const shouldRequestAnalysis =
-          nextAnalysisStatus !== 'processing' &&
-          (nextAnalysisStatus !== 'done' || video.actors.length === 0);
-
-        if (shouldRequestAnalysis) {
-          hasRequestedAnalysis = await requestAnalysis();
-        }
-
-        if (
-          pendingAnalysisStatuses.has(nextAnalysisStatus) ||
-          hasRequestedAnalysis
-        ) {
+        if (pendingAnalysisStatuses.has(nextAnalysisStatus)) {
           scheduleNextPoll();
         }
       } catch (error) {
@@ -148,23 +105,7 @@ export default function ActorMappingPage() {
       }
     };
 
-    const startAnalysisAndPolling = async () => {
-      setIsLoading(true);
-
-      const hasRequestedAnalysis = shouldAnalyzeVideoOnEntry
-        ? await requestAnalysis()
-        : false;
-
-      if (!ignore) {
-        await loadVideoActors();
-
-        if (hasRequestedAnalysis) {
-          scheduleNextPoll();
-        }
-      }
-    };
-
-    void startAnalysisAndPolling();
+    void loadVideoActors();
 
     return () => {
       ignore = true;
@@ -172,10 +113,7 @@ export default function ActorMappingPage() {
         window.clearTimeout(pollTimeoutId);
       }
     };
-  }, [
-    numericSessionId,
-    shouldAnalyzeVideoOnEntry,
-  ]);
+  }, [numericSessionId]);
 
   useEffect(() => {
     setRenameValue(selectedActor?.name ?? '');
@@ -266,12 +204,14 @@ export default function ActorMappingPage() {
         </div>
 
         <section className="reaction-ui-font flex flex-1 flex-col pt-10">
-          <div className="text-center">
-            <h1 className="text-[clamp(1.25rem,2vw,1.7rem)] font-semibold text-[#f6eee4]">
-              {videoActors.length}명의 배우를 인식했습니다. 태그를
-              매칭해주세요.
-            </h1>
-          </div>
+          {!isWaitingForAnalysis && (
+            <div className="text-center">
+              <h1 className="text-[clamp(1.25rem,2vw,1.7rem)] font-semibold text-[#f6eee4]">
+                {videoActors.length}명의 배우를 인식했습니다. 태그를
+                매칭해주세요.
+              </h1>
+            </div>
+          )}
 
           {isWaitingForAnalysis ? (
             <LoadingSpinner
