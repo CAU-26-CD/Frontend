@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createProjectActor } from '../apis/actor';
 import { createProject, joinProject } from '../apis/project';
+import CreateActorModal from '../components/modals/CreateActorModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { saveProjectActor } from '../data/actors';
 import createProjectCard from '../images/icon/create-project-card.svg';
 import loginCard from '../images/icon/loginCard.svg';
+import type { ProjectResponse } from '../apis/project';
 import type { CreateProjectForm, JoinProjectForm } from '../types/project';
 
 const initialJoinForm: JoinProjectForm = {
@@ -23,6 +27,11 @@ export default function NewProject() {
     useState<CreateProjectForm>(initialCreateForm);
   const [isJoiningProject, setIsJoiningProject] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [createdProject, setCreatedProject] = useState<ProjectResponse | null>(
+    null,
+  );
+  const [isCreatingActor, setIsCreatingActor] = useState(false);
+  const [actorCreateError, setActorCreateError] = useState<string | null>(null);
 
   const handleJoinSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,11 +76,45 @@ export default function NewProject() {
         join_code: createForm.joinCode.trim().toUpperCase(),
       });
 
-      navigate(`/project/${project.project_id}/workspace`);
+      setCreatedProject(project);
+      setActorCreateError(null);
     } catch (error) {
       console.error('Failed to create project', error);
     } finally {
       setIsCreatingProject(false);
+    }
+  };
+
+  const handleActorSubmit = async (names: string[]) => {
+    if (!createdProject || isCreatingActor) {
+      return;
+    }
+
+    setIsCreatingActor(true);
+
+    try {
+      const createdActors = await Promise.all(
+        names.map((name) =>
+          createProjectActor(createdProject.project_id, {
+            name,
+          }),
+        ),
+      );
+
+      createdActors.forEach((actor, index) => {
+        saveProjectActor(createdProject.project_id, {
+          id: actor.actor_id,
+          name: actor.name,
+          shortcut: String(index + 1),
+        });
+      });
+
+      navigate(`/project/${createdProject.project_id}/workspace`);
+    } catch (error) {
+      console.error('Failed to create actor', error);
+      setActorCreateError('배우를 등록하지 못했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsCreatingActor(false);
     }
   };
 
@@ -200,6 +243,15 @@ export default function NewProject() {
           </button>
         </form>
       </section>
+
+      {createdProject && (
+        <CreateActorModal
+          projectName={createdProject.title}
+          isSubmitting={isCreatingActor}
+          errorMessage={actorCreateError}
+          onSubmit={handleActorSubmit}
+        />
+      )}
     </main>
   );
 }

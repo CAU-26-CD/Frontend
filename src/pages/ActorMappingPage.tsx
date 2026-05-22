@@ -1,7 +1,7 @@
 import { Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { mergeActorInto, renameActor } from '../apis/actor';
+import { mergeActorInto } from '../apis/actor';
 import {
   classifySessionFeedbacks,
   waitForPendingFeedbackCreates,
@@ -9,6 +9,7 @@ import {
 import { getSessionVideo, type SessionVideoActor } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { getProjectActors } from '../data/actors';
 
 const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
@@ -25,7 +26,6 @@ export default function ActorMappingPage() {
   const numericSessionId = Number(sessionId);
   const [videoActors, setVideoActors] = useState<SessionVideoActor[]>([]);
   const [selectedActorId, setSelectedActorId] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isClassifyingFeedbacks, setIsClassifyingFeedbacks] = useState(false);
@@ -44,7 +44,11 @@ export default function ActorMappingPage() {
     videoActors.find((actor) => actor.actor_id === selectedActorId) ??
     videoActors[0] ??
     null;
-  const knownActors = videoActors.filter((actor) => !actor.is_new);
+  const projectActors = useMemo(
+    () =>
+      Number.isNaN(numericProjectId) ? [] : getProjectActors(numericProjectId),
+    [numericProjectId],
+  );
   const mappedCount = videoActors.filter((actor) => !actor.is_new).length;
   const sortedActors = useMemo(
     () =>
@@ -124,10 +128,6 @@ export default function ActorMappingPage() {
   }, [numericSessionId]);
 
   useEffect(() => {
-    setRenameValue(selectedActor?.name ?? '');
-  }, [selectedActor]);
-
-  useEffect(() => {
     if (Number.isNaN(numericSessionId)) {
       return;
     }
@@ -165,48 +165,49 @@ export default function ActorMappingPage() {
     };
   }, [numericSessionId]);
 
-  const handleRename = async () => {
-    if (!selectedActor || !renameValue.trim() || isSaving) return;
-
-    setIsSaving(true);
-
-    try {
-      await renameActor(selectedActor.actor_id, {
-        name: renameValue.trim(),
-      });
-
-      setVideoActors((current) =>
-        current.map((actor) =>
-          actor.actor_id === selectedActor.actor_id
-            ? { ...actor, name: renameValue.trim(), is_new: false }
-            : actor,
-        ),
-      );
-    } catch (error) {
-      console.error('Failed to rename actor', error);
-    } finally {
-      setIsSaving(false);
+  const handleMapToProjectActor = async (targetActorId: number) => {
+    if (!selectedActor || isSaving) {
+      return;
     }
-  };
 
-  const handleMerge = async (targetActorId: number) => {
-    if (!selectedActor || selectedActor.actor_id === targetActorId || isSaving) {
+    const targetActor = projectActors.find(
+      (actor) => actor.id === targetActorId,
+    );
+
+    if (!targetActor) {
       return;
     }
 
     setIsSaving(true);
 
     try {
-      await mergeActorInto(selectedActor.actor_id, {
-        target_actor_id: targetActorId,
-      });
+      if (selectedActor.actor_id !== targetActorId) {
+        await mergeActorInto(selectedActor.actor_id, {
+          target_actor_id: targetActorId,
+        });
+      }
 
       setVideoActors((current) =>
-        current.filter((actor) => actor.actor_id !== selectedActor.actor_id),
+        current.some(
+          (actor) =>
+            actor.actor_id === targetActor.id &&
+            actor.actor_id !== selectedActor.actor_id,
+        )
+          ? current.filter((actor) => actor.actor_id !== selectedActor.actor_id)
+          : current.map((actor) =>
+              actor.actor_id === selectedActor.actor_id
+                ? {
+                    ...actor,
+                    actor_id: targetActor.id,
+                    name: targetActor.name,
+                    is_new: false,
+                  }
+                : actor,
+            ),
       );
       setSelectedActorId(targetActorId);
     } catch (error) {
-      console.error('Failed to merge actor', error);
+      console.error('Failed to map actor', error);
     } finally {
       setIsSaving(false);
     }
@@ -303,34 +304,41 @@ export default function ActorMappingPage() {
                   </div>
 
                   <div className="flex min-w-0 flex-col justify-center gap-3">
-                    <input
-                      value={renameValue}
-                      onChange={(event) => setRenameValue(event.target.value)}
-                      className="h-9 rounded-[8px] border border-[#b8aca3] bg-white/36 px-3 text-center text-sm font-semibold text-[#431B1B] outline-none transition focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15"
-                      placeholder="배우 이름 입력"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRename}
-                      disabled={!renameValue.trim() || isSaving}
-                      className="h-9 rounded-[8px] bg-[#6f5752] text-sm font-bold text-[#fff8ef] transition hover:bg-[#5d4642] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isSaving ? '저장 중' : '이 이름으로 매핑'}
-                    </button>
+                    <div className="rounded-[8px] border border-[#b8aca3] bg-white/36 px-3 py-2 text-center text-sm font-semibold text-[#431B1B]">
+                      {selectedActor.is_new
+                        ? '매칭할 배우를 선택해 주세요'
+                        : `${getActorDisplayName(selectedActor)} 매칭됨`}
+                    </div>
 
-                    {knownActors.length > 0 && selectedActor.is_new && (
-                      <div className="mt-1 flex flex-col overflow-hidden rounded-[8px] border border-[#c8b7aa] bg-[#f5eee6]">
-                        {knownActors.map((actor) => (
-                          <button
-                            key={actor.actor_id}
-                            type="button"
-                            onClick={() => handleMerge(actor.actor_id)}
-                            disabled={isSaving}
-                            className="flex h-9 items-center justify-center gap-1.5 px-3 text-sm font-semibold text-[#806b61] transition hover:bg-[#eadbd0] hover:text-[#431B1B] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:opacity-50"
-                          >
-                            {actor.name}
-                          </button>
-                        ))}
+                    {projectActors.length > 0 ? (
+                      <div className="flex max-h-48 flex-col overflow-y-auto rounded-[8px] border border-[#c8b7aa] bg-[#f5eee6]">
+                        {projectActors.map((actor) => {
+                          const isMappedToSelected =
+                            selectedActor.actor_id === actor.id &&
+                            !selectedActor.is_new;
+
+                          return (
+                            <button
+                              key={actor.id}
+                              type="button"
+                              onClick={() => handleMapToProjectActor(actor.id)}
+                              disabled={isSaving || isMappedToSelected}
+                              className={[
+                                'flex min-h-9 items-center justify-center gap-1.5 px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed',
+                                isMappedToSelected
+                                  ? 'bg-[#6f5752] text-[#fff8ef]'
+                                  : 'text-[#806b61] hover:bg-[#eadbd0] hover:text-[#431B1B] disabled:opacity-50',
+                              ].join(' ')}
+                            >
+                              {isMappedToSelected ? '선택됨 · ' : ''}
+                              {actor.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-[8px] border border-[#c8b7aa] bg-[#f5eee6] px-3 py-4 text-center text-xs font-semibold text-[#806b61]">
+                        프로젝트에 등록된 배우가 없습니다.
                       </div>
                     )}
                   </div>

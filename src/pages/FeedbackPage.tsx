@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Settings, Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -12,7 +12,7 @@ import type {
   CreateCameraSessionResponse,
   CreateProjectSessionResponse,
 } from '../apis/session';
-import { actors } from '../data/actors';
+import { getProjectActors } from '../data/actors';
 import { useFeedback } from '../hooks/useFeedback';
 import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
@@ -66,7 +66,10 @@ export default function RehearsalFeedbackPage() {
 
     return Math.max(0, Math.floor((Date.now() - recordingStartedAt) / 1000));
   }, [recordingElapsedSeconds, recordingStartedAt]);
-  const feedback = useFeedback(activeSessionId, getCurrentRecordingOffsetSeconds);
+  const feedback = useFeedback(
+    activeSessionId,
+    getCurrentRecordingOffsetSeconds,
+  );
   const { handleStartTimestamp } = feedback;
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
@@ -74,13 +77,19 @@ export default function RehearsalFeedbackPage() {
   const sessionTitle =
     routeState?.projectSessionTitle ??
     currentProjectSession?.title ??
-    (Number.isNaN(numericSessionId) ? 'Session' : `Session ${numericSessionId}`);
+    (Number.isNaN(numericSessionId)
+      ? 'Session'
+      : `Session ${numericSessionId}`);
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
   const isRecording = cameraStatusText === 'recording';
-  const recordingTime = `${String(Math.floor(recordingElapsedSeconds / 60)).padStart(
-    2,
-    '0',
-  )}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
+  const recordingTime = `${String(
+    Math.floor(recordingElapsedSeconds / 60),
+  ).padStart(2, '0')}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
+  const actors = useMemo(
+    () =>
+      Number.isNaN(numericProjectId) ? [] : getProjectActors(numericProjectId),
+    [numericProjectId],
+  );
 
   const applyCameraStatus = (nextStatus: CameraSessionStatusResponse) => {
     const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
@@ -194,10 +203,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [
-    cameraSession,
-    isCameraGateOpen,
-  ]);
+  }, [cameraSession, isCameraGateOpen]);
 
   useEffect(() => {
     if (recordingStartedAt === null) {
@@ -280,7 +286,9 @@ export default function RehearsalFeedbackPage() {
 
     sessionStorage.removeItem(rehearsalStartedStorageKey);
 
-    navigate(`/project/${numericProjectId}/workspace/${activeSessionId}/actors`);
+    navigate(
+      `/project/${numericProjectId}/workspace/${activeSessionId}/actors`,
+    );
   };
 
   const cameraSessionSlot = isCameraGateOpen ? (
@@ -328,7 +336,9 @@ export default function RehearsalFeedbackPage() {
               fill="#D15757"
               stroke="#D15757"
               strokeWidth={2.4}
-              className={isRecording ? 'reaction-recording-icon shrink-0' : 'shrink-0'}
+              className={
+                isRecording ? 'reaction-recording-icon shrink-0' : 'shrink-0'
+              }
               aria-hidden="true"
             />
             {isRecording && (
