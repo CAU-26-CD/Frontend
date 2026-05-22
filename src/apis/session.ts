@@ -299,12 +299,14 @@ export const createCameraSession = async (
   pwaBaseUrl = CAMERA_PWA_BASE_URL,
 ): Promise<CreateCameraSessionResponse> => {
   const normalizedPwaBaseUrl = new URL(pwaBaseUrl).href;
-  const res = await instance.post('/api/v1/camera-session/create', null, {
-    params: {
-      db_session_id: dbSessionId,
-      pwa_base_url: normalizedPwaBaseUrl,
+  const res = await instance.get(
+    `/api/v1/camera-session/by-db-session/${dbSessionId}`,
+    {
+      params: {
+        pwa_base_url: normalizedPwaBaseUrl,
+      },
     },
-  });
+  );
 
   return res.data;
 };
