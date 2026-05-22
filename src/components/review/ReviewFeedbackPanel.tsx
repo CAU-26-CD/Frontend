@@ -1,50 +1,86 @@
 import { ArrowUp } from 'lucide-react';
 import LoadingSpinner from '../LoadingSpinner';
-import type { Actor, Feedback } from '../../types/feedback';
-import type { ReviewFeedbackTag } from './ReviewFilterBar';
+import type { Actor, Feedback, FeedbackPriority } from '../../types/feedback';
+import type { ReviewFeedbackTag, ReviewPriorityTag } from './ReviewFilterBar';
 
 type ReviewFeedbackPanelProps = {
   feedbacks: Feedback[];
   actors: Actor[];
   feedbackTags: ReviewFeedbackTag[];
+  priorityTags: ReviewPriorityTag[];
   selectedFeedbackTags: string[];
+  selectedPriorityTags: FeedbackPriority[];
   selectedActorIds: number[];
   isLoading?: boolean;
 };
 
-const getFeedbackTagIds = (feedback: Feedback) => {
-  const content = feedback.content;
-  const tags: string[] = [];
+const priorityColorById: Record<FeedbackPriority, string> = {
+  required: '#ff6b6b',
+  recommended: '#f6d76f',
+  discussion: '#c9c1ba',
+  praise: '#80c7f5',
+};
 
-  if (content.includes('[동선]')) tags.push('movement');
-  if (content.includes('감정')) tags.push('emotion');
-  if (content.includes('타이밍')) tags.push('timing');
-  if (content.includes('대사')) tags.push('line');
-  if (content.includes('제안')) tags.push('suggestion');
-  if (content.includes('관리')) tags.push('management');
-  if (tags.length === 0) tags.push('acting');
+const priorityOrder: FeedbackPriority[] = [
+  'required',
+  'recommended',
+  'discussion',
+  'praise',
+];
 
-  return tags;
+const getPrimaryPriority = (feedback: Feedback) =>
+  priorityOrder.find((priority) => feedback.priority?.includes(priority));
+
+const categoryLabelByValue: Record<string, string> = {
+  'acting:expression': '표정',
+  'acting:emotion': '감정선',
+  'acting:tone': '대사 톤',
+  'acting:gaze': '시선',
+  'acting:character': '캐릭터',
+  'acting:reaction': '리액션',
+  'vocal:pitch': '음정',
+  'vocal:rhythm': '박자',
+  'vocal:diction': '발음',
+  'vocal:breath': '호흡',
+  'vocal:lyrics': '가사',
+  'vocal:expression_singing': '노래 표현',
+  'vocal:multitasking': '노래+동작',
+  'blocking:movement': '동선',
+  'blocking:posture': '자세',
+  'blocking:gesture': '제스처',
+  'blocking:entrance_exit': '입퇴장',
+  'blocking:footwork': '걸음',
+  'props:handling': '소품 핸들링',
+  'props:timing': '소품 타이밍',
+  'props:detail': '소품 디테일',
+  'script:mistake': '대사 실수',
+  'script:omission': '대사 누락',
+  'script:memorization': '암기',
+  'chemistry:eye_contact': '시선 교환',
+  'chemistry:timing_sync': '합',
+  'chemistry:emotional_bond': '케미',
+  'technical:audio_cue': '음향',
+  'technical:lighting': '조명',
+  'technical:staff_collab': '스태프 협업',
+  'meta:other': '기타',
 };
 
 export default function ReviewFeedbackPanel({
   feedbacks,
   actors,
   feedbackTags,
+  priorityTags,
   selectedFeedbackTags,
+  selectedPriorityTags,
   selectedActorIds,
   isLoading = false,
 }: ReviewFeedbackPanelProps) {
   const visibleFeedbacks = feedbacks.filter((feedback) => {
-    const feedbackTagIds = getFeedbackTagIds(feedback);
-    const matchesFeedbackTag =
-      selectedFeedbackTags.length === 0 ||
-      selectedFeedbackTags.some((tagId) => feedbackTagIds.includes(tagId));
     const matchesActor =
       selectedActorIds.length === 0 ||
       selectedActorIds.some((actorId) => feedback.actorIds.includes(actorId));
 
-    return matchesFeedbackTag && matchesActor;
+    return matchesActor;
   });
 
   const selectedActorNames = selectedActorIds
@@ -53,7 +89,14 @@ export default function ReviewFeedbackPanel({
   const selectedFeedbackTagLabels = selectedFeedbackTags
     .map((tagId) => feedbackTags.find((tag) => tag.id === tagId)?.label)
     .filter(Boolean);
-  const selectedLabels = [...selectedFeedbackTagLabels, ...selectedActorNames];
+  const selectedPriorityLabels = selectedPriorityTags
+    .map((priority) => priorityTags.find((tag) => tag.id === priority)?.label)
+    .filter(Boolean);
+  const selectedLabels = [
+    ...selectedFeedbackTagLabels,
+    ...selectedPriorityLabels,
+    ...selectedActorNames,
+  ];
 
   return (
     <aside className="reaction-ui-font flex h-full min-h-0 flex-col gap-3 overflow-hidden bg-transparent px-1 py-0 text-[#2d1715]">
@@ -66,39 +109,59 @@ export default function ReviewFeedbackPanel({
             />
           ) : (
             visibleFeedbacks.map((feedback) => {
-            const tagIds = getFeedbackTagIds(feedback);
-            const primaryTag = feedbackTags.find((tag) =>
-              tagIds.includes(tag.id),
-            );
-            const feedbackActorNames = feedback.actorIds
-              .map((actorId) => actors.find((actor) => actor.id === actorId)?.name)
-              .filter(Boolean)
-              .join(', ');
+              const feedbackCategories = feedback.categories ?? [];
+              const primaryTag = feedbackTags.find((tag) =>
+                feedbackCategories.some(
+                  (category) =>
+                    category === tag.id || tag.values.includes(category),
+                ),
+              );
+              const primaryCategory = feedbackCategories[0];
+              const primaryPriority = getPrimaryPriority(feedback);
+              const feedbackActorNames = feedback.actorIds
+                .map(
+                  (actorId) =>
+                    actors.find((actor) => actor.id === actorId)?.name,
+                )
+                .filter(Boolean)
+                .join(', ');
 
-            return (
-              <article
-                key={feedback.id}
-                className="grid grid-cols-[58px_minmax(0,1fr)] gap-2 text-xs font-semibold leading-relaxed"
-              >
-                <span className="text-[#fff8ef]">{feedback.timestamp}</span>
-                <p className="min-w-0 truncate">
-                  {feedbackActorNames && (
-                    <span className="mr-1 text-[#fff8ef]/86">
-                      | {feedbackActorNames}
+              return (
+                <article
+                  key={feedback.id}
+                  className="grid grid-cols-[58px_minmax(0,1fr)] gap-2 text-xs font-semibold leading-relaxed"
+                >
+                  <span
+                    className="font-bold"
+                    style={{
+                      color: primaryPriority
+                        ? priorityColorById[primaryPriority]
+                        : '#fff8ef',
+                    }}
+                  >
+                    {feedback.timestamp}
+                  </span>
+                  <p className="min-w-0 truncate">
+                    {feedbackActorNames && (
+                      <span className="mr-1 text-[#fff8ef]/86">
+                        | {feedbackActorNames}
+                      </span>
+                    )}
+                    {primaryTag && (
+                      <span
+                        className="mr-1 rounded-[4px] px-1.5 py-0.5 text-[11px] font-bold text-[#431B1B]"
+                        style={{ backgroundColor: primaryTag.color }}
+                      >
+                        {categoryLabelByValue[primaryCategory] ??
+                          primaryTag.label}
+                      </span>
+                    )}
+                    <span className="text-[#eee7dc]/86">
+                      {feedback.content}
                     </span>
-                  )}
-                  {primaryTag && (
-                    <span
-                      className="mr-1 rounded-[4px] px-1.5 py-0.5 text-[11px] font-bold text-[#431B1B]"
-                      style={{ backgroundColor: primaryTag.color }}
-                    >
-                      {primaryTag.label}
-                    </span>
-                  )}
-                  <span className="text-[#eee7dc]/86">{feedback.content}</span>
-                </p>
-              </article>
-            );
+                  </p>
+                </article>
+              );
             })
           )}
 

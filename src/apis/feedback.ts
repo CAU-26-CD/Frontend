@@ -15,6 +15,22 @@ export type CreateFeedbackResponse = {
   created_at: string;
 };
 
+export type FeedbackPriority =
+  | 'required'
+  | 'recommended'
+  | 'discussion'
+  | 'praise';
+
+export type FeedbackWithTagsResponse = CreateFeedbackResponse & {
+  priority: FeedbackPriority[];
+  categories: string[];
+};
+
+export type GetFeedbacksWithTagsFilters = {
+  categories?: string[];
+  priority?: FeedbackPriority[];
+};
+
 export const createFeedback = async (
   sessionId: FeedbackSessionId,
   data: CreateFeedbackRequest,
@@ -31,6 +47,29 @@ export const getFeedbacks = async (
   sessionId: FeedbackSessionId,
 ): Promise<CreateFeedbackResponse[]> => {
   const res = await instance.get(`/api/v1/sessions/${sessionId}/feedbacks`);
+
+  return res.data;
+};
+
+export const getFeedbacksWithTags = async (
+  sessionId: FeedbackSessionId,
+  filters: GetFeedbacksWithTagsFilters = {},
+): Promise<FeedbackWithTagsResponse[]> => {
+  const params = new URLSearchParams();
+
+  filters.categories?.forEach((category) => {
+    params.append('categories', category);
+  });
+  filters.priority?.forEach((priority) => {
+    params.append('priority', priority);
+  });
+
+  const res = await instance.get(
+    `/api/v1/sessions/${sessionId}/feedbacks/with-tags`,
+    {
+      params,
+    },
+  );
 
   return res.data;
 };

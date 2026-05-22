@@ -40,6 +40,10 @@ type ReviewVideoPanelProps = {
   isVideoLoading: boolean;
   videoMessage: string;
   actorOnlyPlaybackRequest: number;
+  actorTimelineNavigationRequest: {
+    id: number;
+    direction: 'previous' | 'next';
+  };
 };
 
 export default function ReviewVideoPanel({
@@ -50,6 +54,7 @@ export default function ReviewVideoPanel({
   isVideoLoading,
   videoMessage,
   actorOnlyPlaybackRequest,
+  actorTimelineNavigationRequest,
 }: ReviewVideoPanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -170,9 +175,46 @@ export default function ReviewVideoPanel({
   const findNextSelectedAppearance = useCallback(
     (time: number) =>
       selectedActorAppearances.find(
-        (appearance) => Math.floor(appearance.startSeconds) > time,
+        (appearance) => Math.floor(appearance.startSeconds) > time + 0.1,
       ) ?? selectedActorAppearances[0],
     [selectedActorAppearances],
+  );
+  const findPreviousSelectedAppearance = useCallback(
+    (time: number) =>
+      [...selectedActorAppearances]
+        .reverse()
+        .find(
+          (appearance) => Math.floor(appearance.startSeconds) < time - 0.1,
+        ) ?? selectedActorAppearances[selectedActorAppearances.length - 1],
+    [selectedActorAppearances],
+  );
+  const seekSelectedActorTimeline = useCallback(
+    (direction: 'previous' | 'next') => {
+      const video = videoRef.current;
+
+      if (!video || selectedActorAppearances.length === 0) {
+        return;
+      }
+
+      const targetAppearance =
+        direction === 'previous'
+          ? findPreviousSelectedAppearance(video.currentTime)
+          : findNextSelectedAppearance(video.currentTime);
+
+      if (!targetAppearance) {
+        return;
+      }
+
+      const nextTime = Math.floor(targetAppearance.startSeconds);
+
+      video.currentTime = nextTime;
+      setCurrentTime(nextTime);
+    },
+    [
+      findNextSelectedAppearance,
+      findPreviousSelectedAppearance,
+      selectedActorAppearances.length,
+    ],
   );
   const playSelectedActorTimeline = useCallback(() => {
     const video = videoRef.current;
@@ -211,6 +253,16 @@ export default function ReviewVideoPanel({
 
     queueMicrotask(playSelectedActorTimeline);
   }, [actorOnlyPlaybackRequest, playSelectedActorTimeline]);
+
+  useEffect(() => {
+    if (actorTimelineNavigationRequest.id === 0) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      seekSelectedActorTimeline(actorTimelineNavigationRequest.direction);
+    });
+  }, [actorTimelineNavigationRequest, seekSelectedActorTimeline]);
 
   return (
     <section className="relative h-full min-h-[360px] w-full overflow-hidden">
@@ -327,8 +379,7 @@ export default function ReviewVideoPanel({
 
                       const left = (visibleStart / timelineDuration) * 100;
                       const width =
-                        ((visibleEnd - visibleStart) / timelineDuration) *
-                        100;
+                        ((visibleEnd - visibleStart) / timelineDuration) * 100;
                       const color = getActorTimelineColor(appearance.actorId);
                       const isSelected =
                         selectedActorIds.length === 0 ||

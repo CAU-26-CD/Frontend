@@ -1,32 +1,62 @@
-import type { Actor } from '../../types/feedback';
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { Actor, FeedbackPriority } from '../../types/feedback';
 
 export type ReviewFeedbackTag = {
   id: string;
+  label: string;
+  color: string;
+  values: string[];
+};
+
+export type ReviewPriorityTag = {
+  id: FeedbackPriority;
   label: string;
   color: string;
 };
 
 type ReviewFilterBarProps = {
   feedbackTags: ReviewFeedbackTag[];
+  priorityTags: ReviewPriorityTag[];
   actors: Actor[];
   selectedFeedbackTags: string[];
+  selectedPriorityTags: FeedbackPriority[];
   selectedActorIds: number[];
   actorIdsWithTimeline: number[];
   onFeedbackTagToggle: (tagId: string) => void;
+  onPriorityTagToggle: (priority: FeedbackPriority) => void;
   onActorToggle: (actorId: number) => void;
   onSelectedActorPlayback: () => void;
+  onSelectedActorTimelineMove: (direction: 'previous' | 'next') => void;
 };
 
 export default function ReviewFilterBar({
   feedbackTags,
+  priorityTags,
   actors,
   selectedFeedbackTags,
+  selectedPriorityTags,
   selectedActorIds,
   actorIdsWithTimeline,
   onFeedbackTagToggle,
+  onPriorityTagToggle,
   onActorToggle,
   onSelectedActorPlayback,
+  onSelectedActorTimelineMove,
 }: ReviewFilterBarProps) {
+  const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
+  const priorityMenuRef = useRef<HTMLDivElement | null>(null);
+  const priorityButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [priorityMenuPosition, setPriorityMenuPosition] = useState({
+    top: 0,
+    right: 0,
+  });
   const selectedActors = actors.filter((actor) =>
     selectedActorIds.includes(actor.id),
   );
@@ -34,9 +64,73 @@ export default function ReviewFilterBar({
     actorIdsWithTimeline.includes(actor.id),
   );
   const canPlaySelectedActors = selectedActorsWithTimeline.length > 0;
+  const selectedPriorityLabels = selectedPriorityTags
+    .map((priority) => priorityTags.find((tag) => tag.id === priority)?.label)
+    .filter(Boolean);
+  const priorityButtonLabel =
+    selectedPriorityLabels.length > 0
+      ? selectedPriorityLabels.join(', ')
+      : '우선순위';
+  const updatePriorityMenuPosition = () => {
+    const button = priorityButtonRef.current;
+
+    if (!button) {
+      return;
+    }
+
+    const rect = button.getBoundingClientRect();
+    const menuHeight = 146;
+    const gap = 6;
+    const shouldOpenUp = rect.bottom + gap + menuHeight > window.innerHeight;
+
+    setPriorityMenuPosition({
+      top: shouldOpenUp
+        ? Math.max(gap, rect.top - menuHeight - gap)
+        : rect.bottom + gap,
+      right: Math.max(gap, window.innerWidth - rect.right),
+    });
+  };
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        priorityMenuRef.current &&
+        !priorityMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsPriorityMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isPriorityMenuOpen) {
+      return;
+    }
+
+    updatePriorityMenuPosition();
+
+    window.addEventListener('resize', updatePriorityMenuPosition);
+    window.addEventListener('scroll', updatePriorityMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePriorityMenuPosition);
+      window.removeEventListener('scroll', updatePriorityMenuPosition, true);
+    };
+  }, [isPriorityMenuOpen]);
 
   return (
-    <section className="flex h-full min-h-[112px] rounded-2xl border border-[#d3c3b7] bg-[#efe6de] px-6 py-4 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
+    <section
+      className={[
+        'relative z-20 flex h-full min-h-[112px] rounded-2xl border border-[#d3c3b7] bg-[#efe6de] px-6 py-4 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]',
+        isPriorityMenuOpen ? 'overflow-visible' : 'overflow-hidden',
+      ].join(' ')}
+    >
       <div className="grid h-full w-full min-w-0 grid-cols-[76px_minmax(0,1fr)_minmax(180px,0.42fr)] gap-x-5 gap-y-2">
         <p className="self-center text-xs font-bold leading-tight">
           Feedback
@@ -68,35 +162,123 @@ export default function ReviewFilterBar({
         </div>
 
         <div className="row-span-2 flex min-w-0 flex-col justify-center border-l border-[#431B1B]/12 pl-5">
-          <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
-            {selectedActors.length > 0 ? (
-              selectedActors.map((actor) => (
-                <span
-                  key={actor.id}
-                  className="rounded-[5px] bg-[#431B1B]/12 px-2 py-1 text-[11px] font-bold text-[#431B1B]"
-                >
-                  {actor.name}
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+              {selectedActors.length > 0 ? (
+                selectedActors.map((actor) => (
+                  <button
+                    key={actor.id}
+                    type="button"
+                    onClick={() => onActorToggle(actor.id)}
+                    className="h-7 rounded-[5px] bg-[#431B1B] px-2.5 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30"
+                  >
+                    {actor.name}
+                  </button>
+                ))
+              ) : (
+                <span className="text-[11px] font-bold text-[#431B1B]/38">
+                  선택된 배우 없음
                 </span>
-              ))
-            ) : (
-              <span className="text-[11px] font-bold text-[#431B1B]/38">
-                선택된 배우 없음
-              </span>
-            )}
+              )}
+            </div>
+
+            <div ref={priorityMenuRef} className="relative shrink-0">
+              <button
+                ref={priorityButtonRef}
+                type="button"
+                onClick={() => {
+                  updatePriorityMenuPosition();
+                  setIsPriorityMenuOpen((current) => !current);
+                }}
+                className="flex h-7 max-w-[132px] items-center gap-1.5 rounded-[5px] bg-[#431B1B] px-3 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30"
+                aria-expanded={isPriorityMenuOpen}
+                aria-haspopup="menu"
+              >
+                <span className="min-w-0 truncate">{priorityButtonLabel}</span>
+                <ChevronDown size={13} strokeWidth={2.8} className="shrink-0" />
+              </button>
+
+              {isPriorityMenuOpen && (
+                <div
+                  role="menu"
+                  className="fixed z-[80] w-40 rounded-[7px] border border-[#431B1B]/12 bg-[#fff8ef] p-1.5 shadow-[0_12px_30px_rgba(67,27,27,0.2)]"
+                  style={{
+                    top: priorityMenuPosition.top,
+                    right: priorityMenuPosition.right,
+                  }}
+                >
+                  {priorityTags.map((priority) => {
+                    const isSelected = selectedPriorityTags.includes(
+                      priority.id,
+                    );
+
+                    return (
+                      <button
+                        key={priority.id}
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={isSelected}
+                        onClick={() => onPriorityTagToggle(priority.id)}
+                        className="flex h-8 w-full items-center justify-between gap-2 rounded-[5px] px-2 text-left text-xs font-bold text-[#431B1B] transition hover:bg-[#431B1B]/8 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/25"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: priority.color }}
+                          />
+                          <span className="truncate">{priority.label}</span>
+                        </span>
+                        {isSelected && (
+                          <Check
+                            size={13}
+                            strokeWidth={3}
+                            className="shrink-0"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+
           {selectedActors.length > 0 && !canPlaySelectedActors && (
             <p className="mt-1 text-[10px] font-bold text-[#A94444]/72">
               선택한 배우의 등장 구간이 없습니다.
             </p>
           )}
-          <button
-            type="button"
-            onClick={onSelectedActorPlayback}
-            disabled={!canPlaySelectedActors}
-            className="mt-2 h-7 self-start rounded-[5px] bg-[#431B1B] px-3 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
-          >
-            선택 배우만 재생
-          </button>
+          <div className="mt-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onSelectedActorTimelineMove('previous')}
+              disabled={!canPlaySelectedActors}
+              className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
+              aria-label="이전 등장 구간으로 이동"
+              title="이전 등장 구간"
+            >
+              <ChevronLeft size={15} strokeWidth={3} />
+            </button>
+            <button
+              type="button"
+              onClick={onSelectedActorPlayback}
+              disabled={!canPlaySelectedActors}
+              className="flex h-7 items-center gap-1.5 rounded-[5px] bg-[#431B1B] px-3 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
+            >
+              <Play size={12} fill="#fff8ef" strokeWidth={2.8} />
+              선택 배우 재생
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectedActorTimelineMove('next')}
+              disabled={!canPlaySelectedActors}
+              className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
+              aria-label="다음 등장 구간으로 이동"
+              title="다음 등장 구간"
+            >
+              <ChevronRight size={15} strokeWidth={3} />
+            </button>
+          </div>
         </div>
 
         <p className="self-center text-xs font-bold leading-tight">Actor Tag</p>

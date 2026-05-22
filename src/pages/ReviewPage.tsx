@@ -1,7 +1,7 @@
 import { Settings, Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getFeedbacks } from '../apis/feedback';
+import { getFeedbacksWithTags } from '../apis/feedback';
 import {
   getSessionVideo,
   getSessionVideoActorAppearances,
@@ -12,19 +12,99 @@ import {
 import ReviewFeedbackPanel from '../components/review/ReviewFeedbackPanel';
 import ReviewFilterBar, {
   type ReviewFeedbackTag,
+  type ReviewPriorityTag,
 } from '../components/review/ReviewFilterBar';
 import ReviewVideoPanel from '../components/review/ReviewVideoPanel';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
-import type { Actor, Feedback } from '../types/feedback';
+import type { Actor, Feedback, FeedbackPriority } from '../types/feedback';
 
 const feedbackTags: ReviewFeedbackTag[] = [
-  { id: 'line', label: '대사', color: '#f7b1bd' },
-  { id: 'timing', label: '타이밍', color: '#f5a8b5' },
-  { id: 'acting', label: '연기', color: '#f6e4a8' },
-  { id: 'emotion', label: '감정', color: '#f7e7a7' },
-  { id: 'suggestion', label: '제안', color: '#9cccf0' },
-  { id: 'management', label: '관리', color: '#dfe4e8' },
-  { id: 'movement', label: '동선', color: '#f5e6a8' },
+  {
+    id: 'acting',
+    label: '연기',
+    color: '#f6e4a8',
+    values: [
+      'acting:expression',
+      'acting:emotion',
+      'acting:tone',
+      'acting:gaze',
+      'acting:character',
+      'acting:reaction',
+    ],
+  },
+  {
+    id: 'vocal',
+    label: '보컬',
+    color: '#f7b1bd',
+    values: [
+      'vocal:pitch',
+      'vocal:rhythm',
+      'vocal:diction',
+      'vocal:breath',
+      'vocal:lyrics',
+      'vocal:expression_singing',
+      'vocal:multitasking',
+    ],
+  },
+  {
+    id: 'blocking',
+    label: '무대동작',
+    color: '#f5e6a8',
+    values: [
+      'blocking:movement',
+      'blocking:posture',
+      'blocking:gesture',
+      'blocking:entrance_exit',
+      'blocking:footwork',
+    ],
+  },
+  {
+    id: 'script',
+    label: '대사',
+    color: '#f6d7df',
+    values: ['script:mistake', 'script:omission', 'script:memorization'],
+  },
+  {
+    id: 'chemistry',
+    label: '페어합',
+    color: '#c6d8a8',
+    values: [
+      'chemistry:eye_contact',
+      'chemistry:timing_sync',
+      'chemistry:emotional_bond',
+    ],
+  },
+  {
+    id: 'props',
+    label: '소품',
+    color: '#d7c4f2',
+    values: ['props:handling', 'props:timing', 'props:detail'],
+  },
+  {
+    id: 'technical',
+    label: '기술',
+    color: '#9cccf0',
+    values: [
+      'technical:audio_cue',
+      'technical:lighting',
+      'technical:staff_collab',
+    ],
+  },
+  { id: 'meta', label: '기타', color: '#dfe4e8', values: ['meta:other'] },
+];
+
+const priorityTags: ReviewPriorityTag[] = [
+  { id: 'required', label: '필수', color: '#ff6b6b' },
+  { id: 'recommended', label: '권장', color: '#f6d76f' },
+  { id: 'discussion', label: '논의', color: '#c9c1ba' },
+  { id: 'praise', label: '칭찬', color: '#80c7f5' },
+];
+
+const feedbackPriorities: FeedbackPriority[] = [
+  'required',
+  'recommended',
+  'discussion',
+  'praise',
 ];
 
 const secondsToTimestamp = (value: number) => {
@@ -38,6 +118,11 @@ const inferActorIds = (content: string, actors: Actor[]) =>
   actors
     .filter((actor) => content.includes(actor.name))
     .map((actor) => actor.id);
+
+const normalizeFeedbackPriorities = (priority: string[]) =>
+  priority.filter((item): item is FeedbackPriority =>
+    feedbackPriorities.includes(item as FeedbackPriority),
+  );
 
 export default function ReviewPage() {
   const { projectId, sessionId } = useParams<{
@@ -54,8 +139,16 @@ export default function ReviewPage() {
   const [selectedFeedbackTags, setSelectedFeedbackTags] = useState<string[]>(
     [],
   );
+  const [selectedPriorityTags, setSelectedPriorityTags] = useState<
+    FeedbackPriority[]
+  >([]);
   const [selectedActorIds, setSelectedActorIds] = useState<number[]>([]);
   const [actorOnlyPlaybackRequest, setActorOnlyPlaybackRequest] = useState(0);
+  const [actorTimelineNavigationRequest, setActorTimelineNavigationRequest] =
+    useState<{
+      id: number;
+      direction: 'previous' | 'next';
+    }>({ id: 0, direction: 'next' });
   const numericProjectId = Number(projectId);
   const numericSessionId = Number(sessionId);
   const projectTitle = Number.isNaN(numericProjectId)
@@ -73,22 +166,21 @@ export default function ReviewPage() {
       })) ?? [],
     [sessionVideo],
   );
-  const actorAppearances = useMemo<SessionVideoAppearance[]>(
-    () => {
-      if (!sessionVideo) {
-        return [];
-      }
+  const actorAppearances = useMemo<SessionVideoAppearance[]>(() => {
+    if (!sessionVideo) {
+      return [];
+    }
 
-      const actorAppearances = getSessionVideoActorAppearances(sessionVideo);
+    const actorAppearances = getSessionVideoActorAppearances(sessionVideo);
 
-      return actorAppearances.length > 0
-        ? actorAppearances
-        : getSessionVideoAppearances(sessionVideo.analysis_result);
-    },
-    [sessionVideo],
-  );
+    return actorAppearances.length > 0
+      ? actorAppearances
+      : getSessionVideoAppearances(sessionVideo.analysis_result);
+  }, [sessionVideo]);
   const actorIdsWithTimeline = useMemo(
-    () => [...new Set(actorAppearances.map((appearance) => appearance.actorId))],
+    () => [
+      ...new Set(actorAppearances.map((appearance) => appearance.actorId)),
+    ],
     [actorAppearances],
   );
 
@@ -146,7 +238,14 @@ export default function ReviewPage() {
       setIsLoadingFeedbacks(true);
 
       try {
-        const fetchedFeedbacks = await getFeedbacks(sessionId);
+        const selectedCategories = selectedFeedbackTags.flatMap(
+          (tagId) =>
+            feedbackTags.find((tag) => tag.id === tagId)?.values ?? [tagId],
+        );
+        const fetchedFeedbacks = await getFeedbacksWithTags(sessionId, {
+          categories: selectedCategories,
+          priority: selectedPriorityTags,
+        });
 
         if (ignore) return;
 
@@ -157,6 +256,8 @@ export default function ReviewPage() {
             actorIds: inferActorIds(feedback.content, reviewActors),
             content: feedback.content,
             isUrgent: feedback.content.includes('!!!'),
+            priority: normalizeFeedbackPriorities(feedback.priority ?? []),
+            categories: feedback.categories ?? [],
           })),
         );
       } catch (error) {
@@ -173,7 +274,7 @@ export default function ReviewPage() {
     return () => {
       ignore = true;
     };
-  }, [reviewActors, sessionId]);
+  }, [reviewActors, selectedFeedbackTags, selectedPriorityTags, sessionId]);
 
   const toggleFeedbackTag = (tagId: string) => {
     setSelectedFeedbackTags((current) =>
@@ -191,8 +292,23 @@ export default function ReviewPage() {
     );
   };
 
+  const togglePriorityTag = (priority: FeedbackPriority) => {
+    setSelectedPriorityTags((current) =>
+      current.includes(priority)
+        ? current.filter((item) => item !== priority)
+        : [...current, priority],
+    );
+  };
+
   const requestSelectedActorPlayback = () => {
     setActorOnlyPlaybackRequest((current) => current + 1);
+  };
+
+  const requestSelectedActorTimelineMove = (direction: 'previous' | 'next') => {
+    setActorTimelineNavigationRequest((current) => ({
+      id: current.id + 1,
+      direction,
+    }));
   };
 
   const completedCount = useMemo(() => feedbacks.length, [feedbacks.length]);
@@ -237,16 +353,21 @@ export default function ReviewPage() {
               isVideoLoading={isLoadingVideo}
               videoMessage={videoMessage}
               actorOnlyPlaybackRequest={actorOnlyPlaybackRequest}
+              actorTimelineNavigationRequest={actorTimelineNavigationRequest}
             />
             <ReviewFilterBar
               feedbackTags={feedbackTags}
+              priorityTags={priorityTags}
               actors={reviewActors}
               selectedFeedbackTags={selectedFeedbackTags}
+              selectedPriorityTags={selectedPriorityTags}
               selectedActorIds={selectedActorIds}
               actorIdsWithTimeline={actorIdsWithTimeline}
               onFeedbackTagToggle={toggleFeedbackTag}
+              onPriorityTagToggle={togglePriorityTag}
               onActorToggle={toggleActor}
               onSelectedActorPlayback={requestSelectedActorPlayback}
+              onSelectedActorTimelineMove={requestSelectedActorTimelineMove}
             />
           </section>
 
@@ -254,7 +375,9 @@ export default function ReviewPage() {
             feedbacks={feedbacks}
             actors={reviewActors}
             feedbackTags={feedbackTags}
+            priorityTags={priorityTags}
             selectedFeedbackTags={selectedFeedbackTags}
+            selectedPriorityTags={selectedPriorityTags}
             selectedActorIds={selectedActorIds}
             isLoading={isLoadingFeedbacks}
           />
