@@ -1,4 +1,5 @@
 import { ArrowUp } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import LoadingSpinner from '../LoadingSpinner';
 import type { Actor, Feedback, FeedbackPriority } from '../../types/feedback';
 import type { ReviewFeedbackTag, ReviewPriorityTag } from './ReviewFilterBar';
@@ -11,6 +12,7 @@ type ReviewFeedbackPanelProps = {
   selectedFeedbackTags: string[];
   selectedPriorityTags: FeedbackPriority[];
   selectedActorIds: number[];
+  highlightedFeedbackId?: number | null;
   isLoading?: boolean;
 };
 
@@ -73,8 +75,10 @@ export default function ReviewFeedbackPanel({
   selectedFeedbackTags,
   selectedPriorityTags,
   selectedActorIds,
+  highlightedFeedbackId = null,
   isLoading = false,
 }: ReviewFeedbackPanelProps) {
+  const feedbackRefs = useRef(new Map<number, HTMLElement>());
   const visibleFeedbacks = feedbacks.filter((feedback) => {
     const matchesActor =
       selectedActorIds.length === 0 ||
@@ -98,6 +102,17 @@ export default function ReviewFeedbackPanel({
     ...selectedActorNames,
   ];
 
+  useEffect(() => {
+    if (highlightedFeedbackId === null) {
+      return;
+    }
+
+    feedbackRefs.current.get(highlightedFeedbackId)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }, [highlightedFeedbackId]);
+
   return (
     <aside className="reaction-ui-font flex h-full min-h-0 flex-col gap-3 overflow-hidden bg-transparent px-1 py-0 text-[#2d1715]">
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] border-2 border-stone-200/50 bg-transparent p-3">
@@ -118,6 +133,7 @@ export default function ReviewFeedbackPanel({
               );
               const primaryCategory = feedbackCategories[0];
               const primaryPriority = getPrimaryPriority(feedback);
+              const isHighlighted = feedback.id === highlightedFeedbackId;
               const feedbackActorNames = feedback.actorIds
                 .map(
                   (actorId) =>
@@ -129,21 +145,42 @@ export default function ReviewFeedbackPanel({
               return (
                 <article
                   key={feedback.id}
-                  className="grid grid-cols-[58px_minmax(0,1fr)] gap-2 text-xs font-semibold leading-relaxed"
+                  ref={(node) => {
+                    if (node) {
+                      feedbackRefs.current.set(feedback.id, node);
+                    } else {
+                      feedbackRefs.current.delete(feedback.id);
+                    }
+                  }}
+                  className={[
+                    'grid grid-cols-[58px_minmax(0,1fr)] gap-2 rounded-[7px] px-2 py-1 text-xs font-semibold leading-relaxed transition',
+                    isHighlighted
+                      ? 'bg-[#fff8ef]/58 text-[#2d1715] ring-2 ring-white/88 shadow-[0_0_18px_rgba(255,255,255,0.3)]'
+                      : 'ring-2 ring-transparent',
+                  ].join(' ')}
                 >
                   <span
                     className="font-bold"
                     style={{
-                      color: primaryPriority
-                        ? priorityColorById[primaryPriority]
-                        : '#fff8ef',
+                      color: isHighlighted
+                        ? '#431B1B'
+                        : primaryPriority
+                          ? priorityColorById[primaryPriority]
+                          : '#fff8ef',
                     }}
                   >
                     {feedback.timestamp}
                   </span>
                   <p className="min-w-0 truncate">
                     {feedbackActorNames && (
-                      <span className="mr-1 text-[#fff8ef]/86">
+                      <span
+                        className={[
+                          'mr-1',
+                          isHighlighted
+                            ? 'text-[#431B1B]/78'
+                            : 'text-[#fff8ef]/86',
+                        ].join(' ')}
+                      >
                         | {feedbackActorNames}
                       </span>
                     )}
@@ -156,7 +193,11 @@ export default function ReviewFeedbackPanel({
                           primaryTag.label}
                       </span>
                     )}
-                    <span className="text-[#eee7dc]/86">
+                    <span
+                      className={
+                        isHighlighted ? 'text-[#2d1715]' : 'text-[#eee7dc]/86'
+                      }
+                    >
                       {feedback.content}
                     </span>
                   </p>

@@ -149,6 +149,9 @@ export default function ReviewPage() {
     FeedbackPriority[]
   >([]);
   const [selectedActorIds, setSelectedActorIds] = useState<number[]>([]);
+  const [highlightedFeedbackId, setHighlightedFeedbackId] = useState<
+    number | null
+  >(null);
   const [actorOnlyPlaybackRequest, setActorOnlyPlaybackRequest] = useState(0);
   const [actorTimelineNavigationRequest, setActorTimelineNavigationRequest] =
     useState<{
@@ -324,14 +327,20 @@ export default function ReviewPage() {
       direction,
     }));
   };
+  const highlightFeedback = (feedbackId: number) => {
+    setHighlightedFeedbackId(feedbackId);
+  };
 
   const completedCount = useMemo(() => feedbacks.length, [feedbacks.length]);
-  const requiredFeedbackTimes = useMemo(
+  const requiredFeedbackMarkers = useMemo(
     () =>
       feedbacks
         .filter((feedback) => feedback.priority?.includes('required'))
-        .map((feedback) => timestampToSeconds(feedback.timestamp))
-        .filter((time) => Number.isFinite(time) && time >= 0),
+        .map((feedback) => ({
+          feedbackId: feedback.id,
+          time: timestampToSeconds(feedback.timestamp),
+        }))
+        .filter((marker) => Number.isFinite(marker.time) && marker.time >= 0),
     [feedbacks],
   );
 
@@ -371,12 +380,14 @@ export default function ReviewPage() {
               videoUrl={sessionVideo?.s3_url ?? ''}
               actors={reviewActors}
               appearances={actorAppearances}
-              requiredFeedbackTimes={requiredFeedbackTimes}
+              requiredFeedbackMarkers={requiredFeedbackMarkers}
               selectedActorIds={selectedActorIds}
               isVideoLoading={isLoadingVideo}
               videoMessage={videoMessage}
               actorOnlyPlaybackRequest={actorOnlyPlaybackRequest}
               actorTimelineNavigationRequest={actorTimelineNavigationRequest}
+              highlightedFeedbackId={highlightedFeedbackId}
+              onRequiredFeedbackMarkerClick={highlightFeedback}
             />
             <ReviewFilterBar
               feedbackTags={feedbackTags}
@@ -402,6 +413,7 @@ export default function ReviewPage() {
             selectedFeedbackTags={selectedFeedbackTags}
             selectedPriorityTags={selectedPriorityTags}
             selectedActorIds={selectedActorIds}
+            highlightedFeedbackId={highlightedFeedbackId}
             isLoading={isLoadingFeedbacks}
           />
         </div>

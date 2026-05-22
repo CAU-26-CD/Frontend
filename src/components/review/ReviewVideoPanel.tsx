@@ -15,8 +15,10 @@ const actorTimelineColors = [
 ];
 
 const getFiniteVideoDuration = (video: HTMLVideoElement) => {
+  const durationCandidates: number[] = [];
+
   if (Number.isFinite(video.duration) && video.duration > 0) {
-    return video.duration;
+    durationCandidates.push(video.duration);
   }
 
   const lastSeekableIndex = video.seekable.length - 1;
@@ -25,18 +27,31 @@ const getFiniteVideoDuration = (video: HTMLVideoElement) => {
     const seekableEnd = video.seekable.end(lastSeekableIndex);
 
     if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
-      return seekableEnd;
+      durationCandidates.push(seekableEnd);
     }
   }
 
-  return 0;
+  const lastBufferedIndex = video.buffered.length - 1;
+
+  if (lastBufferedIndex >= 0) {
+    const bufferedEnd = video.buffered.end(lastBufferedIndex);
+
+    if (Number.isFinite(bufferedEnd) && bufferedEnd > 0) {
+      durationCandidates.push(bufferedEnd);
+    }
+  }
+
+  return Math.max(0, ...durationCandidates);
 };
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
   actors: Actor[];
   appearances: SessionVideoAppearance[];
-  requiredFeedbackTimes: number[];
+  requiredFeedbackMarkers: {
+    feedbackId: number;
+    time: number;
+  }[];
   selectedActorIds: number[];
   isVideoLoading: boolean;
   videoMessage: string;
@@ -45,18 +60,22 @@ type ReviewVideoPanelProps = {
     id: number;
     direction: 'previous' | 'next';
   };
+  highlightedFeedbackId?: number | null;
+  onRequiredFeedbackMarkerClick: (feedbackId: number) => void;
 };
 
 export default function ReviewVideoPanel({
   videoUrl,
   actors,
   appearances,
-  requiredFeedbackTimes,
+  requiredFeedbackMarkers,
   selectedActorIds,
   isVideoLoading,
   videoMessage,
   actorOnlyPlaybackRequest,
   actorTimelineNavigationRequest,
+  highlightedFeedbackId = null,
+  onRequiredFeedbackMarkerClick,
 }: ReviewVideoPanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -95,16 +114,16 @@ export default function ReviewVideoPanel({
         ),
     [appearances],
   );
-  const normalizedRequiredFeedbackTimes = useMemo(
+  const normalizedRequiredFeedbackMarkers = useMemo(
     () =>
-      [
-        ...new Set(
-          requiredFeedbackTimes
-            .map((time) => Math.floor(Number(time)))
-            .filter((time) => Number.isFinite(time) && time >= 0),
-        ),
-      ].sort((a, b) => a - b),
-    [requiredFeedbackTimes],
+      requiredFeedbackMarkers
+        .map((marker) => ({
+          feedbackId: marker.feedbackId,
+          time: Math.floor(Number(marker.time)),
+        }))
+        .filter((marker) => Number.isFinite(marker.time) && marker.time >= 0)
+        .sort((a, b) => a.time - b.time || a.feedbackId - b.feedbackId),
+    [requiredFeedbackMarkers],
   );
   const selectedActorAppearances = useMemo(
     () =>
@@ -124,10 +143,14 @@ export default function ReviewVideoPanel({
     ...normalizedAppearances.map((appearance) =>
       Math.ceil(appearance.endSeconds),
     ),
+    ...normalizedRequiredFeedbackMarkers.map((marker) => marker.time + 1),
     1,
   );
-  const timelineDuration =
-    safeVideoDuration > 0 ? safeVideoDuration : fallbackTimelineDuration;
+  const timelineDuration = Math.max(
+    safeVideoDuration,
+    fallbackTimelineDuration,
+    currentTime > safeVideoDuration ? currentTime + 1 : currentTime,
+  );
   const currentTimelineSecond = Math.min(
     timelineDuration,
     Math.floor(currentTime),
@@ -258,6 +281,20 @@ export default function ReviewVideoPanel({
       video.pause();
     }
   };
+  const playFeedbackMarker = (feedbackId: number, time: number) => {
+    const video = videoRef.current;
+
+    onRequiredFeedbackMarkerClick(feedbackId);
+
+    if (!video) {
+      setCurrentTime(time);
+      return;
+    }
+
+    video.currentTime = time;
+    setCurrentTime(time);
+    void video.play();
+  };
 
   useEffect(() => {
     if (actorOnlyPlaybackRequest === 0) {
@@ -303,6 +340,12 @@ export default function ReviewVideoPanel({
                 const nextCurrentTime = event.currentTarget.currentTime;
 
                 setCurrentTime(nextCurrentTime);
+                setVideoDuration(
+                  Math.max(
+                    getFiniteVideoDuration(event.currentTarget),
+                    nextCurrentTime,
+                  ),
+                );
               }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
@@ -414,20 +457,36 @@ export default function ReviewVideoPanel({
                       );
                     })}
                   </div>
-                  {normalizedRequiredFeedbackTimes.map((time) => {
-                    if (time > timelineDuration) {
+                  {normalizedRequiredFeedbackMarkers.map((marker) => {
+                    if (marker.time > timelineDuration) {
                       return null;
                     }
 
-                    const left = (time / timelineDuration) * 100;
+                    const left = (marker.time / timelineDuration) * 100;
+                    const isHighlighted =
+                      marker.feedbackId === highlightedFeedbackId;
 
                     return (
-                      <span
-                        key={`required-feedback-${time}`}
-                        className="pointer-events-none absolute top-1/2 z-[9] h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#fff8ef] bg-[#d93535] shadow-[0_2px_8px_rgba(217,53,53,0.52)]"
+                      <button
+                        key={`required-feedback-${marker.feedbackId}`}
+                        type="button"
+                        onPointerDown={(event) => {
+                          event.stopPropagation();
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          playFeedbackMarker(marker.feedbackId, marker.time);
+                        }}
+                        className={[
+                          'absolute top-1/2 z-[9] h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-[#d93535] shadow-[0_2px_8px_rgba(217,53,53,0.52)] transition hover:scale-125 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8ef]',
+                          isHighlighted
+                            ? 'scale-125 border-[#431B1B] ring-2 ring-[#fff8ef]'
+                            : 'border-[#fff8ef]',
+                        ].join(' ')}
                         style={{ left: `${left}%` }}
-                        title={`필수 피드백 ${formatTime(time)}`}
-                        aria-label={`필수 피드백 ${formatTime(time)}`}
+                        title={`필수 피드백 ${formatTime(marker.time)}`}
+                        aria-label={`필수 피드백 ${formatTime(marker.time)}로 이동`}
+                        aria-pressed={isHighlighted}
                       />
                     );
                   })}

@@ -25,7 +25,6 @@ export default function ActorMappingPage() {
   const [renameValue, setRenameValue] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isClassifyingFeedbacks, setIsClassifyingFeedbacks] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [videoActorsError, setVideoActorsError] = useState<string | null>(null);
   const [feedbackClassifyError, setFeedbackClassifyError] = useState<
@@ -124,6 +123,36 @@ export default function ActorMappingPage() {
     setRenameValue(selectedActor?.name ?? '');
   }, [selectedActor]);
 
+  useEffect(() => {
+    if (Number.isNaN(numericSessionId)) {
+      return;
+    }
+
+    let ignore = false;
+
+    const classifyFeedbacks = async () => {
+      try {
+        await classifySessionFeedbacks(numericSessionId);
+
+        if (!ignore) {
+          setFeedbackClassifyError(null);
+        }
+      } catch (error) {
+        console.error('Failed to classify session feedbacks', error);
+
+        if (!ignore) {
+          setFeedbackClassifyError('피드백 태그 분석 요청에 실패했습니다.');
+        }
+      }
+    };
+
+    void classifyFeedbacks();
+
+    return () => {
+      ignore = true;
+    };
+  }, [numericSessionId]);
+
   const handleRename = async () => {
     if (!selectedActor || !renameValue.trim() || isSaving) return;
 
@@ -171,27 +200,12 @@ export default function ActorMappingPage() {
     }
   };
 
-  const handleComplete = async () => {
-    if (
-      Number.isNaN(numericProjectId) ||
-      Number.isNaN(numericSessionId) ||
-      isClassifyingFeedbacks
-    ) {
+  const handleComplete = () => {
+    if (Number.isNaN(numericProjectId)) {
       return;
     }
 
-    setIsClassifyingFeedbacks(true);
-    setFeedbackClassifyError(null);
-
-    try {
-      await classifySessionFeedbacks(numericSessionId);
-      navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
-    } catch (error) {
-      console.error('Failed to classify session feedbacks', error);
-      setFeedbackClassifyError('피드백 태그 분석 요청에 실패했습니다.');
-    } finally {
-      setIsClassifyingFeedbacks(false);
-    }
+    navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
   };
 
   return (
@@ -218,14 +232,10 @@ export default function ActorMappingPage() {
           <button
             type="button"
             onClick={handleComplete}
-            disabled={
-              isWaitingForAnalysis ||
-              isClassifyingFeedbacks ||
-              Boolean(videoActorsError)
-            }
+            disabled={isWaitingForAnalysis || Boolean(videoActorsError)}
             className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
           >
-            {isClassifyingFeedbacks ? '태그 분석 중' : '매칭 완료'}
+            매칭 완료
           </button>
         </div>
 
