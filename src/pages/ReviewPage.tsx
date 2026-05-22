@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { getFeedbacks } from '../apis/feedback';
 import {
   getSessionVideo,
+  getSessionVideoActorAppearances,
   getSessionVideoAppearances,
   type SessionVideoAppearance,
   type SessionVideoResponse,
@@ -73,10 +74,17 @@ export default function ReviewPage() {
     [sessionVideo],
   );
   const actorAppearances = useMemo<SessionVideoAppearance[]>(
-    () =>
-      sessionVideo
-        ? getSessionVideoAppearances(sessionVideo.analysis_result)
-        : [],
+    () => {
+      if (!sessionVideo) {
+        return [];
+      }
+
+      const actorAppearances = getSessionVideoActorAppearances(sessionVideo);
+
+      return actorAppearances.length > 0
+        ? actorAppearances
+        : getSessionVideoAppearances(sessionVideo.analysis_result);
+    },
     [sessionVideo],
   );
   const actorIdsWithTimeline = useMemo(

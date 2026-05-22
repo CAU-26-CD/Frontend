@@ -41,6 +41,13 @@ export type SessionVideoActor = {
   thumbnail_url: string;
   thumbnail_s3_key?: string | null;
   is_new: boolean;
+  appearances?: RawSessionVideoAppearance[];
+  appearance_ranges?: RawSessionVideoAppearance[];
+  segments?: RawSessionVideoAppearance[];
+  timeline?: RawSessionVideoAppearance[];
+  start_seconds?: number | null;
+  end_seconds?: number | null;
+  detection_count?: number | null;
 };
 
 type RawSessionVideoActor = Omit<SessionVideoActor, 'thumbnail_url'> & {
@@ -174,6 +181,57 @@ export const getSessionVideoAppearances = (
       Boolean(appearance),
     );
 };
+
+const getRawActorAppearances = (actor: SessionVideoActor) => {
+  const nestedAppearances =
+    actor.appearances ?? actor.appearance_ranges ?? actor.segments ?? actor.timeline;
+
+  if (Array.isArray(nestedAppearances)) {
+    return nestedAppearances;
+  }
+
+  if (
+    actor.start_seconds !== undefined ||
+    actor.end_seconds !== undefined ||
+    actor.detection_count !== undefined
+  ) {
+    return [
+      {
+        start_seconds: actor.start_seconds,
+        end_seconds: actor.end_seconds,
+        detection_count: actor.detection_count,
+      },
+    ];
+  }
+
+  return [];
+};
+
+export const getSessionVideoActorAppearances = (
+  video: SessionVideoResponse,
+): SessionVideoAppearance[] =>
+  video.actors.flatMap((actor) =>
+    getRawActorAppearances(actor)
+      .map((appearance) => {
+        const startSeconds = Number(appearance.start_seconds);
+        const endSeconds = Number(appearance.end_seconds);
+        const detectionCount = Number(appearance.detection_count ?? 0);
+
+        if (Number.isNaN(startSeconds) || Number.isNaN(endSeconds)) {
+          return null;
+        }
+
+        return {
+          actorId: actor.actor_id,
+          startSeconds,
+          endSeconds,
+          detectionCount: Number.isNaN(detectionCount) ? 0 : detectionCount,
+        };
+      })
+      .filter((appearance): appearance is SessionVideoAppearance =>
+        Boolean(appearance),
+      ),
+  );
 
 export const createProjectSession = async (
   projectId: number,

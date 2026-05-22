@@ -1,5 +1,5 @@
 import { Pause, Play } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionVideoAppearance } from '../../apis/session';
 import type { Actor } from '../../types/feedback';
 import LoadingSpinner from '../LoadingSpinner';
@@ -13,6 +13,24 @@ const actorTimelineColors = [
   '#d7c4f2',
   '#efe6de',
 ];
+
+const getFiniteVideoDuration = (video: HTMLVideoElement) => {
+  if (Number.isFinite(video.duration) && video.duration > 0) {
+    return video.duration;
+  }
+
+  const lastSeekableIndex = video.seekable.length - 1;
+
+  if (lastSeekableIndex >= 0) {
+    const seekableEnd = video.seekable.end(lastSeekableIndex);
+
+    if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
+      return seekableEnd;
+    }
+  }
+
+  return 0;
+};
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
@@ -38,26 +56,36 @@ export default function ReviewVideoPanel({
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isActorOnlyPlayback, setIsActorOnlyPlayback] = useState(false);
   const actorNamesById = useMemo(
     () => new Map(actors.map((actor) => [actor.id, actor.name])),
     [actors],
   );
   const normalizedAppearances = useMemo(
     () =>
-      appearances.map((appearance) => {
-        const startSeconds = Math.max(0, appearance.startSeconds);
-        const endSeconds = Math.max(
-          startSeconds + 1,
-          appearance.endSeconds,
-        );
+      appearances
+        .map((appearance) => {
+          const rawStartSeconds = Number(appearance.startSeconds);
+          const rawEndSeconds = Number(appearance.endSeconds);
 
-        return {
-          ...appearance,
-          startSeconds,
-          endSeconds,
-        };
-      }),
+          if (
+            !Number.isFinite(rawStartSeconds) ||
+            !Number.isFinite(rawEndSeconds)
+          ) {
+            return null;
+          }
+
+          const startSeconds = Math.max(0, rawStartSeconds);
+          const endSeconds = Math.max(startSeconds + 1, rawEndSeconds);
+
+          return {
+            ...appearance,
+            startSeconds,
+            endSeconds,
+          };
+        })
+        .filter((appearance): appearance is SessionVideoAppearance =>
+          Boolean(appearance),
+        ),
     [appearances],
   );
   const selectedActorAppearances = useMemo(
@@ -71,13 +99,17 @@ export default function ReviewVideoPanel({
             .sort((a, b) => a.startSeconds - b.startSeconds),
     [normalizedAppearances, selectedActorIds],
   );
-  const timelineDuration = Math.max(
-    Math.ceil(videoDuration),
+  const safeVideoDuration = Number.isFinite(videoDuration)
+    ? Math.max(0, videoDuration)
+    : 0;
+  const fallbackTimelineDuration = Math.max(
     ...normalizedAppearances.map((appearance) =>
       Math.ceil(appearance.endSeconds),
     ),
     1,
   );
+  const timelineDuration =
+    safeVideoDuration > 0 ? safeVideoDuration : fallbackTimelineDuration;
   const currentTimelineSecond = Math.min(
     timelineDuration,
     Math.floor(currentTime),
@@ -104,31 +136,45 @@ export default function ReviewVideoPanel({
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   };
   const seekToClientX = (clientX: number) => {
-    if (!timelineRef.current || !videoRef.current) {
+    const timeline = timelineRef.current;
+    const video = videoRef.current;
+
+    if (!timeline || !video || !Number.isFinite(timelineDuration)) {
       return;
     }
 
-    const rect = timelineRef.current.getBoundingClientRect();
+    const rect = timeline.getBoundingClientRect();
+
+    if (!Number.isFinite(rect.width) || rect.width <= 0) {
+      return;
+    }
+
     const progress = Math.min(
       1,
       Math.max(0, (clientX - rect.left) / rect.width),
     );
     const nextTime = progress * timelineDuration;
+    const finiteVideoDuration = getFiniteVideoDuration(video);
+    const clampedNextTime =
+      finiteVideoDuration > 0
+        ? Math.min(nextTime, finiteVideoDuration)
+        : nextTime;
 
-    videoRef.current.currentTime = nextTime;
-    setCurrentTime(nextTime);
+    if (!Number.isFinite(clampedNextTime)) {
+      return;
+    }
+
+    video.currentTime = clampedNextTime;
+    setCurrentTime(clampedNextTime);
   };
-  const findCurrentSelectedAppearanceIndex = (time: number) =>
-    selectedActorAppearances.findIndex(
-      (appearance) =>
-        time >= Math.floor(appearance.startSeconds) &&
-        time <= Math.ceil(appearance.endSeconds),
-    );
-  const findNextSelectedAppearance = (time: number) =>
-    selectedActorAppearances.find(
-      (appearance) => Math.floor(appearance.startSeconds) > time,
-    ) ?? selectedActorAppearances[0];
-  const playSelectedActorTimeline = () => {
+  const findNextSelectedAppearance = useCallback(
+    (time: number) =>
+      selectedActorAppearances.find(
+        (appearance) => Math.floor(appearance.startSeconds) > time,
+      ) ?? selectedActorAppearances[0],
+    [selectedActorAppearances],
+  );
+  const playSelectedActorTimeline = useCallback(() => {
     const video = videoRef.current;
 
     if (!video || selectedActorAppearances.length === 0) {
@@ -141,10 +187,9 @@ export default function ReviewVideoPanel({
       return;
     }
 
-    setIsActorOnlyPlayback(true);
     video.currentTime = Math.floor(nextAppearance.startSeconds);
     void video.play();
-  };
+  }, [findNextSelectedAppearance, selectedActorAppearances.length]);
   const togglePlayback = () => {
     const video = videoRef.current;
 
@@ -164,8 +209,8 @@ export default function ReviewVideoPanel({
       return;
     }
 
-    playSelectedActorTimeline();
-  }, [actorOnlyPlaybackRequest]);
+    queueMicrotask(playSelectedActorTimeline);
+  }, [actorOnlyPlaybackRequest, playSelectedActorTimeline]);
 
   return (
     <section className="relative h-full min-h-[360px] w-full overflow-hidden">
@@ -184,50 +229,20 @@ export default function ReviewVideoPanel({
               src={videoUrl}
               preload="metadata"
               onLoadedMetadata={(event) => {
-                setVideoDuration(event.currentTarget.duration);
+                setVideoDuration(getFiniteVideoDuration(event.currentTarget));
+              }}
+              onDurationChange={(event) => {
+                setVideoDuration(getFiniteVideoDuration(event.currentTarget));
               }}
               onTimeUpdate={(event) => {
                 const nextCurrentTime = event.currentTarget.currentTime;
 
                 setCurrentTime(nextCurrentTime);
-
-                if (
-                  !isActorOnlyPlayback ||
-                  selectedActorAppearances.length === 0
-                ) {
-                  return;
-                }
-
-                const currentAppearanceIndex =
-                  findCurrentSelectedAppearanceIndex(nextCurrentTime);
-                const currentAppearance =
-                  selectedActorAppearances[currentAppearanceIndex];
-
-                if (
-                  currentAppearance &&
-                  nextCurrentTime < Math.ceil(currentAppearance.endSeconds)
-                ) {
-                  return;
-                }
-
-                const nextAppearance =
-                  selectedActorAppearances[currentAppearanceIndex + 1];
-
-                if (nextAppearance) {
-                  event.currentTarget.currentTime = Math.floor(
-                    nextAppearance.startSeconds,
-                  );
-                  return;
-                }
-
-                event.currentTarget.pause();
-                setIsActorOnlyPlayback(false);
               }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => {
                 setIsPlaying(false);
-                setIsActorOnlyPlayback(false);
               }}
               className="h-full w-full bg-[#17100f] object-contain"
             >
@@ -295,42 +310,48 @@ export default function ReviewVideoPanel({
                   }}
                   className="relative h-[26px] min-w-0 flex-1 cursor-pointer rounded-[6px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 >
-                  <div className="absolute left-0 right-0 top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-[#eee7dc]/26" />
-                  <div
-                    className="absolute left-0 top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-[#efe6de]/70"
-                    style={{
-                      width: `${currentTimelineProgress}%`,
-                    }}
-                  />
-                  {normalizedAppearances.map((appearance) => {
-                    const left =
-                      (appearance.startSeconds / timelineDuration) * 100;
-                    const width =
-                      ((appearance.endSeconds - appearance.startSeconds) /
-                        timelineDuration) *
-                      100;
-                    const color = getActorTimelineColor(appearance.actorId);
-                    const isSelected =
-                      selectedActorIds.length === 0 ||
-                      selectedActorIds.includes(appearance.actorId);
+                  <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-[6px] -translate-y-1/2 overflow-hidden rounded-full bg-[#eee7dc]/26">
+                    {normalizedAppearances.map((appearance) => {
+                      const visibleStart = Math.min(
+                        timelineDuration,
+                        Math.max(0, appearance.startSeconds),
+                      );
+                      const visibleEnd = Math.min(
+                        timelineDuration,
+                        Math.max(0, appearance.endSeconds),
+                      );
 
-                    return (
-                      <span
-                        key={`${appearance.actorId}-${appearance.startSeconds}-${appearance.endSeconds}`}
-                        className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full border border-white/55 shadow-[0_0_0_1px_rgba(0,0,0,0.14)]"
-                        style={{
-                          left: `${Math.max(0, left)}%`,
-                          width: `${Math.max(3.6, width)}%`,
-                          backgroundColor: color,
-                          opacity: isSelected ? 1 : 0.46,
-                        }}
-                        title={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} ${formatTime(appearance.startSeconds)}-${formatTime(appearance.endSeconds)}`}
-                        aria-label={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} 등장 구간`}
-                      />
-                    );
-                  })}
+                      if (visibleEnd <= 0 || visibleStart >= timelineDuration) {
+                        return null;
+                      }
+
+                      const left = (visibleStart / timelineDuration) * 100;
+                      const width =
+                        ((visibleEnd - visibleStart) / timelineDuration) *
+                        100;
+                      const color = getActorTimelineColor(appearance.actorId);
+                      const isSelected =
+                        selectedActorIds.length === 0 ||
+                        selectedActorIds.includes(appearance.actorId);
+
+                      return (
+                        <span
+                          key={`${appearance.actorId}-${appearance.startSeconds}-${appearance.endSeconds}`}
+                          className="absolute top-0 h-full rounded-full"
+                          style={{
+                            left: `${Math.max(0, left)}%`,
+                            width: `${Math.min(100 - left, Math.max(1.2, width))}%`,
+                            backgroundColor: color,
+                            opacity: isSelected ? 1 : 0.5,
+                          }}
+                          title={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} ${formatTime(appearance.startSeconds)}-${formatTime(appearance.endSeconds)}`}
+                          aria-label={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} 등장 구간`}
+                        />
+                      );
+                    })}
+                  </div>
                   <span
-                    className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#431B1B] bg-[#fff8ef] shadow-[0_4px_12px_rgba(0,0,0,0.32)]"
+                    className="pointer-events-none absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#431B1B] bg-[#fff8ef] shadow-[0_4px_12px_rgba(0,0,0,0.32)]"
                     style={{
                       left: `${currentTimelineProgress}%`,
                     }}
