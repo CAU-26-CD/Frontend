@@ -38,16 +38,55 @@ export type GetFeedbacksFilters = {
   actorIds?: number[];
 };
 
+const pendingCreateFeedbacksBySession = new Map<string, Set<Promise<unknown>>>();
+
+const getSessionKey = (sessionId: FeedbackSessionId) => String(sessionId);
+
+const trackCreateFeedback = (
+  sessionId: FeedbackSessionId,
+  request: Promise<CreateFeedbackResponse>,
+) => {
+  const sessionKey = getSessionKey(sessionId);
+  const pendingRequests =
+    pendingCreateFeedbacksBySession.get(sessionKey) ?? new Set();
+
+  pendingRequests.add(request);
+  pendingCreateFeedbacksBySession.set(sessionKey, pendingRequests);
+
+  request.finally(() => {
+    pendingRequests.delete(request);
+
+    if (pendingRequests.size === 0) {
+      pendingCreateFeedbacksBySession.delete(sessionKey);
+    }
+  });
+
+  return request;
+};
+
+export const waitForPendingFeedbackCreates = async (
+  sessionId: FeedbackSessionId,
+): Promise<void> => {
+  const pendingRequests = pendingCreateFeedbacksBySession.get(
+    getSessionKey(sessionId),
+  );
+
+  if (!pendingRequests || pendingRequests.size === 0) {
+    return;
+  }
+
+  await Promise.allSettled([...pendingRequests]);
+};
+
 export const createFeedback = async (
   sessionId: FeedbackSessionId,
   data: CreateFeedbackRequest,
 ): Promise<CreateFeedbackResponse> => {
-  const res = await instance.post(
-    `/api/v1/sessions/${sessionId}/feedbacks`,
-    data,
-  );
+  const request = instance
+    .post(`/api/v1/sessions/${sessionId}/feedbacks`, data)
+    .then((res) => res.data);
 
-  return res.data;
+  return trackCreateFeedback(sessionId, request);
 };
 
 export const getFeedbacks = async (

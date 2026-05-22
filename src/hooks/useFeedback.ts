@@ -38,8 +38,11 @@ export function useFeedback(
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingSubmissionCount, setPendingSubmissionCount] = useState(0);
   const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(false);
+  const hasPendingFeedbacks =
+    pendingSubmissionCount > 0 ||
+    feedbacks.some((feedback) => feedback.isPersisted === false);
 
   useEffect(() => {
     if (!hasValidSessionId(sessionId)) return;
@@ -88,12 +91,14 @@ export function useFeedback(
 
   const handleSubmit = async () => {
     if (selectedActors.length === 0 || !timestamp || !content.trim()) return;
-    if (!hasValidSessionId(sessionId) || isSubmitting) return;
+    if (!hasValidSessionId(sessionId)) return;
 
     const feedbackActorIds = selectedActors.map((actor) => actor.id);
     const feedbackContent = content;
     const feedbackTimestamp = timestamp;
-    const temporaryFeedbackId = Date.now();
+    const temporaryFeedbackId = -(
+      Date.now() + Math.floor(Math.random() * 1000)
+    );
     const optimisticFeedback: Feedback = {
       id: temporaryFeedbackId,
       timestamp: feedbackTimestamp,
@@ -108,7 +113,7 @@ export function useFeedback(
     setFeedbacks((prev) => [...prev, optimisticFeedback]);
     setContent('');
     setTimestamp(null);
-    setIsSubmitting(true);
+    setPendingSubmissionCount((count) => count + 1);
 
     try {
       const createdFeedback = await createFeedback(sessionId, {
@@ -143,7 +148,7 @@ export function useFeedback(
         ),
       );
     } finally {
-      setIsSubmitting(false);
+      setPendingSubmissionCount((count) => Math.max(0, count - 1));
     }
   };
 
@@ -292,8 +297,9 @@ export function useFeedback(
     feedbacks,
     editingId,
     editingContent,
-    isSubmitting,
+    isSubmitting: pendingSubmissionCount > 0,
     isLoadingFeedbacks,
+    hasPendingFeedbacks,
 
     addSelectedActor,
     toggleSelectedActor,

@@ -18,7 +18,6 @@ type FeedbackPanelProps = {
   content: string;
   editingId: number | null;
   editingContent: string;
-  isSubmitting: boolean;
   onActorSelect: (actor: Actor) => void;
   onActorBackspace: () => void;
   onTimestampStart: () => void;
@@ -42,7 +41,6 @@ export default function FeedbackPanel({
   content,
   editingId,
   editingContent,
-  isSubmitting,
   onActorSelect,
   onActorBackspace,
   onTimestampStart,
@@ -616,8 +614,7 @@ export default function FeedbackPanel({
               disabled={
                 selectedActors.length === 0 ||
                 !timestamp ||
-                !content.trim() ||
-                isSubmitting
+                !content.trim()
               }
             >
               등록

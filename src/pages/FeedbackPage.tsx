@@ -388,7 +388,6 @@ export default function RehearsalFeedbackPage() {
             content={feedback.content}
             editingId={feedback.editingId}
             editingContent={feedback.editingContent}
-            isSubmitting={feedback.isSubmitting}
             onActorSelect={feedback.addSelectedActor}
             onActorBackspace={feedback.removeLastSelectedActor}
             onTimestampStart={feedback.handleStartTimestamp}
