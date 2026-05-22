@@ -36,6 +36,7 @@ type ReviewVideoPanelProps = {
   videoUrl: string;
   actors: Actor[];
   appearances: SessionVideoAppearance[];
+  requiredFeedbackTimes: number[];
   selectedActorIds: number[];
   isVideoLoading: boolean;
   videoMessage: string;
@@ -50,6 +51,7 @@ export default function ReviewVideoPanel({
   videoUrl,
   actors,
   appearances,
+  requiredFeedbackTimes,
   selectedActorIds,
   isVideoLoading,
   videoMessage,
@@ -92,6 +94,17 @@ export default function ReviewVideoPanel({
           Boolean(appearance),
         ),
     [appearances],
+  );
+  const normalizedRequiredFeedbackTimes = useMemo(
+    () =>
+      [
+        ...new Set(
+          requiredFeedbackTimes
+            .map((time) => Math.floor(Number(time)))
+            .filter((time) => Number.isFinite(time) && time >= 0),
+        ),
+      ].sort((a, b) => a - b),
+    [requiredFeedbackTimes],
   );
   const selectedActorAppearances = useMemo(
     () =>
@@ -401,6 +414,23 @@ export default function ReviewVideoPanel({
                       );
                     })}
                   </div>
+                  {normalizedRequiredFeedbackTimes.map((time) => {
+                    if (time > timelineDuration) {
+                      return null;
+                    }
+
+                    const left = (time / timelineDuration) * 100;
+
+                    return (
+                      <span
+                        key={`required-feedback-${time}`}
+                        className="pointer-events-none absolute top-1/2 z-[9] h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#fff8ef] bg-[#d93535] shadow-[0_2px_8px_rgba(217,53,53,0.52)]"
+                        style={{ left: `${left}%` }}
+                        title={`필수 피드백 ${formatTime(time)}`}
+                        aria-label={`필수 피드백 ${formatTime(time)}`}
+                      />
+                    );
+                  })}
                   <span
                     className="pointer-events-none absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#431B1B] bg-[#fff8ef] shadow-[0_4px_12px_rgba(0,0,0,0.32)]"
                     style={{

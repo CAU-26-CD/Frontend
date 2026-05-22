@@ -5,6 +5,7 @@ export type FeedbackSessionId = number | string;
 export type CreateFeedbackRequest = {
   content: string;
   video_offset_seconds: number;
+  actor_ids: number[];
 };
 
 export type CreateFeedbackResponse = {
@@ -12,6 +13,7 @@ export type CreateFeedbackResponse = {
   session_id: FeedbackSessionId;
   content: string;
   video_offset_seconds: number;
+  actor_ids: number[];
   created_at: string;
 };
 
@@ -26,9 +28,14 @@ export type FeedbackWithTagsResponse = CreateFeedbackResponse & {
   categories: string[];
 };
 
-export type GetFeedbacksWithTagsFilters = {
+export type FilterFeedbacksFilters = {
   categories?: string[];
   priority?: FeedbackPriority[];
+  actorIds?: number[];
+};
+
+export type GetFeedbacksFilters = {
+  actorIds?: number[];
 };
 
 export const createFeedback = async (
@@ -45,30 +52,52 @@ export const createFeedback = async (
 
 export const getFeedbacks = async (
   sessionId: FeedbackSessionId,
+  filters: GetFeedbacksFilters = {},
 ): Promise<CreateFeedbackResponse[]> => {
-  const res = await instance.get(`/api/v1/sessions/${sessionId}/feedbacks`);
+  const params = new URLSearchParams();
+
+  filters.actorIds?.forEach((actorId) => {
+    params.append('actor_ids', String(actorId));
+  });
+
+  const res = await instance.get(`/api/v1/sessions/${sessionId}/feedbacks`, {
+    params,
+  });
 
   return res.data;
 };
 
-export const getFeedbacksWithTags = async (
+export const filterFeedbacks = async (
   sessionId: FeedbackSessionId,
-  filters: GetFeedbacksWithTagsFilters = {},
+  filters: FilterFeedbacksFilters = {},
 ): Promise<FeedbackWithTagsResponse[]> => {
   const params = new URLSearchParams();
 
   filters.categories?.forEach((category) => {
-    params.append('categories', category);
+    params.append('category', category);
   });
   filters.priority?.forEach((priority) => {
     params.append('priority', priority);
   });
+  filters.actorIds?.forEach((actorId) => {
+    params.append('actor_ids', String(actorId));
+  });
 
   const res = await instance.get(
-    `/api/v1/sessions/${sessionId}/feedbacks/with-tags`,
+    `/api/v1/sessions/${sessionId}/feedbacks/filter`,
     {
       params,
     },
+  );
+
+  return res.data;
+};
+
+export const classifySessionFeedbacks = async (
+  sessionId: FeedbackSessionId,
+): Promise<string> => {
+  const res = await instance.post(
+    `/api/v1/sessions/${sessionId}/feedbacks/classify`,
   );
 
   return res.data;

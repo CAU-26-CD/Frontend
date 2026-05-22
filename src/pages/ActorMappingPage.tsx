@@ -2,6 +2,7 @@ import { Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { mergeActorInto, renameActor } from '../apis/actor';
+import { classifySessionFeedbacks } from '../apis/feedback';
 import { getSessionVideo, type SessionVideoActor } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
@@ -24,8 +25,12 @@ export default function ActorMappingPage() {
   const [renameValue, setRenameValue] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isClassifyingFeedbacks, setIsClassifyingFeedbacks] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [videoActorsError, setVideoActorsError] = useState<string | null>(null);
+  const [feedbackClassifyError, setFeedbackClassifyError] = useState<
+    string | null
+  >(null);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
@@ -166,9 +171,26 @@ export default function ActorMappingPage() {
     }
   };
 
-  const handleComplete = () => {
-    if (!Number.isNaN(numericProjectId)) {
+  const handleComplete = async () => {
+    if (
+      Number.isNaN(numericProjectId) ||
+      Number.isNaN(numericSessionId) ||
+      isClassifyingFeedbacks
+    ) {
+      return;
+    }
+
+    setIsClassifyingFeedbacks(true);
+    setFeedbackClassifyError(null);
+
+    try {
+      await classifySessionFeedbacks(numericSessionId);
       navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
+    } catch (error) {
+      console.error('Failed to classify session feedbacks', error);
+      setFeedbackClassifyError('피드백 태그 분석 요청에 실패했습니다.');
+    } finally {
+      setIsClassifyingFeedbacks(false);
     }
   };
 
@@ -196,12 +218,22 @@ export default function ActorMappingPage() {
           <button
             type="button"
             onClick={handleComplete}
-            disabled={isWaitingForAnalysis || Boolean(videoActorsError)}
+            disabled={
+              isWaitingForAnalysis ||
+              isClassifyingFeedbacks ||
+              Boolean(videoActorsError)
+            }
             className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
           >
-            매칭 완료
+            {isClassifyingFeedbacks ? '태그 분석 중' : '매칭 완료'}
           </button>
         </div>
+
+        {feedbackClassifyError && (
+          <p className="reaction-ui-font mt-4 text-right text-xs font-semibold text-[#ffb4a8]">
+            {feedbackClassifyError}
+          </p>
+        )}
 
         <section className="reaction-ui-font flex flex-1 flex-col pt-10">
           {!isWaitingForAnalysis && (

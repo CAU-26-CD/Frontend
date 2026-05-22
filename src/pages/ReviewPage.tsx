@@ -1,7 +1,7 @@
 import { Settings, Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getFeedbacksWithTags } from '../apis/feedback';
+import { filterFeedbacks } from '../apis/feedback';
 import {
   getSessionVideo,
   getSessionVideoActorAppearances,
@@ -112,6 +112,12 @@ const secondsToTimestamp = (value: number) => {
   const seconds = value % 60;
 
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const timestampToSeconds = (value: string) => {
+  const [minutes = '0', seconds = '0'] = value.split(':');
+
+  return Number(minutes) * 60 + Number(seconds);
 };
 
 const inferActorIds = (content: string, actors: Actor[]) =>
@@ -242,9 +248,10 @@ export default function ReviewPage() {
           (tagId) =>
             feedbackTags.find((tag) => tag.id === tagId)?.values ?? [tagId],
         );
-        const fetchedFeedbacks = await getFeedbacksWithTags(sessionId, {
+        const fetchedFeedbacks = await filterFeedbacks(sessionId, {
           categories: selectedCategories,
           priority: selectedPriorityTags,
+          actorIds: selectedActorIds,
         });
 
         if (ignore) return;
@@ -253,7 +260,8 @@ export default function ReviewPage() {
           fetchedFeedbacks.map((feedback) => ({
             id: feedback.feedback_id,
             timestamp: secondsToTimestamp(feedback.video_offset_seconds),
-            actorIds: inferActorIds(feedback.content, reviewActors),
+            actorIds:
+              feedback.actor_ids ?? inferActorIds(feedback.content, reviewActors),
             content: feedback.content,
             isUrgent: feedback.content.includes('!!!'),
             priority: normalizeFeedbackPriorities(feedback.priority ?? []),
@@ -274,7 +282,13 @@ export default function ReviewPage() {
     return () => {
       ignore = true;
     };
-  }, [reviewActors, selectedFeedbackTags, selectedPriorityTags, sessionId]);
+  }, [
+    reviewActors,
+    selectedActorIds,
+    selectedFeedbackTags,
+    selectedPriorityTags,
+    sessionId,
+  ]);
 
   const toggleFeedbackTag = (tagId: string) => {
     setSelectedFeedbackTags((current) =>
@@ -312,6 +326,14 @@ export default function ReviewPage() {
   };
 
   const completedCount = useMemo(() => feedbacks.length, [feedbacks.length]);
+  const requiredFeedbackTimes = useMemo(
+    () =>
+      feedbacks
+        .filter((feedback) => feedback.priority?.includes('required'))
+        .map((feedback) => timestampToSeconds(feedback.timestamp))
+        .filter((time) => Number.isFinite(time) && time >= 0),
+    [feedbacks],
+  );
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
@@ -349,6 +371,7 @@ export default function ReviewPage() {
               videoUrl={sessionVideo?.s3_url ?? ''}
               actors={reviewActors}
               appearances={actorAppearances}
+              requiredFeedbackTimes={requiredFeedbackTimes}
               selectedActorIds={selectedActorIds}
               isVideoLoading={isLoadingVideo}
               videoMessage={videoMessage}

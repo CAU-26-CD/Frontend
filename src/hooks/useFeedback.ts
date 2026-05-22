@@ -58,7 +58,7 @@ export function useFeedback(
           fetchedFeedbacks.map((feedback) => ({
             id: feedback.feedback_id,
             timestamp: secondsToTimestamp(feedback.video_offset_seconds),
-            actorIds: [],
+            actorIds: feedback.actor_ids,
             content: feedback.content,
             isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
             aiTags: [],
@@ -114,12 +114,13 @@ export function useFeedback(
       const createdFeedback = await createFeedback(sessionId, {
         content: feedbackContent,
         video_offset_seconds: timestampToSeconds(feedbackTimestamp),
+        actor_ids: feedbackActorIds,
       });
 
       const newFeedback: Feedback = {
         id: createdFeedback.feedback_id,
         timestamp: feedbackTimestamp,
-        actorIds: feedbackActorIds,
+        actorIds: createdFeedback.actor_ids,
         content: createdFeedback.content,
         isUrgent: URGENT_MARK_PATTERN.test(createdFeedback.content),
         aiTags: [],
@@ -211,6 +212,7 @@ export function useFeedback(
       const updatedFeedback = await updateFeedback(sessionId, id, {
         content: nextContent,
         video_offset_seconds: timestampToSeconds(targetFeedback.timestamp),
+        actor_ids: targetFeedback.actorIds,
       });
 
       setFeedbacks((prev) =>
@@ -222,6 +224,7 @@ export function useFeedback(
                 timestamp: secondsToTimestamp(
                   updatedFeedback.video_offset_seconds,
                 ),
+                actorIds: updatedFeedback.actor_ids,
                 isUrgent: URGENT_MARK_PATTERN.test(updatedFeedback.content),
                 analysisStatus: 'idle',
                 isPersisted: true,
