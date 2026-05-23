@@ -19,6 +19,7 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) =>
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
+  isLandscape: boolean | null;
   actors: Actor[];
   appearances: SessionVideoAppearance[];
   requiredFeedbackMarkers: {
@@ -39,6 +40,7 @@ type ReviewVideoPanelProps = {
 
 export default function ReviewVideoPanel({
   videoUrl,
+  isLandscape,
   actors,
   appearances,
   requiredFeedbackMarkers,
@@ -112,6 +114,13 @@ export default function ReviewVideoPanel({
   const safeVideoDuration = Number.isFinite(videoDuration)
     ? Math.max(0, videoDuration)
     : 0;
+  const isLandscapeVideo = isLandscape !== false;
+  const videoFrameClassName = [
+    'relative overflow-hidden bg-[#17100f]',
+    isLandscapeVideo
+      ? 'aspect-video h-auto max-h-full w-full max-w-full'
+      : 'aspect-[9/16] h-full max-h-full w-auto max-w-full',
+  ].join(' ');
   const fallbackTimelineDuration = Math.max(
     ...normalizedAppearances.map((appearance) =>
       Math.ceil(appearance.endSeconds),
@@ -296,41 +305,45 @@ export default function ReviewVideoPanel({
           aria-hidden="true"
         />
 
-        <div className="relative z-10 min-h-0 overflow-hidden rounded-[10px] bg-[#7c7d7a]">
-          {videoUrl ? (
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              preload="auto"
-              onLoadedMetadata={(event) => {
-                setVideoDuration(getMetadataVideoDuration(event.currentTarget));
-              }}
-              onDurationChange={(event) => {
-                const nextDuration = getMetadataVideoDuration(
-                  event.currentTarget,
-                );
+        <div className="relative z-10 flex min-h-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#7c7d7a]">
+          <div className={videoFrameClassName}>
+            {videoUrl ? (
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                preload="auto"
+                onLoadedMetadata={(event) => {
+                  setVideoDuration(
+                    getMetadataVideoDuration(event.currentTarget),
+                  );
+                }}
+                onDurationChange={(event) => {
+                  const nextDuration = getMetadataVideoDuration(
+                    event.currentTarget,
+                  );
 
-                if (nextDuration > 0) {
-                  setVideoDuration(nextDuration);
-                }
-              }}
-              onTimeUpdate={(event) => {
-                const nextCurrentTime = event.currentTarget.currentTime;
+                  if (nextDuration > 0) {
+                    setVideoDuration(nextDuration);
+                  }
+                }}
+                onTimeUpdate={(event) => {
+                  const nextCurrentTime = event.currentTarget.currentTime;
 
-                setCurrentTime(nextCurrentTime);
-              }}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onEnded={() => {
-                setIsPlaying(false);
-              }}
-              className="h-full w-full bg-[#17100f] object-contain"
-            >
-              <track kind="captions" />
-            </video>
-          ) : (
-            <div className="absolute inset-0 bg-[#17100f]" />
-          )}
+                  setCurrentTime(nextCurrentTime);
+                }}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => {
+                  setIsPlaying(false);
+                }}
+                className="h-full w-full bg-[#17100f] object-contain"
+              >
+                <track kind="captions" />
+              </video>
+            ) : (
+              <div className="absolute inset-0 bg-[#17100f]" />
+            )}
+          </div>
 
           {videoUrl && (
             <div className="absolute inset-x-[4.5%] bottom-[4%] rounded-[8px] border border-white/15 bg-[#17100f]/72 px-3 py-1.5 backdrop-blur-sm">

@@ -66,6 +66,7 @@ export type SessionVideoResponse = {
   analysis_status: string;
   analysis_result: unknown;
   actors: SessionVideoActor[];
+  is_landscape: boolean | null;
 };
 
 export type SessionVideoAppearance = {
