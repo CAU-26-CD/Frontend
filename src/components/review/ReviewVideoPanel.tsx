@@ -14,35 +14,8 @@ const actorTimelineColors = [
   '#efe6de',
 ];
 
-const getFiniteVideoDuration = (video: HTMLVideoElement) => {
-  const durationCandidates: number[] = [];
-
-  if (Number.isFinite(video.duration) && video.duration > 0) {
-    durationCandidates.push(video.duration);
-  }
-
-  const lastSeekableIndex = video.seekable.length - 1;
-
-  if (lastSeekableIndex >= 0) {
-    const seekableEnd = video.seekable.end(lastSeekableIndex);
-
-    if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
-      durationCandidates.push(seekableEnd);
-    }
-  }
-
-  const lastBufferedIndex = video.buffered.length - 1;
-
-  if (lastBufferedIndex >= 0) {
-    const bufferedEnd = video.buffered.end(lastBufferedIndex);
-
-    if (Number.isFinite(bufferedEnd) && bufferedEnd > 0) {
-      durationCandidates.push(bufferedEnd);
-    }
-  }
-
-  return Math.max(0, ...durationCandidates);
-};
+const getMetadataVideoDuration = (video: HTMLVideoElement) =>
+  Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
@@ -149,7 +122,6 @@ export default function ReviewVideoPanel({
   const timelineDuration = Math.max(
     safeVideoDuration,
     fallbackTimelineDuration,
-    currentTime > safeVideoDuration ? currentTime + 1 : currentTime,
   );
   const currentTimelineSecond = Math.min(
     timelineDuration,
@@ -195,7 +167,7 @@ export default function ReviewVideoPanel({
       Math.max(0, (clientX - rect.left) / rect.width),
     );
     const nextTime = progress * timelineDuration;
-    const finiteVideoDuration = getFiniteVideoDuration(video);
+    const finiteVideoDuration = getMetadataVideoDuration(video);
     const clampedNextTime =
       finiteVideoDuration > 0
         ? Math.min(nextTime, finiteVideoDuration)
@@ -329,23 +301,23 @@ export default function ReviewVideoPanel({
             <video
               ref={videoRef}
               src={videoUrl}
-              preload="metadata"
+              preload="auto"
               onLoadedMetadata={(event) => {
-                setVideoDuration(getFiniteVideoDuration(event.currentTarget));
+                setVideoDuration(getMetadataVideoDuration(event.currentTarget));
               }}
               onDurationChange={(event) => {
-                setVideoDuration(getFiniteVideoDuration(event.currentTarget));
+                const nextDuration = getMetadataVideoDuration(
+                  event.currentTarget,
+                );
+
+                if (nextDuration > 0) {
+                  setVideoDuration(nextDuration);
+                }
               }}
               onTimeUpdate={(event) => {
                 const nextCurrentTime = event.currentTarget.currentTime;
 
                 setCurrentTime(nextCurrentTime);
-                setVideoDuration(
-                  Math.max(
-                    getFiniteVideoDuration(event.currentTarget),
-                    nextCurrentTime,
-                  ),
-                );
               }}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}

@@ -35,6 +35,12 @@ export type CameraSessionStatusResponse = {
   video_url: string | null;
 };
 
+export type RehearsalSessionStatusResponse = {
+  db_session_id: number;
+  started: boolean;
+  started_at: string | null;
+};
+
 export type SessionVideoActor = {
   actor_id: number;
   name: string | null;
@@ -297,7 +303,7 @@ export const completeProjectSession = async (
 
 export const startRehearsalSession = async (
   sessionId: number,
-): Promise<string> => {
+): Promise<RehearsalSessionStatusResponse> => {
   const res = await instance.post(
     `/api/v1/projects/${sessionId}/rehearsal/start`,
   );
@@ -307,7 +313,7 @@ export const startRehearsalSession = async (
 
 export const getRehearsalSessionStatus = async (
   sessionId: number,
-): Promise<string> => {
+): Promise<RehearsalSessionStatusResponse> => {
   const res = await instance.get(
     `/api/v1/projects/${sessionId}/rehearsal/status`,
   );

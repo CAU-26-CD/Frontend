@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Settings, Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -13,8 +13,9 @@ import type {
   CameraSessionStatusResponse,
   CreateCameraSessionResponse,
   CreateProjectSessionResponse,
+  RehearsalSessionStatusResponse,
 } from '../apis/session';
-import { getProjectActors } from '../data/actors';
+import { listProjectActors } from '../apis/actor';
 import { useFeedback } from '../hooks/useFeedback';
 import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
@@ -24,22 +25,15 @@ import CameraSessionModal from '../components/modals/CameraSessionModal';
 import EndRehearsalConfirmModal from '../components/modals/EndRehearsalConfirmModal';
 import VideoUploadCompleteModal from '../components/modals/VideoUploadCompleteModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import type { Actor } from '../types/feedback';
 
 type FeedbackRouteState = {
   openCameraSession?: boolean;
   projectSessionTitle?: string;
 };
 
-const startedRehearsalStatuses = new Set([
-  'start',
-  'started',
-  'true',
-  'recording',
-  'rehearsal_started',
-]);
-
-const isStartedRehearsalStatus = (status: string) =>
-  startedRehearsalStatuses.has(status.trim().toLowerCase());
+const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
+  status.started;
 
 export default function RehearsalFeedbackPage() {
   const navigate = useNavigate();
@@ -65,6 +59,9 @@ export default function RehearsalFeedbackPage() {
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(
     null,
   );
+  const [actors, setActors] = useState<Actor[]>([]);
+  const [isLoadingActors, setIsLoadingActors] = useState(false);
+  const [actorsError, setActorsError] = useState<string | null>(null);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const hasRequestedCameraSessionRef = useRef(false);
   const hasShownUploadCompleteRef = useRef(false);
@@ -98,11 +95,6 @@ export default function RehearsalFeedbackPage() {
   const recordingTime = `${String(
     Math.floor(recordingElapsedSeconds / 60),
   ).padStart(2, '0')}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
-  const actors = useMemo(
-    () =>
-      Number.isNaN(numericProjectId) ? [] : getProjectActors(numericProjectId),
-    [numericProjectId],
-  );
 
   const applyCameraStatus = (nextStatus: CameraSessionStatusResponse) => {
     const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
@@ -167,6 +159,45 @@ export default function RehearsalFeedbackPage() {
       ignore = true;
     };
   }, [numericProjectId, numericSessionId, rehearsalStartedStorageKey]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId)) {
+      setActors([]);
+      return;
+    }
+
+    let ignore = false;
+
+    const loadActors = async () => {
+      setIsLoadingActors(true);
+      setActorsError(null);
+
+      try {
+        const nextActors = await listProjectActors(numericProjectId);
+
+        if (!ignore) {
+          setActors(nextActors);
+        }
+      } catch (error) {
+        console.error('Failed to load project actors', error);
+
+        if (!ignore) {
+          setActors([]);
+          setActorsError('배우 목록을 불러오지 못했습니다.');
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingActors(false);
+        }
+      }
+    };
+
+    void loadActors();
+
+    return () => {
+      ignore = true;
+    };
+  }, [numericProjectId]);
 
   useEffect(() => {
     if (
@@ -371,9 +402,15 @@ export default function RehearsalFeedbackPage() {
         </div>
       </div>
     )
-  ) : feedback.isLoadingFeedbacks ? (
+  ) : feedback.isLoadingFeedbacks || isLoadingActors ? (
     <div className="flex h-full w-full items-center justify-center">
-      <LoadingSpinner label="피드백을 불러오는 중입니다" />
+      <LoadingSpinner
+        label={
+          isLoadingActors
+            ? '배우 목록을 불러오는 중입니다'
+            : '피드백을 불러오는 중입니다'
+        }
+      />
     </div>
   ) : null;
 
@@ -401,6 +438,11 @@ export default function RehearsalFeedbackPage() {
             {isRecording && (
               <span className="reaction-recording-time rounded-full border border-[#D15757]/70 bg-[#431B1B]/42 px-2.5 py-1 text-xs font-bold text-[#fff8ef]">
                 REC {recordingTime}
+              </span>
+            )}
+            {actorsError && (
+              <span className="truncate text-xs font-bold text-[#ffb4a8]">
+                {actorsError}
               </span>
             )}
           </div>

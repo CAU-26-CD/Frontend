@@ -1,7 +1,7 @@
 import { Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { mergeActorInto } from '../apis/actor';
+import { listProjectActors, mergeActorInto } from '../apis/actor';
 import {
   classifySessionFeedbacks,
   waitForPendingFeedbackCreates,
@@ -9,7 +9,7 @@ import {
 import { getSessionVideo, type SessionVideoActor } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
-import { getProjectActors } from '../data/actors';
+import type { Actor } from '../types/feedback';
 
 const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
@@ -31,6 +31,10 @@ export default function ActorMappingPage() {
   const [isClassifyingFeedbacks, setIsClassifyingFeedbacks] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [videoActorsError, setVideoActorsError] = useState<string | null>(null);
+  const [projectActors, setProjectActors] = useState<Actor[]>([]);
+  const [projectActorsError, setProjectActorsError] = useState<string | null>(
+    null,
+  );
   const [feedbackClassifyError, setFeedbackClassifyError] = useState<
     string | null
   >(null);
@@ -44,11 +48,6 @@ export default function ActorMappingPage() {
     videoActors.find((actor) => actor.actor_id === selectedActorId) ??
     videoActors[0] ??
     null;
-  const projectActors = useMemo(
-    () =>
-      Number.isNaN(numericProjectId) ? [] : getProjectActors(numericProjectId),
-    [numericProjectId],
-  );
   const mappedCount = videoActors.filter((actor) => !actor.is_new).length;
   const sortedActors = useMemo(
     () =>
@@ -63,6 +62,40 @@ export default function ActorMappingPage() {
   const isWaitingForAnalysis =
     isLoading || pendingAnalysisStatuses.has(analysisStatus);
   const hasAnalysisFailed = analysisStatus === 'failed';
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId)) {
+      setProjectActors([]);
+      return;
+    }
+
+    let ignore = false;
+
+    const loadProjectActors = async () => {
+      setProjectActorsError(null);
+
+      try {
+        const nextActors = await listProjectActors(numericProjectId);
+
+        if (!ignore) {
+          setProjectActors(nextActors);
+        }
+      } catch (error) {
+        console.error('Failed to load project actors', error);
+
+        if (!ignore) {
+          setProjectActors([]);
+          setProjectActorsError('프로젝트 배우 목록을 불러오지 못했습니다.');
+        }
+      }
+    };
+
+    void loadProjectActors();
+
+    return () => {
+      ignore = true;
+    };
+  }, [numericProjectId]);
 
   useEffect(() => {
     if (Number.isNaN(numericSessionId)) {
@@ -256,9 +289,9 @@ export default function ActorMappingPage() {
           </button>
         </div>
 
-        {feedbackClassifyError && (
+        {(feedbackClassifyError || projectActorsError) && (
           <p className="reaction-ui-font mt-4 text-right text-xs font-semibold text-[#ffb4a8]">
-            {feedbackClassifyError}
+            {feedbackClassifyError ?? projectActorsError}
           </p>
         )}
 
