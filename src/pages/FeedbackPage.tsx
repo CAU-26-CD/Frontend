@@ -95,9 +95,7 @@ export default function RehearsalFeedbackPage() {
     !isRecordingFinalized &&
     (cameraStatusText === 'connected' || cameraStatusText === 'recording');
   const shouldShowRecordingTime = isRecording || isRecordingFinalized;
-  const recordingIndicatorColor = isRecordingFinalized
-    ? '#9f9a95'
-    : '#D15757';
+  const recordingIndicatorColor = isRecordingFinalized ? '#9f9a95' : '#D15757';
   const recordingTime = `${String(
     Math.floor(recordingElapsedSeconds / 60),
   ).padStart(2, '0')}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
@@ -418,7 +416,7 @@ export default function RehearsalFeedbackPage() {
         isLogoNavigationDisabled={isLogoNavigationLocked}
         onBlockedLogoClick={() => {
           setLogoNavigationMessage(
-            '리허설 진행중에는 홈화면으로 갈 수 없습니다.',
+            '리허설 진행중에는 홈으로 이동할 수 없습니다.',
           );
         }}
       />
@@ -531,7 +529,6 @@ export default function RehearsalFeedbackPage() {
           confirmLabel="태그 매칭하기"
         />
       )}
-
     </main>
   );
 }
