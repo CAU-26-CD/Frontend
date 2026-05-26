@@ -378,7 +378,6 @@ export default function ReviewPage() {
           <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4">
             <ReviewVideoPanel
               videoUrl={sessionVideo?.s3_url ?? ''}
-              isLandscape={sessionVideo?.is_landscape ?? null}
               actors={reviewActors}
               appearances={actorAppearances}
               requiredFeedbackMarkers={requiredFeedbackMarkers}
