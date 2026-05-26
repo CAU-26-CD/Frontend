@@ -5,7 +5,6 @@ import {
   getCameraSessionStatus,
   getProjectSessions,
   createCameraSession,
-  stopCameraSession,
   getRehearsalSessionStatus,
   startRehearsalSession,
 } from '../apis/session';
@@ -22,7 +21,6 @@ import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CameraSessionModal from '../components/modals/CameraSessionModal';
-import EndRehearsalConfirmModal from '../components/modals/EndRehearsalConfirmModal';
 import VideoUploadCompleteModal from '../components/modals/VideoUploadCompleteModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import type { Actor } from '../types/feedback';
@@ -54,8 +52,8 @@ export default function RehearsalFeedbackPage() {
     Boolean(routeState?.openCameraSession),
   );
   const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
-  const [showEndRehearsalModal, setShowEndRehearsalModal] = useState(false);
   const [cameraStatusText, setCameraStatusText] = useState('');
+  const [logoNavigationMessage, setLogoNavigationMessage] = useState('');
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(
     null,
   );
@@ -93,6 +91,9 @@ export default function RehearsalFeedbackPage() {
       : `Session ${numericSessionId}`);
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
+  const isLogoNavigationLocked =
+    !isRecordingFinalized &&
+    (cameraStatusText === 'connected' || cameraStatusText === 'recording');
   const shouldShowRecordingTime = isRecording || isRecordingFinalized;
   const recordingIndicatorColor = isRecordingFinalized
     ? '#9f9a95'
@@ -294,6 +295,20 @@ export default function RehearsalFeedbackPage() {
   }, [cameraSession, isCameraGateOpen]);
 
   useEffect(() => {
+    if (!logoNavigationMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLogoNavigationMessage('');
+    }, 2800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [logoNavigationMessage]);
+
+  useEffect(() => {
     if (recordingStartedAt === null) {
       return;
     }
@@ -349,33 +364,6 @@ export default function RehearsalFeedbackPage() {
     }
   };
 
-  const exitRehearsal = async () => {
-    if (Number.isNaN(numericProjectId)) {
-      return;
-    }
-
-    if (cameraSession) {
-      try {
-        const stopStatus = await stopCameraSession(cameraSession.session_id);
-
-        if (stopStatus.toLowerCase() === 'stop') {
-          setIsRecordingFinalized(true);
-          setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
-          setRecordingStartedAt(null);
-          setCameraStatusText('stop');
-        }
-      } catch (error) {
-        console.error('Failed to stop camera session', error);
-      }
-
-      setShowEndRehearsalModal(false);
-      return;
-    }
-
-    sessionStorage.removeItem(rehearsalStartedStorageKey);
-    navigate(`/project/${numericProjectId}/workspace`);
-  };
-
   const openActorMapping = () => {
     if (Number.isNaN(numericProjectId)) {
       return;
@@ -425,7 +413,15 @@ export default function RehearsalFeedbackPage() {
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
-      <DesignedHeader align="left" />
+      <DesignedHeader
+        align="left"
+        isLogoNavigationDisabled={isLogoNavigationLocked}
+        onBlockedLogoClick={() => {
+          setLogoNavigationMessage(
+            '리허설 진행중에는 홈화면으로 갈 수 없습니다.',
+          );
+        }}
+      />
       <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
 
       <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1320px] flex-col overflow-hidden px-4 pb-7 pt-24 sm:px-6 lg:px-12">
@@ -461,16 +457,14 @@ export default function RehearsalFeedbackPage() {
                 {actorsError}
               </span>
             )}
+            {logoNavigationMessage && (
+              <span className="truncate text-xs font-bold text-[#ffb4a8]">
+                {logoNavigationMessage}
+              </span>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowEndRehearsalModal(true)}
-              className="reaction-glass-pill h-8 mb-2 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              리허설 종료하기
-            </button>
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-full text-[#eee7dc] transition hover:bg-white/12 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
@@ -538,12 +532,6 @@ export default function RehearsalFeedbackPage() {
         />
       )}
 
-      {showEndRehearsalModal && (
-        <EndRehearsalConfirmModal
-          onCancel={() => setShowEndRehearsalModal(false)}
-          onConfirm={exitRehearsal}
-        />
-      )}
     </main>
   );
 }

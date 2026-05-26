@@ -14,7 +14,7 @@ export default function VideoUploadCompleteModal({
       <div className="w-full max-w-sm rounded-2xl border border-white/35 bg-[#efe6de]/92 p-6 text-center text-[#2d1715] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl">
         <h2 className="text-lg font-bold">비디오 업로드가 완료되었습니다!</h2>
         <p className="mt-2 text-sm font-semibold text-[#806b61]">
-          리허설을 종료하시겠습니까?
+          리허설을 종료합니다.
         </p>
 
         <div className="mt-6 flex justify-center gap-2">

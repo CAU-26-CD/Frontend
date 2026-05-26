@@ -8,6 +8,8 @@ interface DesignedHeaderProps {
   onLogout?: () => void | Promise<void>;
   align?: 'center' | 'left';
   className?: string;
+  isLogoNavigationDisabled?: boolean;
+  onBlockedLogoClick?: () => void;
 }
 
 const getStoredUserEmail = () => {
@@ -23,6 +25,8 @@ export default function DesignedHeader({
   onLogout,
   align = 'center',
   className = '',
+  isLogoNavigationDisabled = false,
+  onBlockedLogoClick,
 }: DesignedHeaderProps) {
   const navigate = useNavigate();
   const headerAlignClass =
@@ -34,6 +38,31 @@ export default function DesignedHeader({
     clearStoredAuth();
     navigate('/');
   };
+  const logoClassName =
+    'reaction-home-logo h-[54px] w-[48px] shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+  const logoContent = (
+    <>
+      <span className="reaction-loading-spinner-glow" aria-hidden="true" />
+      <span
+        className="reaction-loading-particle reaction-loading-particle-1"
+        aria-hidden="true"
+      />
+      <span
+        className="reaction-loading-particle reaction-loading-particle-2"
+        aria-hidden="true"
+      />
+      <span
+        className="reaction-loading-particle reaction-loading-particle-3"
+        aria-hidden="true"
+      />
+      <img
+        src={logoIcon}
+        alt=""
+        className="reaction-home-logo-image relative z-10 h-full w-full object-contain"
+        aria-hidden="true"
+      />
+    </>
+  );
 
   return (
     <header
@@ -55,31 +84,24 @@ export default function DesignedHeader({
       <div className="pointer-events-auto relative z-10 mt-[22px] flex h-[74px] items-center justify-center gap-7 text-[#ffffff]">
         <span className="mt-[1px] h-[5px] w-[5px] rounded-full bg-[#efe6de]" />
 
-        <Link
-          to="/projects"
-          className="reaction-home-logo h-[54px] w-[48px] shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-          aria-label="프로젝트 페이지로 이동"
-        >
-          <span className="reaction-loading-spinner-glow" aria-hidden="true" />
-          <span
-            className="reaction-loading-particle reaction-loading-particle-1"
-            aria-hidden="true"
-          />
-          <span
-            className="reaction-loading-particle reaction-loading-particle-2"
-            aria-hidden="true"
-          />
-          <span
-            className="reaction-loading-particle reaction-loading-particle-3"
-            aria-hidden="true"
-          />
-          <img
-            src={logoIcon}
-            alt=""
-            className="reaction-home-logo-image relative z-10 h-full w-full object-contain"
-            aria-hidden="true"
-          />
-        </Link>
+        {isLogoNavigationDisabled ? (
+          <button
+            type="button"
+            onClick={onBlockedLogoClick}
+            className={`${logoClassName} cursor-not-allowed`}
+            aria-label="프로젝트 페이지 이동 불가"
+          >
+            {logoContent}
+          </button>
+        ) : (
+          <Link
+            to="/projects"
+            className={logoClassName}
+            aria-label="프로젝트 페이지로 이동"
+          >
+            {logoContent}
+          </Link>
+        )}
 
         <p className="reaction-ui-font text-[34px] font-medium leading-none">
           Hi,{' '}

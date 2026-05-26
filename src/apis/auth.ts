@@ -10,7 +10,3 @@ export const getMe = async (): Promise<User> => {
   const res = await instance.get('/auth/me');
   return res.data;
 };
-
-export const postLogout = async (): Promise<void> => {
-  await instance.post('/auth/logout');
-};

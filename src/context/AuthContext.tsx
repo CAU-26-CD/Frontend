@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { getMe, postLogin, postLogout } from '../apis/auth';
+import { getMe, postLogin } from '../apis/auth';
 import type { LoginRequest, User } from '../types/auth';
 import { clearStoredAuth, saveStoredUserId } from '../utils/authStorage';
 
@@ -38,14 +38,8 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async () => {
-    try {
-      await postLogout();
-    } catch (error) {
-      console.error('로그아웃 요청 실패:', error);
-    } finally {
-      clearStoredAuth();
-      setUser(null);
-    }
+    clearStoredAuth();
+    setUser(null);
   };
 
   useEffect(() => {
