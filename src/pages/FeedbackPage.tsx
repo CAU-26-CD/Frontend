@@ -59,6 +59,7 @@ export default function RehearsalFeedbackPage() {
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(
     null,
   );
+  const [isRecordingFinalized, setIsRecordingFinalized] = useState(false);
   const [actors, setActors] = useState<Actor[]>([]);
   const [isLoadingActors, setIsLoadingActors] = useState(false);
   const [actorsError, setActorsError] = useState<string | null>(null);
@@ -91,7 +92,11 @@ export default function RehearsalFeedbackPage() {
       ? 'Session'
       : `Session ${numericSessionId}`);
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
-  const isRecording = cameraStatusText === 'recording';
+  const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
+  const shouldShowRecordingTime = isRecording || isRecordingFinalized;
+  const recordingIndicatorColor = isRecordingFinalized
+    ? '#9f9a95'
+    : '#D15757';
   const recordingTime = `${String(
     Math.floor(recordingElapsedSeconds / 60),
   ).padStart(2, '0')}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
@@ -102,16 +107,19 @@ export default function RehearsalFeedbackPage() {
     setCameraStatusText(normalizedStatus);
 
     if (normalizedStatus === 'recording') {
+      setIsRecordingFinalized(false);
       setRecordingStartedAt((current) => current ?? Date.now());
     }
 
     if (normalizedStatus === 'stop' || normalizedStatus === 'stopped') {
+      setIsRecordingFinalized(true);
       setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
       setRecordingStartedAt(null);
     }
 
     if (normalizedStatus === 'done' || nextStatus.video_url) {
       hasShownUploadCompleteRef.current = true;
+      setIsRecordingFinalized(true);
       setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
       setRecordingStartedAt(null);
       setShowUploadCompleteModal(true);
@@ -351,6 +359,7 @@ export default function RehearsalFeedbackPage() {
         const stopStatus = await stopCameraSession(cameraSession.session_id);
 
         if (stopStatus.toLowerCase() === 'stop') {
+          setIsRecordingFinalized(true);
           setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
           setRecordingStartedAt(null);
           setCameraStatusText('stop');
@@ -427,17 +436,24 @@ export default function RehearsalFeedbackPage() {
             </span>
             <Video
               size={20}
-              fill="#D15757"
-              stroke="#D15757"
+              fill={recordingIndicatorColor}
+              stroke={recordingIndicatorColor}
               strokeWidth={2.4}
               className={
                 isRecording ? 'reaction-recording-icon shrink-0' : 'shrink-0'
               }
               aria-hidden="true"
             />
-            {isRecording && (
-              <span className="reaction-recording-time rounded-full border border-[#D15757]/70 bg-[#431B1B]/42 px-2.5 py-1 text-xs font-bold text-[#fff8ef]">
-                REC {recordingTime}
+            {shouldShowRecordingTime && (
+              <span
+                className={[
+                  'rounded-full px-2.5 py-1 text-xs font-bold',
+                  isRecording
+                    ? 'reaction-recording-time border border-[#D15757]/70 bg-[#431B1B]/42 text-[#fff8ef]'
+                    : 'border border-[#9f9a95]/60 bg-[#5f5b57]/38 text-[#d8d3ce]',
+                ].join(' ')}
+              >
+                {isRecording ? 'REC' : 'STOP'} {recordingTime}
               </span>
             )}
             {actorsError && (
