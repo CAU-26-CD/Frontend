@@ -1,11 +1,9 @@
 type VideoUploadCompleteModalProps = {
-  onCancel: () => void;
   onConfirm: () => void;
   confirmLabel?: string;
 };
 
 export default function VideoUploadCompleteModal({
-  onCancel,
   onConfirm,
   confirmLabel = '나가기',
 }: VideoUploadCompleteModalProps) {
@@ -17,14 +15,7 @@ export default function VideoUploadCompleteModal({
           리허설을 종료합니다.
         </p>
 
-        <div className="mt-6 flex justify-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-10 rounded-xl border border-[#c8b7aa] px-5 text-sm font-bold text-[#806b61] transition hover:border-[#431B1B] hover:text-[#431B1B]"
-          >
-            취소
-          </button>
+        <div className="mt-6 flex justify-center">
           <button
             type="button"
             onClick={onConfirm}

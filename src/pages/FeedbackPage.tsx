@@ -524,7 +524,6 @@ export default function RehearsalFeedbackPage() {
 
       {showUploadCompleteModal && (
         <VideoUploadCompleteModal
-          onCancel={() => setShowUploadCompleteModal(false)}
           onConfirm={openActorMapping}
           confirmLabel="태그 매칭하기"
         />
