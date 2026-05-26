@@ -1,6 +1,6 @@
 import { ChevronDown, Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getMyProjects } from '../apis/project';
 import CardSkeleton from '../components/CardSkeleton';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
@@ -8,6 +8,7 @@ import addSign from '../images/icon/add_sign.svg';
 import projectCardImage from '../images/icon/ProjectCard.svg';
 import searchGradient from '../images/icon/search_gradient.svg';
 import type { Project } from '../types/project';
+import { getStoredUserId } from '../utils/authStorage';
 
 function ProjectTile({
   project,
@@ -57,6 +58,7 @@ function ProjectTile({
 }
 
 export default function ProjectPage() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [searchValue, setSearchValue] = useState('');
@@ -66,7 +68,14 @@ export default function ProjectPage() {
       setIsLoadingProjects(true);
 
       try {
-        const myProjects = await getMyProjects();
+        const userId = getStoredUserId();
+
+        if (userId === null) {
+          navigate('/login');
+          return;
+        }
+
+        const myProjects = await getMyProjects(userId);
 
         setProjects(
           myProjects.map((project) => ({
@@ -84,7 +93,7 @@ export default function ProjectPage() {
     };
 
     void loadProjects();
-  }, []);
+  }, [navigate]);
 
   const filteredProjects = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();

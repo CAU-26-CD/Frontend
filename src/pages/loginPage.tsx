@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { postLogin } from '../apis/auth';
 import loginCard from '../images/icon/loginCard.svg';
+import { saveStoredUserId } from '../utils/authStorage';
 
 type LoginValidationErrors = {
   email?: string;
@@ -44,6 +45,7 @@ export default function LoginPage() {
     try {
       const response = await postLogin({ email, password });
       localStorage.setItem('userEmail', response.email);
+      saveStoredUserId(response.user_id);
       navigate('/projects');
     } catch (error) {
       console.error('로그인 실패:', error);

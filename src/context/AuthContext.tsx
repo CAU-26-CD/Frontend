@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { getMe, postLogin, postLogout } from '../apis/auth';
 import type { LoginRequest, User } from '../types/auth';
+import { clearStoredUserId, saveStoredUserId } from '../utils/authStorage';
 
 interface AuthContextValue {
   user: User | null;
@@ -33,6 +34,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
       id: res.user_id,
       email: res.email,
     });
+    saveStoredUserId(res.user_id);
   };
 
   const logout = async () => {
@@ -42,6 +44,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
       console.error('로그아웃 요청 실패:', error);
     } finally {
       localStorage.removeItem('accessToken');
+      clearStoredUserId();
       setUser(null);
     }
   };
@@ -51,6 +54,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
       try {
         const me = await getMe();
         setUser(me);
+        saveStoredUserId(me.id);
       } catch (error) {
         console.error('유저 정보 조회 실패:', error);
         setUser(null);

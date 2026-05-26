@@ -16,18 +16,30 @@ export type CreateProjectRequest = {
 
 export type JoinProjectRequest = {
   join_code: string;
+  user_id: number;
 };
 
-export const getMyProjects = async (): Promise<ProjectResponse[]> => {
-  const res = await instance.get('/api/v1/projects');
+export const getMyProjects = async (
+  userId: number,
+): Promise<ProjectResponse[]> => {
+  const res = await instance.get('/api/v1/projects', {
+    params: {
+      user_id: userId,
+    },
+  });
 
   return res.data;
 };
 
 export const createProject = async (
+  userId: number,
   data: CreateProjectRequest,
 ): Promise<ProjectResponse> => {
-  const res = await instance.post('/api/v1/projects', data);
+  const res = await instance.post('/api/v1/projects', data, {
+    params: {
+      user_id: userId,
+    },
+  });
 
   return res.data;
 };

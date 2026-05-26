@@ -9,6 +9,7 @@ import createProjectCard from '../images/icon/create-project-card.svg';
 import loginCard from '../images/icon/loginCard.svg';
 import type { ProjectResponse } from '../apis/project';
 import type { CreateProjectForm, JoinProjectForm } from '../types/project';
+import { getStoredUserId } from '../utils/authStorage';
 
 const initialJoinForm: JoinProjectForm = {
   code: '',
@@ -27,6 +28,9 @@ export default function NewProject() {
     useState<CreateProjectForm>(initialCreateForm);
   const [isJoiningProject, setIsJoiningProject] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [joinErrorMessage, setJoinErrorMessage] = useState('');
+  const [createProjectErrorMessage, setCreateProjectErrorMessage] =
+    useState('');
   const [createdProject, setCreatedProject] = useState<ProjectResponse | null>(
     null,
   );
@@ -40,16 +44,26 @@ export default function NewProject() {
       return;
     }
 
+    const userId = getStoredUserId();
+
+    if (userId === null) {
+      setJoinErrorMessage('로그인 후 다시 시도해 주세요.');
+      return;
+    }
+
     setIsJoiningProject(true);
+    setJoinErrorMessage('');
 
     try {
       const project = await joinProject({
         join_code: joinForm.code.trim().toUpperCase(),
+        user_id: userId,
       });
 
       navigate(`/project/${project.project_id}/workspace`);
     } catch (error) {
       console.error('Failed to join project', error);
+      setJoinErrorMessage('프로젝트 입장에 실패했습니다.');
     } finally {
       setIsJoiningProject(false);
     }
@@ -67,10 +81,18 @@ export default function NewProject() {
       return;
     }
 
+    const userId = getStoredUserId();
+
+    if (userId === null) {
+      setCreateProjectErrorMessage('로그인 후 다시 시도해 주세요.');
+      return;
+    }
+
     setIsCreatingProject(true);
+    setCreateProjectErrorMessage('');
 
     try {
-      const project = await createProject({
+      const project = await createProject(userId, {
         title: createForm.name.trim(),
         description: createForm.description.trim(),
         join_code: createForm.joinCode.trim().toUpperCase(),
@@ -80,6 +102,7 @@ export default function NewProject() {
       setActorCreateError(null);
     } catch (error) {
       console.error('Failed to create project', error);
+      setCreateProjectErrorMessage('프로젝트 생성에 실패했습니다.');
     } finally {
       setIsCreatingProject(false);
     }
@@ -161,6 +184,9 @@ export default function NewProject() {
             >
               {isJoiningProject ? 'JOINING...' : 'JOIN'}
             </button>
+            <p className="reaction-ui-font min-h-[13px] text-[10px] font-semibold text-[#7a1d24]">
+              {joinErrorMessage}
+            </p>
           </div>
         </form>
 
@@ -241,6 +267,9 @@ export default function NewProject() {
           >
             {isCreatingProject ? 'CREATING...' : 'CREATE'}
           </button>
+          <p className="reaction-ui-font relative z-10 mt-2 min-h-[13px] text-center text-[10px] font-semibold text-[#7a1d24]">
+            {createProjectErrorMessage}
+          </p>
         </form>
       </section>
 

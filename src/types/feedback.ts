@@ -16,6 +16,7 @@ export interface FeedbackSession {
   category?: string;
   date: string;
   status: FeedbackSessionStatus;
+  isRehearsalStarted?: boolean;
 }
 
 export interface Actor {

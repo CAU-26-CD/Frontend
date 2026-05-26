@@ -11,6 +11,8 @@ export default function FeedbackSessionCard({
   projectId,
   session,
 }: FeedbackSessionCardProps) {
+  const isRehearsalLocked =
+    session.status === 'inProgress' && session.isRehearsalStarted;
   const sessionPath =
     session.status === 'inProgress'
       ? `/project/${projectId}/workspace/${session.id}/feedback`
@@ -19,7 +21,62 @@ export default function FeedbackSessionCard({
     ? session.date.split('T')[0]
     : session.date.split(' ')[0];
   const statusLabel =
-    session.status === 'inProgress' ? '피드백 작성으로 이동' : '피드백 세션 보기';
+    isRehearsalLocked
+      ? '리허설 진행중입니다'
+      : session.status === 'inProgress'
+        ? '피드백 작성으로 이동'
+        : '피드백 세션 보기';
+
+  const cardContent = (
+    <article className="flex w-full flex-col items-center">
+      <div
+        className={[
+          'reaction-project-card relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] transition duration-300',
+          isRehearsalLocked
+            ? 'grayscale'
+            : 'group-hover:scale-[1.04]',
+        ].join(' ')}
+      >
+        <img
+          src={projectCardIcon}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-contain"
+        />
+        <h3 className="relative z-10 max-w-[68%] text-center text-[15px] font-semibold leading-tight">
+          {session.title}
+        </h3>
+        {isRehearsalLocked && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#17100f]/46 px-5 text-center">
+            <span className="rounded-full border border-white/35 bg-[#5f5b57]/72 px-3 py-1.5 text-[11px] font-bold text-[#eee7dc] shadow-[0_10px_24px_rgba(0,0,0,0.18)] backdrop-blur-sm">
+              리허설 진행중입니다
+            </span>
+          </div>
+        )}
+      </div>
+
+      <time className="mt-2 text-[10px] font-medium text-[#b4aca4]">
+        {sessionDate}
+      </time>
+      {isRehearsalLocked && (
+        <p className="mt-1 text-[10px] font-bold text-[#9f9a95]">
+          녹화 종료 후 입장할 수 있습니다
+        </p>
+      )}
+    </article>
+  );
+
+  if (isRehearsalLocked) {
+    return (
+      <div
+        className="flex w-full max-w-[236px] cursor-not-allowed flex-col items-center rounded-lg opacity-75"
+        aria-disabled="true"
+        aria-label={`${session.title} ${statusLabel}`}
+      >
+        {cardContent}
+      </div>
+    );
+  }
 
   return (
     <Link
@@ -27,23 +84,7 @@ export default function FeedbackSessionCard({
       className="group flex w-full max-w-[236px] flex-col items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#eee7dc]/70"
       aria-label={`${session.title} ${statusLabel}`}
     >
-      <article className="flex w-full flex-col items-center">
-        <div className="reaction-project-card relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] transition duration-300 group-hover:scale-[1.04]">
-          <img
-            src={projectCardIcon}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-contain"
-          />
-          <h3 className="relative z-10 max-w-[68%] text-center text-[15px] font-semibold leading-tight">
-            {session.title}
-          </h3>
-        </div>
-
-        <time className="mt-2 text-[10px] font-medium text-[#b4aca4]">
-          {sessionDate}
-        </time>
-      </article>
+      {cardContent}
     </Link>
   );
 }

@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getProjectSessions } from '../apis/session';
+import { getProjectSessions, getRehearsalSessionStatus } from '../apis/session';
 import CardSkeleton from '../components/CardSkeleton';
 import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
@@ -30,11 +30,39 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (Number.isNaN(numericProjectId)) return;
 
-    const loadSessions = async () => {
-      setIsLoadingSessions(true);
+    let ignore = false;
+
+    const loadSessions = async (showLoading = false) => {
+      if (showLoading && !ignore) {
+        setIsLoadingSessions(true);
+      }
 
       try {
         const sessions = await getProjectSessions(numericProjectId);
+        const rehearsalStatuses = await Promise.all(
+          sessions.map(async (session) => {
+            if (!session.in_progress) {
+              return [session.session_id, false] as const;
+            }
+
+            try {
+              const status = await getRehearsalSessionStatus(
+                session.session_id,
+              );
+
+              return [session.session_id, status.started] as const;
+            } catch (error) {
+              console.error('Failed to load rehearsal status', error);
+
+              return [session.session_id, false] as const;
+            }
+          }),
+        );
+        const startedSessionIds = new Map(rehearsalStatuses);
+
+        if (ignore) {
+          return;
+        }
 
         setFeedbackSessions(
           sessions.map((session) => ({
@@ -44,16 +72,30 @@ export default function WorkspacePage() {
             category: normalizeSessionCategory(session.s_category),
             date: session.created_at,
             status: session.in_progress ? 'inProgress' : 'completed',
+            isRehearsalStarted:
+              session.in_progress &&
+              (startedSessionIds.get(session.session_id) ?? false),
           })),
         );
       } catch (error) {
         console.error('Failed to load sessions', error);
       } finally {
-        setIsLoadingSessions(false);
+        if (!ignore) {
+          setIsLoadingSessions(false);
+        }
       }
     };
 
-    void loadSessions();
+    void loadSessions(true);
+
+    const intervalId = window.setInterval(() => {
+      void loadSessions();
+    }, 5000);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(intervalId);
+    };
   }, [numericProjectId]);
 
   const filteredSessions = selectedCategory
