@@ -55,12 +55,12 @@ export default function NewProject() {
     setJoinErrorMessage('');
 
     try {
-      const project = await joinProject({
+      await joinProject({
         join_code: joinForm.code.trim().toUpperCase(),
         user_id: userId,
       });
 
-      navigate(`/project/${project.project_id}/workspace`);
+      navigate('/projects');
     } catch (error) {
       console.error('Failed to join project', error);
       setJoinErrorMessage('프로젝트 입장에 실패했습니다.');

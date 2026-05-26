@@ -1,10 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logoIcon from '../../images/icon/logoIcon.png';
 import headerGradient from '../../images/icon/header-gradient.png';
+import { clearStoredAuth } from '../../utils/authStorage';
 
 interface DesignedHeaderProps {
   userName?: string;
-  onLogout?: () => void;
+  onLogout?: () => void | Promise<void>;
   align?: 'center' | 'left';
   className?: string;
 }
@@ -23,10 +24,16 @@ export default function DesignedHeader({
   align = 'center',
   className = '',
 }: DesignedHeaderProps) {
+  const navigate = useNavigate();
   const headerAlignClass =
     align === 'left' ? 'justify-start pl-[76px]' : 'justify-center';
   const gradientAlignClass =
     align === 'left' ? 'left-[-170px]' : 'left-1/2 -translate-x-1/2';
+  const handleLogout = () => {
+    void onLogout?.();
+    clearStoredAuth();
+    navigate('/');
+  };
 
   return (
     <header
@@ -82,7 +89,9 @@ export default function DesignedHeader({
 
         <button
           type="button"
-          onClick={onLogout}
+          onClick={() => {
+            void handleLogout();
+          }}
           className="reaction-ui-font text-[16px] font-bold text-[#ffffff] transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
           Logout

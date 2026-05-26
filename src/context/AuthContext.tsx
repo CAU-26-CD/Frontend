@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { getMe, postLogin, postLogout } from '../apis/auth';
 import type { LoginRequest, User } from '../types/auth';
-import { clearStoredUserId, saveStoredUserId } from '../utils/authStorage';
+import { clearStoredAuth, saveStoredUserId } from '../utils/authStorage';
 
 interface AuthContextValue {
   user: User | null;
@@ -43,8 +43,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('로그아웃 요청 실패:', error);
     } finally {
-      localStorage.removeItem('accessToken');
-      clearStoredUserId();
+      clearStoredAuth();
       setUser(null);
     }
   };
