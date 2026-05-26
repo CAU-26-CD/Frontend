@@ -55,6 +55,9 @@ export default function ReviewVideoPanel({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [metadataIsLandscape, setMetadataIsLandscape] = useState<
+    boolean | null
+  >(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const actorNamesById = useMemo(
@@ -114,13 +117,24 @@ export default function ReviewVideoPanel({
   const safeVideoDuration = Number.isFinite(videoDuration)
     ? Math.max(0, videoDuration)
     : 0;
-  const isLandscapeVideo = isLandscape !== false;
+  const isLandscapeVideo =
+    isLandscape === null ? (metadataIsLandscape ?? true) : !isLandscape;
+  const shouldRotateVideo =
+    isLandscape !== null &&
+    metadataIsLandscape !== null &&
+    !isLandscape !== metadataIsLandscape;
   const videoFrameClassName = [
     'relative overflow-hidden bg-[#17100f]',
     isLandscapeVideo
       ? 'aspect-video h-auto max-h-full w-full max-w-full'
       : 'aspect-[9/16] h-full max-h-full w-auto max-w-full',
   ].join(' ');
+  const rotatedVideoClassName = isLandscapeVideo
+    ? 'absolute left-1/2 top-1/2 h-[177.7778%] w-[56.25%] -translate-x-1/2 -translate-y-1/2 rotate-90 bg-[#17100f] object-contain'
+    : 'absolute left-1/2 top-1/2 h-[56.25%] w-[177.7778%] -translate-x-1/2 -translate-y-1/2 rotate-90 bg-[#17100f] object-contain';
+  const videoClassName = shouldRotateVideo
+    ? rotatedVideoClassName
+    : 'h-full w-full bg-[#17100f] object-contain';
   const fallbackTimelineDuration = Math.max(
     ...normalizedAppearances.map((appearance) =>
       Math.ceil(appearance.endSeconds),
@@ -278,6 +292,10 @@ export default function ReviewVideoPanel({
   };
 
   useEffect(() => {
+    setMetadataIsLandscape(null);
+  }, [videoUrl]);
+
+  useEffect(() => {
     if (actorOnlyPlaybackRequest === 0) {
       return;
     }
@@ -313,9 +331,17 @@ export default function ReviewVideoPanel({
                 src={videoUrl}
                 preload="auto"
                 onLoadedMetadata={(event) => {
+                  const video = event.currentTarget;
+
                   setVideoDuration(
-                    getMetadataVideoDuration(event.currentTarget),
+                    getMetadataVideoDuration(video),
                   );
+
+                  if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    setMetadataIsLandscape(
+                      video.videoWidth >= video.videoHeight,
+                    );
+                  }
                 }}
                 onDurationChange={(event) => {
                   const nextDuration = getMetadataVideoDuration(
@@ -336,7 +362,7 @@ export default function ReviewVideoPanel({
                 onEnded={() => {
                   setIsPlaying(false);
                 }}
-                className="h-full w-full bg-[#17100f] object-contain"
+                className={videoClassName}
               >
                 <track kind="captions" />
               </video>

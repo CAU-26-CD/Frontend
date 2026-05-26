@@ -153,7 +153,7 @@ export default function ReviewFeedbackPanel({
                     }
                   }}
                   className={[
-                    'grid grid-cols-[58px_minmax(0,1fr)] gap-2 rounded-[7px] px-2 py-1 text-xs font-semibold leading-relaxed transition',
+                    'grid grid-cols-[58px_minmax(0,1fr)] items-start gap-2 rounded-[7px] px-2 py-1 text-xs font-semibold leading-relaxed transition',
                     isHighlighted
                       ? 'bg-[#fff8ef]/58 text-[#2d1715] ring-2 ring-white/88 shadow-[0_0_18px_rgba(255,255,255,0.3)]'
                       : 'ring-2 ring-transparent',
@@ -171,7 +171,7 @@ export default function ReviewFeedbackPanel({
                   >
                     {feedback.timestamp}
                   </span>
-                  <p className="min-w-0 truncate">
+                  <p className="min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                     {feedbackActorNames && (
                       <span
                         className={[

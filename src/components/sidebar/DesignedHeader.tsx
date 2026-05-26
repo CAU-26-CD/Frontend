@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import logoIcon from '../../images/icon/logoIcon.png';
 import headerGradient from '../../images/icon/header-gradient.png';
 
@@ -47,11 +48,31 @@ export default function DesignedHeader({
       <div className="pointer-events-auto relative z-10 mt-[22px] flex h-[74px] items-center justify-center gap-7 text-[#ffffff]">
         <span className="mt-[1px] h-[5px] w-[5px] rounded-full bg-[#efe6de]" />
 
-        <img
-          src={logoIcon}
-          alt="Re:Action"
-          className="h-[54px] w-[48px] object-contain"
-        />
+        <Link
+          to="/projects"
+          className="reaction-home-logo h-[54px] w-[48px] shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          aria-label="프로젝트 페이지로 이동"
+        >
+          <span className="reaction-loading-spinner-glow" aria-hidden="true" />
+          <span
+            className="reaction-loading-particle reaction-loading-particle-1"
+            aria-hidden="true"
+          />
+          <span
+            className="reaction-loading-particle reaction-loading-particle-2"
+            aria-hidden="true"
+          />
+          <span
+            className="reaction-loading-particle reaction-loading-particle-3"
+            aria-hidden="true"
+          />
+          <img
+            src={logoIcon}
+            alt=""
+            className="reaction-home-logo-image relative z-10 h-full w-full object-contain"
+            aria-hidden="true"
+          />
+        </Link>
 
         <p className="reaction-ui-font text-[34px] font-medium leading-none">
           Hi,{' '}
