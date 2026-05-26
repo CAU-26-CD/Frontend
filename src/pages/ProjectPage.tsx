@@ -1,7 +1,11 @@
 import { ChevronDown, Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getMyProjects } from '../apis/project';
+import {
+  getLikedProjects,
+  getMyProjects,
+  toggleProjectLike,
+} from '../apis/project';
 import CardSkeleton from '../components/CardSkeleton';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import addSign from '../images/icon/add_sign.svg';
@@ -13,9 +17,11 @@ import { getStoredUserId } from '../utils/authStorage';
 function ProjectTile({
   project,
   onToggleLiked,
+  isLikePending,
 }: {
   project: Project;
   onToggleLiked: (projectId: number) => void;
+  isLikePending: boolean;
 }) {
   return (
     <article className="group w-full max-w-[236px]">
@@ -39,7 +45,8 @@ function ProjectTile({
         <button
           type="button"
           onClick={() => onToggleLiked(project.id)}
-          className="absolute right-2 top-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-[#1b0708]/35 text-white opacity-0 transition hover:bg-[#1b0708]/55 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 group-hover:opacity-100"
+          disabled={isLikePending}
+          className="absolute right-2 top-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-[#1b0708]/35 text-white opacity-0 transition hover:bg-[#1b0708]/55 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-wait disabled:opacity-60 group-hover:opacity-100"
           aria-label={project.liked ? '좋아요 해제' : '좋아요 설정'}
         >
           <Heart
@@ -62,20 +69,32 @@ export default function ProjectPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [searchValue, setSearchValue] = useState('');
+  const [userId, setUserId] = useState<number | null>(null);
+  const [pendingLikeProjectIds, setPendingLikeProjectIds] = useState<
+    number[]
+  >([]);
 
   useEffect(() => {
     const loadProjects = async () => {
       setIsLoadingProjects(true);
 
       try {
-        const userId = getStoredUserId();
+        const storedUserId = getStoredUserId();
 
-        if (userId === null) {
+        if (storedUserId === null) {
           navigate('/login');
           return;
         }
 
-        const myProjects = await getMyProjects(userId);
+        setUserId(storedUserId);
+
+        const [myProjects, likedProjects] = await Promise.all([
+          getMyProjects(storedUserId),
+          getLikedProjects(storedUserId),
+        ]);
+        const likedProjectIds = new Set(
+          likedProjects.map((project) => project.project_id),
+        );
 
         setProjects(
           myProjects.map((project) => ({
@@ -83,6 +102,7 @@ export default function ProjectPage() {
             title: project.title,
             date: project.created_at,
             description: project.description,
+            liked: likedProjectIds.has(project.project_id),
           })),
         );
       } catch (error) {
@@ -111,7 +131,14 @@ export default function ProjectPage() {
   const likedProjects = filteredProjects.filter((project) => project.liked);
   const allProjects = filteredProjects;
 
-  const handleToggleLiked = (projectId: number) => {
+  const handleToggleLiked = async (projectId: number) => {
+    if (userId === null || pendingLikeProjectIds.includes(projectId)) {
+      return;
+    }
+
+    const previousProjects = projects;
+
+    setPendingLikeProjectIds((current) => [...current, projectId]);
     setProjects((currentProjects) =>
       currentProjects.map((project) =>
         project.id === projectId
@@ -119,6 +146,25 @@ export default function ProjectPage() {
           : project,
       ),
     );
+
+    try {
+      const response = await toggleProjectLike(projectId, userId);
+
+      setProjects((currentProjects) =>
+        currentProjects.map((project) =>
+          project.id === projectId
+            ? { ...project, liked: response.liked }
+            : project,
+        ),
+      );
+    } catch (error) {
+      console.error('Failed to toggle project like', error);
+      setProjects(previousProjects);
+    } finally {
+      setPendingLikeProjectIds((current) =>
+        current.filter((pendingProjectId) => pendingProjectId !== projectId),
+      );
+    }
   };
 
   return (
@@ -174,6 +220,7 @@ export default function ProjectPage() {
                     key={project.id}
                     project={project}
                     onToggleLiked={handleToggleLiked}
+                    isLikePending={pendingLikeProjectIds.includes(project.id)}
                   />
                 ))}
               </div>
@@ -208,6 +255,7 @@ export default function ProjectPage() {
                   key={project.id}
                   project={project}
                   onToggleLiked={handleToggleLiked}
+                  isLikePending={pendingLikeProjectIds.includes(project.id)}
                 />
               ))}
             </div>

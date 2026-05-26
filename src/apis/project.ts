@@ -19,6 +19,10 @@ export type JoinProjectRequest = {
   user_id: number;
 };
 
+export type ToggleProjectLikeResponse = {
+  liked: boolean;
+};
+
 export const getMyProjects = async (
   userId: number,
 ): Promise<ProjectResponse[]> => {
@@ -48,6 +52,35 @@ export const joinProject = async (
   data: JoinProjectRequest,
 ): Promise<ProjectResponse> => {
   const res = await instance.post('/api/v1/projects/join', data);
+
+  return res.data;
+};
+
+export const getLikedProjects = async (
+  userId: number,
+): Promise<ProjectResponse[]> => {
+  const res = await instance.get('/api/v1/projects/liked', {
+    params: {
+      user_id: userId,
+    },
+  });
+
+  return res.data;
+};
+
+export const toggleProjectLike = async (
+  projectId: number,
+  userId: number,
+): Promise<ToggleProjectLikeResponse> => {
+  const res = await instance.post(
+    `/api/v1/projects/${projectId}/like`,
+    null,
+    {
+      params: {
+        user_id: userId,
+      },
+    },
+  );
 
   return res.data;
 };
