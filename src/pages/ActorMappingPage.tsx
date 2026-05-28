@@ -431,7 +431,9 @@ export default function ActorMappingPage() {
 
     try {
       await completeProjectSession(numericProjectId, numericSessionId);
-      navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
+      navigate(
+        `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+      );
     } catch (error) {
       console.error('Failed to complete session matching', error);
       setActorActionError('매칭 완료 상태를 저장하지 못했습니다.');
