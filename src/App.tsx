@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import FeedbackPage from './pages/FeedbackPage';
 import ActorMappingPage from './pages/ActorMappingPage';
+import ActorMappingWaitingPage from './pages/ActorMappingWaitingPage';
 import LoginPage from './pages/loginPage';
 import NewProject from './pages/NewProject';
 import ProjectPage from './pages/ProjectPage';
@@ -24,6 +25,10 @@ function App() {
       <Route
         path="/project/:projectId/workspace/:sessionId/actors"
         element={<ActorMappingPage />}
+      />
+      <Route
+        path="/project/:projectId/workspace/:sessionId/actors/waiting"
+        element={<ActorMappingWaitingPage />}
       />
       <Route
         path="/project/:projectId/workspace/:sessionId/review"

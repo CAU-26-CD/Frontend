@@ -1,15 +1,26 @@
 import { Trash2, Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { deleteActor, listProjectActors, mergeActorInto } from '../apis/actor';
 import {
   classifySessionFeedbacks,
   waitForPendingFeedbackCreates,
 } from '../apis/feedback';
-import { getSessionVideo, type SessionVideoActor } from '../apis/session';
+import {
+  completeProjectSession,
+  getProjectSessions,
+  getSessionVideo,
+  type SessionVideoActor,
+} from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import type { Actor } from '../types/feedback';
+import { getStoredUserId } from '../utils/authStorage';
+import {
+  getSessionOwnerId,
+  getStoredSessionOwnerId,
+  saveSessionOwnerId,
+} from '../utils/sessionOwner';
 
 const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
@@ -25,8 +36,15 @@ const compareSessionVideoActors = (
   return aMapped - bMapped || a.actor_id - b.actor_id;
 };
 
+type ActorMappingRouteState = {
+  projectSessionTitle?: string;
+  sessionOwnerId?: number;
+};
+
 export default function ActorMappingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as ActorMappingRouteState | null;
   const { projectId, sessionId } = useParams<{
     projectId: string;
     sessionId: string;
@@ -37,6 +55,7 @@ export default function ActorMappingPage() {
   const [selectedActorId, setSelectedActorId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [deletingActorId, setDeletingActorId] = useState<number | null>(null);
   const [isClassifyingFeedbacks, setIsClassifyingFeedbacks] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
@@ -49,12 +68,27 @@ export default function ActorMappingPage() {
   const [feedbackClassifyError, setFeedbackClassifyError] = useState<
     string | null
   >(null);
+  const currentUserId = getStoredUserId();
+  const [sessionOwnerId, setSessionOwnerId] = useState<number | null>(() => {
+    if (routeState?.sessionOwnerId) {
+      return routeState.sessionOwnerId;
+    }
+
+    return Number.isNaN(numericSessionId)
+      ? null
+      : getStoredSessionOwnerId(numericSessionId);
+  });
+  const [isCheckingSessionOwner, setIsCheckingSessionOwner] = useState(true);
   const projectTitle = Number.isNaN(numericProjectId)
     ? 'Project'
     : `Project ${numericProjectId}`;
-  const sessionTitle = Number.isNaN(numericSessionId)
-    ? 'Session'
-    : `Session ${numericSessionId}`;
+  const sessionTitle =
+    routeState?.projectSessionTitle ??
+    (Number.isNaN(numericSessionId)
+      ? 'Session'
+      : `Session ${numericSessionId}`);
+  const isSessionOwner =
+    currentUserId !== null && sessionOwnerId === currentUserId;
   const selectedActor =
     videoActors.find((actor) => actor.actor_id === selectedActorId) ??
     videoActors[0] ??
@@ -69,7 +103,88 @@ export default function ActorMappingPage() {
   const hasAnalysisFailed = analysisStatus === 'failed';
 
   useEffect(() => {
-    if (Number.isNaN(numericProjectId)) {
+    if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {
+      setIsCheckingSessionOwner(false);
+      return;
+    }
+
+    let ignore = false;
+
+    const loadSessionOwner = async () => {
+      setIsCheckingSessionOwner(true);
+
+      try {
+        const sessions = await getProjectSessions(numericProjectId);
+        const matchedSession = sessions.find(
+          (session) => session.session_id === numericSessionId,
+        );
+        const nextOwnerId =
+          getSessionOwnerId(matchedSession) ??
+          routeState?.sessionOwnerId ??
+          getStoredSessionOwnerId(numericSessionId);
+
+        if (ignore) return;
+
+        if (nextOwnerId !== null) {
+          setSessionOwnerId(nextOwnerId);
+          saveSessionOwnerId(numericSessionId, nextOwnerId);
+        }
+
+        if (matchedSession?.in_progress === false) {
+          navigate(
+            `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+            {
+              replace: true,
+            },
+          );
+        }
+      } catch (error) {
+        console.error('Failed to load session owner', error);
+      } finally {
+        if (!ignore) {
+          setIsCheckingSessionOwner(false);
+        }
+      }
+    };
+
+    void loadSessionOwner();
+
+    return () => {
+      ignore = true;
+    };
+  }, [
+    navigate,
+    numericProjectId,
+    numericSessionId,
+    routeState?.sessionOwnerId,
+  ]);
+
+  useEffect(() => {
+    if (isCheckingSessionOwner || sessionOwnerId === null || isSessionOwner) {
+      return;
+    }
+
+    navigate(
+      `/project/${numericProjectId}/workspace/${numericSessionId}/actors/waiting`,
+      {
+        replace: true,
+        state: {
+          projectSessionTitle: sessionTitle,
+        },
+      },
+    );
+  }, [
+    isCheckingSessionOwner,
+    isSessionOwner,
+    navigate,
+    numericProjectId,
+    numericSessionId,
+    sessionOwnerId,
+    sessionTitle,
+  ]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId) || !isSessionOwner) {
       setProjectActors([]);
       return;
     }
@@ -100,10 +215,10 @@ export default function ActorMappingPage() {
     return () => {
       ignore = true;
     };
-  }, [numericProjectId]);
+  }, [isSessionOwner, numericProjectId]);
 
   useEffect(() => {
-    if (Number.isNaN(numericSessionId)) {
+    if (Number.isNaN(numericSessionId) || !isSessionOwner) {
       setIsLoading(false);
       return;
     }
@@ -163,10 +278,10 @@ export default function ActorMappingPage() {
         window.clearTimeout(pollTimeoutId);
       }
     };
-  }, [numericSessionId]);
+  }, [isSessionOwner, numericSessionId]);
 
   useEffect(() => {
-    if (Number.isNaN(numericSessionId)) {
+    if (Number.isNaN(numericSessionId) || !isSessionOwner) {
       return;
     }
 
@@ -201,7 +316,7 @@ export default function ActorMappingPage() {
     return () => {
       ignore = true;
     };
-  }, [numericSessionId]);
+  }, [isSessionOwner, numericSessionId]);
 
   const handleMapToProjectActor = async (targetActorId: number) => {
     if (!selectedActor || isSaving || deletingActorId !== null) {
@@ -302,12 +417,27 @@ export default function ActorMappingPage() {
     }
   };
 
-  const handleComplete = () => {
-    if (Number.isNaN(numericProjectId)) {
+  const handleComplete = async () => {
+    if (
+      Number.isNaN(numericProjectId) ||
+      Number.isNaN(numericSessionId) ||
+      isCompleting
+    ) {
       return;
     }
 
-    navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
+    setIsCompleting(true);
+    setActorActionError(null);
+
+    try {
+      await completeProjectSession(numericProjectId, numericSessionId);
+      navigate(`/project/${numericProjectId}/workspace/${sessionId}/review`);
+    } catch (error) {
+      console.error('Failed to complete session matching', error);
+      setActorActionError('매칭 완료 상태를 저장하지 못했습니다.');
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   return (
@@ -333,16 +463,25 @@ export default function ActorMappingPage() {
 
           <button
             type="button"
-            onClick={handleComplete}
+            onClick={() => {
+              void handleComplete();
+            }}
             disabled={
+              isCheckingSessionOwner ||
+              !isSessionOwner ||
               isWaitingForAnalysis ||
               isClassifyingFeedbacks ||
+              isCompleting ||
               deletingActorId !== null ||
               Boolean(videoActorsError)
             }
             className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
           >
-            {isClassifyingFeedbacks ? '태그 분석중...' : '매칭 완료'}
+            {isCompleting
+              ? '완료 중...'
+              : isClassifyingFeedbacks
+                ? '태그 분석중...'
+                : '매칭 완료'}
           </button>
         </div>
 
@@ -362,7 +501,19 @@ export default function ActorMappingPage() {
             </div>
           )}
 
-          {isWaitingForAnalysis ? (
+          {isCheckingSessionOwner ? (
+            <LoadingSpinner
+              label="세션 권한을 확인하는 중입니다"
+              className="flex-1"
+              size="lg"
+            />
+          ) : !isSessionOwner ? (
+            <LoadingSpinner
+              label="세션의 소유자가 배우 태그를 매칭중입니다."
+              className="flex-1"
+              size="lg"
+            />
+          ) : isWaitingForAnalysis ? (
             <LoadingSpinner
               label="배우 인식 결과를 분석하는 중입니다"
               className="flex-1"

@@ -24,10 +24,18 @@ import CameraSessionModal from '../components/modals/CameraSessionModal';
 import VideoUploadCompleteModal from '../components/modals/VideoUploadCompleteModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import type { Actor } from '../types/feedback';
+import { getStoredUserId } from '../utils/authStorage';
+import {
+  getSessionOwnerId,
+  getStoredSessionOwnerId,
+  saveSessionOwnerId,
+} from '../utils/sessionOwner';
 
 type FeedbackRouteState = {
   openCameraSession?: boolean;
   projectSessionTitle?: string;
+  isSessionOwner?: boolean;
+  sessionOwnerId?: number;
 };
 
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
@@ -68,6 +76,17 @@ export default function RehearsalFeedbackPage() {
   const numericProjectId = parsedProjectId;
   const activeSessionId = sessionId ?? '';
   const numericSessionId = Number(activeSessionId);
+  const currentUserId = getStoredUserId();
+  const routeSessionOwnerId =
+    routeState?.sessionOwnerId ??
+    (routeState?.isSessionOwner ? currentUserId : null);
+  const [sessionOwnerId, setSessionOwnerId] = useState<number | null>(() => {
+    if (routeSessionOwnerId !== null && routeSessionOwnerId !== undefined) {
+      return routeSessionOwnerId;
+    }
+
+    return activeSessionId ? getStoredSessionOwnerId(activeSessionId) : null;
+  });
   const getCurrentRecordingOffsetSeconds = useCallback(() => {
     if (recordingStartedAt === null) {
       return recordingElapsedSeconds;
@@ -90,6 +109,9 @@ export default function RehearsalFeedbackPage() {
       ? 'Session'
       : `Session ${numericSessionId}`);
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
+  const isSessionOwnerKnown = sessionOwnerId !== null;
+  const isSessionOwner =
+    currentUserId !== null && sessionOwnerId === currentUserId;
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
   const isLogoNavigationLocked =
     !isRecordingFinalized &&
@@ -100,30 +122,59 @@ export default function RehearsalFeedbackPage() {
     Math.floor(recordingElapsedSeconds / 60),
   ).padStart(2, '0')}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
 
-  const applyCameraStatus = (nextStatus: CameraSessionStatusResponse) => {
-    const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
+  const applyCameraStatus = useCallback(
+    (nextStatus: CameraSessionStatusResponse) => {
+      const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
 
-    setCameraStatusText(normalizedStatus);
+      setCameraStatusText(normalizedStatus);
 
-    if (normalizedStatus === 'recording') {
-      setIsRecordingFinalized(false);
-      setRecordingStartedAt((current) => current ?? Date.now());
-    }
+      if (normalizedStatus === 'recording') {
+        setIsRecordingFinalized(false);
+        setRecordingStartedAt((current) => current ?? Date.now());
+      }
 
-    if (normalizedStatus === 'stop' || normalizedStatus === 'stopped') {
-      setIsRecordingFinalized(true);
-      setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
-      setRecordingStartedAt(null);
-    }
+      if (normalizedStatus === 'stop' || normalizedStatus === 'stopped') {
+        setIsRecordingFinalized(true);
+        setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
+        setRecordingStartedAt(null);
+      }
 
-    if (normalizedStatus === 'done' || nextStatus.video_url) {
-      hasShownUploadCompleteRef.current = true;
-      setIsRecordingFinalized(true);
-      setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
-      setRecordingStartedAt(null);
-      setShowUploadCompleteModal(true);
-    }
-  };
+      if (normalizedStatus === 'done' || nextStatus.video_url) {
+        setIsRecordingFinalized(true);
+        setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
+        setRecordingStartedAt(null);
+
+        if (!isSessionOwnerKnown) {
+          return;
+        }
+
+        hasShownUploadCompleteRef.current = true;
+
+        if (isSessionOwner) {
+          setShowUploadCompleteModal(true);
+        } else if (!Number.isNaN(numericProjectId)) {
+          navigate(
+            `/project/${numericProjectId}/workspace/${activeSessionId}/actors/waiting`,
+            {
+              replace: true,
+              state: {
+                projectSessionTitle: sessionTitle,
+              },
+            },
+          );
+        }
+      }
+    },
+    [
+      activeSessionId,
+      getCurrentRecordingOffsetSeconds,
+      isSessionOwner,
+      isSessionOwnerKnown,
+      navigate,
+      numericProjectId,
+      sessionTitle,
+    ],
+  );
 
   const enterRehearsal = useCallback(() => {
     setIsCameraGateOpen(false);
@@ -149,10 +200,30 @@ export default function RehearsalFeedbackPage() {
 
         setCurrentProjectSession(matchedSession ?? null);
 
-        const isInProgress = matchedSession?.in_progress !== false;
+        const nextOwnerId =
+          getSessionOwnerId(matchedSession) ??
+          getStoredSessionOwnerId(numericSessionId) ??
+          routeSessionOwnerId ??
+          null;
+
+        if (nextOwnerId !== null) {
+          setSessionOwnerId(nextOwnerId);
+          saveSessionOwnerId(numericSessionId, nextOwnerId);
+        }
+
+        if (matchedSession?.in_progress === false) {
+          navigate(
+            `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+            {
+              replace: true,
+            },
+          );
+          return;
+        }
+
         const hasStarted = sessionStorage.getItem(rehearsalStartedStorageKey);
 
-        if (isInProgress && !hasStarted) {
+        if (!hasStarted) {
           setIsCameraGateOpen(true);
         }
       } catch (error) {
@@ -165,7 +236,13 @@ export default function RehearsalFeedbackPage() {
     return () => {
       ignore = true;
     };
-  }, [numericProjectId, numericSessionId, rehearsalStartedStorageKey]);
+  }, [
+    numericProjectId,
+    numericSessionId,
+    navigate,
+    rehearsalStartedStorageKey,
+    routeSessionOwnerId,
+  ]);
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId)) {
@@ -208,9 +285,9 @@ export default function RehearsalFeedbackPage() {
 
   useEffect(() => {
     if (
-      !isCameraGateOpen ||
       hasRequestedCameraSessionRef.current ||
-      Number.isNaN(numericSessionId)
+      Number.isNaN(numericSessionId) ||
+      currentProjectSession?.in_progress === false
     ) {
       return;
     }
@@ -230,7 +307,7 @@ export default function RehearsalFeedbackPage() {
     };
 
     void openCameraConnection();
-  }, [isCameraGateOpen, numericSessionId]);
+  }, [currentProjectSession?.in_progress, numericSessionId]);
 
   useEffect(() => {
     if (!isCameraGateOpen || Number.isNaN(numericSessionId)) {
@@ -290,7 +367,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [cameraSession, isCameraGateOpen]);
+  }, [applyCameraStatus, cameraSession, isCameraGateOpen]);
 
   useEffect(() => {
     if (!logoNavigationMessage) {
@@ -353,6 +430,11 @@ export default function RehearsalFeedbackPage() {
       return;
     }
 
+    if (!isSessionOwner) {
+      setCameraSessionError('세션 소유자만 리허설을 시작할 수 있습니다.');
+      return;
+    }
+
     try {
       await startRehearsalSession(numericSessionId);
       enterRehearsal();
@@ -371,6 +453,12 @@ export default function RehearsalFeedbackPage() {
 
     navigate(
       `/project/${numericProjectId}/workspace/${activeSessionId}/actors`,
+      {
+        state: {
+          projectSessionTitle: sessionTitle,
+          sessionOwnerId,
+        },
+      },
     );
   };
 
@@ -382,6 +470,7 @@ export default function RehearsalFeedbackPage() {
         onStart={startRehearsal}
         onStatusChange={applyCameraStatus}
         variant="panel"
+        isOwner={isSessionOwner}
       />
     ) : (
       <div className="reaction-ui-font flex h-full w-full items-center justify-center">
@@ -392,7 +481,10 @@ export default function RehearsalFeedbackPage() {
             className="[&>span:last-child]:text-[#431B1B]/72"
           />
           <p className="mt-2 text-sm font-semibold text-[#806b61]">
-            {cameraSessionError ?? 'QR 연결 세션을 생성하고 있습니다.'}
+            {cameraSessionError ??
+              (isSessionOwner
+                ? 'QR 연결 세션을 생성하고 있습니다.'
+                : '카메라 연결중입니다.')}
           </p>
         </div>
       </div>

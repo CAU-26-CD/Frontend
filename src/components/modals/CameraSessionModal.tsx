@@ -11,6 +11,7 @@ type CameraSessionModalProps = {
   onStart: () => void;
   onStatusChange?: (status: CameraSessionStatusResponse) => void;
   variant?: 'overlay' | 'panel';
+  isOwner?: boolean;
 };
 
 export default function CameraSessionModal({
@@ -19,6 +20,7 @@ export default function CameraSessionModal({
   onStart,
   onStatusChange,
   variant = 'overlay',
+  isOwner = true,
 }: CameraSessionModalProps) {
   const [cameraStatus, setCameraStatus] =
     useState<CameraSessionStatusResponse | null>(null);
@@ -29,7 +31,7 @@ export default function CameraSessionModal({
   const isRecording = normalizedStatus === 'recording';
   const isDone =
     normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
-  const canStartRehearsal = isConnected || isRecording;
+  const canStartRehearsal = isOwner && (isConnected || isRecording);
   const isPanel = variant === 'panel';
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function CameraSessionModal({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [session.session_id]);
+  }, [onStatusChange, session.session_id]);
 
   return (
     <div
@@ -74,7 +76,7 @@ export default function CameraSessionModal({
         <div className={isPanel ? 'mb-3 flex shrink-0 items-start justify-between gap-3' : 'mb-5 flex items-start justify-between gap-4'}>
           <div>
             <h2 className={isPanel ? 'text-base font-bold' : 'text-lg font-bold'}>
-              카메라 연결
+              {isOwner ? '카메라 연결' : '카메라 연결중입니다'}
             </h2>
             <p className={isPanel ? 'mt-1 line-clamp-1 text-xs font-semibold text-[#806b61]' : 'mt-1 text-sm font-semibold text-[#806b61]'}>
               {sessionName}
@@ -82,23 +84,37 @@ export default function CameraSessionModal({
           </div>
         </div>
 
-        <div
-          className={
-            isPanel
-              ? 'mx-auto flex aspect-square w-[min(100%,190px)] shrink-0 items-center justify-center rounded-xl border border-[#d3c3b7] bg-white p-2.5'
-              : 'mx-auto flex h-56 w-56 max-w-full items-center justify-center rounded-xl border border-[#d3c3b7] bg-white p-3'
-          }
-        >
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=208x208&data=${encodeURIComponent(
-              session.camera_url,
-            )}`}
-            alt="카메라 연결 QR"
-            className="h-full w-full object-contain"
-          />
-        </div>
+        {isOwner ? (
+          <div
+            className={
+              isPanel
+                ? 'mx-auto flex aspect-square w-[min(100%,190px)] shrink-0 items-center justify-center rounded-xl border border-[#d3c3b7] bg-white p-2.5'
+                : 'mx-auto flex h-56 w-56 max-w-full items-center justify-center rounded-xl border border-[#d3c3b7] bg-white p-3'
+            }
+          >
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=208x208&data=${encodeURIComponent(
+                session.camera_url,
+              )}`}
+              alt="카메라 연결 QR"
+              className="h-full w-full object-contain"
+            />
+          </div>
+        ) : (
+          <div
+            className={
+              isPanel
+                ? 'mx-auto flex aspect-square w-[min(100%,190px)] shrink-0 items-center justify-center rounded-xl border border-[#d3c3b7] bg-white/34 p-4 text-center'
+                : 'mx-auto flex h-56 w-56 max-w-full items-center justify-center rounded-xl border border-[#d3c3b7] bg-white/34 p-5 text-center'
+            }
+          >
+            <p className="text-sm font-bold leading-relaxed text-[#431B1B]">
+              카메라 연결중입니다
+            </p>
+          </div>
+        )}
 
-        {!isPanel && (
+        {!isPanel && isOwner && (
           <a
             href={session.camera_url}
             target="_blank"
@@ -118,9 +134,15 @@ export default function CameraSessionModal({
         >
           {!isConnected && !isRecording && !isDone && (
             <div>
-              <p className="font-bold">연결할 준비가 완료되었습니다.</p>
+              <p className="font-bold">
+                {isOwner
+                  ? '연결할 준비가 완료되었습니다.'
+                  : '세션 소유자가 카메라를 연결하고 있습니다.'}
+              </p>
               <p className="mt-1 text-[#806b61]">
-                휴대폰으로 QR을 스캔하면 연결 상태를 확인합니다.
+                {isOwner
+                  ? '휴대폰으로 QR을 스캔하면 연결 상태를 확인합니다.'
+                  : '연결이 완료되면 리허설 시작 상태를 기다립니다.'}
               </p>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#d8c9bd]">
                 <div className="h-full w-1/2 animate-pulse rounded-full bg-[#431B1B]" />
@@ -134,7 +156,9 @@ export default function CameraSessionModal({
                 휴대폰 연결이 확인되었습니다.
               </p>
               <p className="mt-1 text-[#806b61]">
-                리허설 시작 버튼을 누르면 피드백 입력을 시작합니다.
+                {isOwner
+                  ? '리허설 시작 버튼을 누르면 피드백 입력을 시작합니다.'
+                  : '세션 소유자가 리허설을 시작하면 피드백 입력을 시작합니다.'}
               </p>
             </div>
           )}
@@ -145,7 +169,9 @@ export default function CameraSessionModal({
                 리허설을 녹화하고 있습니다.
               </p>
               <p className="mt-1 text-[#806b61]">
-                종료 후 업로드가 완료되면 다음 단계로 이동합니다.
+                {isOwner
+                  ? '종료 후 업로드가 완료되면 다음 단계로 이동합니다.'
+                  : '종료 후 세션 소유자가 배우 태그를 매칭합니다.'}
               </p>
             </div>
           )}
@@ -156,7 +182,9 @@ export default function CameraSessionModal({
                 영상 업로드가 완료되었습니다.
               </p>
               <p className="mt-1 text-[#806b61]">
-                리허설 시작 버튼을 누르면 피드백 입력을 시작합니다.
+                {isOwner
+                  ? '리허설 시작 버튼을 누르면 피드백 입력을 시작합니다.'
+                  : '세션 소유자가 배우 태그를 매칭하면 리뷰로 이동합니다.'}
               </p>
             </div>
           )}
@@ -174,18 +202,20 @@ export default function CameraSessionModal({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={!canStartRehearsal}
-          className={[
-            'reaction-glass-pill reaction-rehearsal-start-button relative w-full shrink-0 overflow-hidden rounded-full px-5 font-bold text-[#fff8ef] transition duration-300 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-55',
-            canStartRehearsal ? 'reaction-rehearsal-start-button-ready' : '',
-            isPanel ? 'mt-3 h-10 text-xs' : 'mt-5 h-12 text-sm',
-          ].join(' ')}
-        >
-          <span className="relative z-10">리허설 시작</span>
-        </button>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={!canStartRehearsal}
+            className={[
+              'reaction-glass-pill reaction-rehearsal-start-button relative w-full shrink-0 overflow-hidden rounded-full px-5 font-bold text-[#fff8ef] transition duration-300 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-55',
+              canStartRehearsal ? 'reaction-rehearsal-start-button-ready' : '',
+              isPanel ? 'mt-3 h-10 text-xs' : 'mt-5 h-12 text-sm',
+            ].join(' ')}
+          >
+            <span className="relative z-10">리허설 시작</span>
+          </button>
+        )}
       </div>
     </div>
   );

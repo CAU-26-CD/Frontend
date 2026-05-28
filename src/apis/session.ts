@@ -24,6 +24,12 @@ export type CreateProjectSessionResponse = {
   s_category: string;
   created_at: string;
   in_progress: boolean;
+  user_id?: number;
+  owner_id?: number;
+  owner_user_id?: number;
+  created_by?: number;
+  creator_id?: number;
+  created_by_user_id?: number;
 };
 
 export type CompleteProjectSessionResponse = CreateProjectSessionResponse;
@@ -245,11 +251,17 @@ export const getSessionVideoActorAppearances = (
 
 export const createProjectSession = async (
   projectId: number,
+  userId: number,
   data: CreateProjectSessionRequest,
 ): Promise<CreateProjectSessionResponse> => {
   const res = await instance.post(
     `/api/v1/projects/${projectId}/sessions`,
     data,
+    {
+      params: {
+        user_id: userId,
+      },
+    },
   );
 
   return res.data;

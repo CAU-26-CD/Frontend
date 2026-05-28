@@ -6,6 +6,8 @@ import sidebarHome from '../../images/icon/sidebar_home.svg';
 import sidebarLight from '../../images/icon/sidebar-light.png';
 import sidebarSearch from '../../images/icon/sidebar_search.svg';
 import sidebarSetting from '../../images/icon/sidebar_setting.svg';
+import { getStoredUserId } from '../../utils/authStorage';
+import { saveSessionOwnerId } from '../../utils/sessionOwner';
 
 const sidebarItems = [
   { label: '검색', icon: sidebarSearch },
@@ -65,10 +67,21 @@ export default function Sidebar() {
         throw new Error('Cannot create session without a valid project id');
       }
 
-      const nextProjectSession = await createProjectSession(nextProjectId, {
-        title: nextSessionName,
-        s_category: selectedSessionCategory,
-      });
+      const currentUserId = getStoredUserId();
+
+      if (currentUserId === null) {
+        throw new Error('Cannot create session without a logged-in user id');
+      }
+
+      const nextProjectSession = await createProjectSession(
+        nextProjectId,
+        currentUserId,
+        {
+          title: nextSessionName,
+          s_category: selectedSessionCategory,
+        },
+      );
+      saveSessionOwnerId(nextProjectSession.session_id, currentUserId);
 
       setIsNamingSession(false);
       navigate(
@@ -76,6 +89,8 @@ export default function Sidebar() {
         {
           state: {
             openCameraSession: true,
+            isSessionOwner: true,
+            sessionOwnerId: currentUserId,
             projectSessionTitle: nextProjectSession.title,
           },
         },
