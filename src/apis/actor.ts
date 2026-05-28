@@ -135,3 +135,9 @@ export const mergeActorInto = async (
 
   return res.data;
 };
+
+export const deleteActor = async (actorId: number): Promise<string> => {
+  const res = await instance.delete(`/api/v1/actors/${actorId}`);
+
+  return res.data;
+};

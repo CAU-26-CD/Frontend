@@ -1,7 +1,7 @@
-import { Video } from 'lucide-react';
+import { Trash2, Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { listProjectActors, mergeActorInto } from '../apis/actor';
+import { deleteActor, listProjectActors, mergeActorInto } from '../apis/actor';
 import {
   classifySessionFeedbacks,
   waitForPendingFeedbackCreates,
@@ -15,6 +15,15 @@ const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
 const ANALYSIS_POLL_INTERVAL_MS = 2000;
 const pendingAnalysisStatuses = new Set(['pending', 'uploading', 'processing']);
+const compareSessionVideoActors = (
+  a: SessionVideoActor,
+  b: SessionVideoActor,
+) => {
+  const aMapped = a.is_new ? 1 : 0;
+  const bMapped = b.is_new ? 1 : 0;
+
+  return aMapped - bMapped || a.actor_id - b.actor_id;
+};
 
 export default function ActorMappingPage() {
   const navigate = useNavigate();
@@ -28,9 +37,11 @@ export default function ActorMappingPage() {
   const [selectedActorId, setSelectedActorId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingActorId, setDeletingActorId] = useState<number | null>(null);
   const [isClassifyingFeedbacks, setIsClassifyingFeedbacks] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [videoActorsError, setVideoActorsError] = useState<string | null>(null);
+  const [actorActionError, setActorActionError] = useState<string | null>(null);
   const [projectActors, setProjectActors] = useState<Actor[]>([]);
   const [projectActorsError, setProjectActorsError] = useState<string | null>(
     null,
@@ -50,13 +61,7 @@ export default function ActorMappingPage() {
     null;
   const mappedCount = videoActors.filter((actor) => !actor.is_new).length;
   const sortedActors = useMemo(
-    () =>
-      [...videoActors].sort((a, b) => {
-        const aMapped = a.is_new ? 1 : 0;
-        const bMapped = b.is_new ? 1 : 0;
-
-        return aMapped - bMapped || a.actor_id - b.actor_id;
-      }),
+    () => [...videoActors].sort(compareSessionVideoActors),
     [videoActors],
   );
   const isWaitingForAnalysis =
@@ -199,7 +204,7 @@ export default function ActorMappingPage() {
   }, [numericSessionId]);
 
   const handleMapToProjectActor = async (targetActorId: number) => {
-    if (!selectedActor || isSaving) {
+    if (!selectedActor || isSaving || deletingActorId !== null) {
       return;
     }
 
@@ -212,6 +217,7 @@ export default function ActorMappingPage() {
     }
 
     setIsSaving(true);
+    setActorActionError(null);
 
     try {
       if (selectedActor.actor_id !== targetActorId) {
@@ -241,8 +247,58 @@ export default function ActorMappingPage() {
       setSelectedActorId(targetActorId);
     } catch (error) {
       console.error('Failed to map actor', error);
+      setActorActionError('배우 매칭에 실패했습니다.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSelectedActor = async () => {
+    if (!selectedActor || isSaving || deletingActorId !== null) {
+      return;
+    }
+
+    if (!selectedActor.is_new) {
+      setActorActionError('이미 매칭된 배우는 이 화면에서 삭제할 수 없습니다.');
+      return;
+    }
+
+    const actorToDelete = selectedActor;
+    const shouldDelete = window.confirm(
+      `${getActorDisplayName(actorToDelete)} 인식 결과를 삭제할까요?`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingActorId(actorToDelete.actor_id);
+    setActorActionError(null);
+
+    try {
+      await deleteActor(actorToDelete.actor_id);
+
+      const remainingActors = videoActors.filter(
+        (actor) => actor.actor_id !== actorToDelete.actor_id,
+      );
+      const remainingSortedActors = [...remainingActors].sort(
+        compareSessionVideoActors,
+      );
+      const currentIndex = sortedActors.findIndex(
+        (actor) => actor.actor_id === actorToDelete.actor_id,
+      );
+      const nextActorId =
+        remainingSortedActors[
+          Math.min(Math.max(currentIndex, 0), remainingSortedActors.length - 1)
+        ]?.actor_id ?? null;
+
+      setVideoActors(remainingActors);
+      setSelectedActorId(nextActorId);
+    } catch (error) {
+      console.error('Failed to delete actor', error);
+      setActorActionError('배우 인식 결과를 삭제하지 못했습니다.');
+    } finally {
+      setDeletingActorId(null);
     }
   };
 
@@ -281,6 +337,7 @@ export default function ActorMappingPage() {
             disabled={
               isWaitingForAnalysis ||
               isClassifyingFeedbacks ||
+              deletingActorId !== null ||
               Boolean(videoActorsError)
             }
             className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
@@ -289,9 +346,9 @@ export default function ActorMappingPage() {
           </button>
         </div>
 
-        {(feedbackClassifyError || projectActorsError) && (
+        {(feedbackClassifyError || projectActorsError || actorActionError) && (
           <p className="reaction-ui-font mt-4 text-right text-xs font-semibold text-[#ffb4a8]">
-            {feedbackClassifyError ?? projectActorsError}
+            {actorActionError ?? feedbackClassifyError ?? projectActorsError}
           </p>
         )}
 
@@ -343,6 +400,24 @@ export default function ActorMappingPage() {
                         : `${getActorDisplayName(selectedActor)} 매칭됨`}
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelectedActor}
+                      disabled={
+                        isSaving ||
+                        deletingActorId !== null ||
+                        !selectedActor.is_new
+                      }
+                      className="flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] border border-[#b75050]/45 bg-[#f5eee6] px-3 text-xs font-bold text-[#9b2f2f] transition hover:border-[#b75050]/70 hover:bg-[#f0dbd5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b75050]/30 disabled:cursor-not-allowed disabled:border-[#c8b7aa] disabled:text-[#806b61]/45 disabled:hover:bg-[#f5eee6]"
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                      {deletingActorId === selectedActor.actor_id
+                        ? '삭제 중...'
+                        : selectedActor.is_new
+                          ? '인식 결과 삭제'
+                          : '매칭된 배우 삭제 불가'}
+                    </button>
+
                     {projectActors.length > 0 ? (
                       <div className="flex max-h-48 flex-col overflow-y-auto rounded-[8px] border border-[#c8b7aa] bg-[#f5eee6]">
                         {projectActors.map((actor) => {
@@ -355,7 +430,11 @@ export default function ActorMappingPage() {
                               key={actor.id}
                               type="button"
                               onClick={() => handleMapToProjectActor(actor.id)}
-                              disabled={isSaving || isMappedToSelected}
+                              disabled={
+                                isSaving ||
+                                deletingActorId !== null ||
+                                isMappedToSelected
+                              }
                               className={[
                                 'flex min-h-9 items-center justify-center gap-1.5 px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed',
                                 isMappedToSelected
@@ -387,9 +466,13 @@ export default function ActorMappingPage() {
                       <button
                         key={actor.actor_id}
                         type="button"
-                        onClick={() => setSelectedActorId(actor.actor_id)}
+                        onClick={() => {
+                          setSelectedActorId(actor.actor_id);
+                          setActorActionError(null);
+                        }}
+                        disabled={deletingActorId !== null}
                         className={[
-                          'grid h-[92px] w-[190px] shrink-0 grid-cols-[70px_minmax(0,1fr)] gap-3 rounded-[6px] border bg-[#efe6de] p-2 text-left text-[#2d1715] shadow-[0_14px_32px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
+                          'grid h-[92px] w-[190px] shrink-0 grid-cols-[70px_minmax(0,1fr)] gap-3 rounded-[6px] border bg-[#efe6de] p-2 text-left text-[#2d1715] shadow-[0_14px_32px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
                           isActive
                             ? 'border-[#fff8ef] ring-2 ring-[#fff8ef]/55'
                             : actor.is_new
