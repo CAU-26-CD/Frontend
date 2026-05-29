@@ -26,8 +26,9 @@ const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
 const ANALYSIS_POLL_INTERVAL_MS = 2000;
 const pendingAnalysisStatuses = new Set(['pending', 'uploading', 'processing']);
-const isSessionMatchingCompleted = (inProgress: unknown) =>
-  inProgress === false || String(inProgress).toLowerCase() === 'false';
+const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
+  matchingCompleted === true ||
+  String(matchingCompleted).toLowerCase() === 'true';
 const compareSessionVideoActors = (
   a: SessionVideoActor,
   b: SessionVideoActor,
@@ -148,7 +149,7 @@ export default function ActorMappingPage() {
         }
 
         if (
-          isSessionMatchingCompleted(matchedSession?.in_progress) &&
+          isSessionMatchingCompleted(matchedSession?.matching_completed) &&
           !routeState?.allowActorMapping
         ) {
           navigate(
