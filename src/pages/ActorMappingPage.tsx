@@ -7,7 +7,6 @@ import {
   waitForPendingFeedbackCreates,
 } from '../apis/feedback';
 import {
-  completeProjectSession,
   getProjectSessions,
   getSessionVideoMatching,
   type SessionVideoActor,
@@ -455,7 +454,6 @@ export default function ActorMappingPage() {
     setActorActionError(null);
 
     try {
-      await completeProjectSession(numericProjectId, numericSessionId);
       navigate(
         `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
       );
@@ -502,7 +500,7 @@ export default function ActorMappingPage() {
               deletingActorId !== null ||
               Boolean(videoActorsError)
             }
-            className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
+            className="reaction-glass-pill h-8 rounded-full px-4 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-default disabled:opacity-55 disabled:hover:scale-100"
           >
             {isCompleting
               ? '완료 중...'
@@ -578,23 +576,19 @@ export default function ActorMappingPage() {
                         : `${getActorDisplayName(selectedActor)} 매칭됨`}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleDeleteSelectedActor}
-                      disabled={
-                        isSaving ||
-                        deletingActorId !== null ||
-                        !selectedActor.is_new
-                      }
-                      className="flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] border border-[#b75050]/45 bg-[#f5eee6] px-3 text-xs font-bold text-[#9b2f2f] transition hover:border-[#b75050]/70 hover:bg-[#f0dbd5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b75050]/30 disabled:cursor-not-allowed disabled:border-[#c8b7aa] disabled:text-[#806b61]/45 disabled:hover:bg-[#f5eee6]"
-                    >
-                      <Trash2 size={15} aria-hidden="true" />
-                      {deletingActorId === selectedActor.actor_id
-                        ? '삭제 중...'
-                        : selectedActor.is_new
-                          ? '인식 결과 삭제'
-                          : '매칭된 배우 삭제 불가'}
-                    </button>
+                    {selectedActor.is_new && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedActor}
+                        disabled={isSaving || deletingActorId !== null}
+                        className="flex min-h-9 items-center justify-center gap-1.5 rounded-[8px] border border-[#b75050]/45 bg-[#f5eee6] px-3 text-xs font-bold text-[#9b2f2f] transition hover:border-[#b75050]/70 hover:bg-[#f0dbd5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b75050]/30 disabled:cursor-default disabled:border-[#c8b7aa] disabled:text-[#806b61]/45 disabled:hover:bg-[#f5eee6]"
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                        {deletingActorId === selectedActor.actor_id
+                          ? '삭제 중...'
+                          : '인식 결과 삭제'}
+                      </button>
+                    )}
 
                     {projectActors.length > 0 ? (
                       <div className="flex max-h-48 flex-col overflow-y-auto rounded-[8px] border border-[#c8b7aa] bg-[#f5eee6]">
@@ -614,7 +608,7 @@ export default function ActorMappingPage() {
                                 isMappedToSelected
                               }
                               className={[
-                                'flex min-h-9 items-center justify-center gap-1.5 px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed',
+                                'flex min-h-9 items-center justify-center gap-1.5 px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-default',
                                 isMappedToSelected
                                   ? 'bg-[#6f5752] text-[#fff8ef]'
                                   : 'text-[#806b61] hover:bg-[#eadbd0] hover:text-[#431B1B] disabled:opacity-50',
@@ -650,7 +644,7 @@ export default function ActorMappingPage() {
                         }}
                         disabled={deletingActorId !== null}
                         className={[
-                          'grid h-[92px] w-[190px] shrink-0 grid-cols-[70px_minmax(0,1fr)] gap-3 rounded-[6px] border bg-[#efe6de] p-2 text-left text-[#2d1715] shadow-[0_14px_32px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
+                          'grid h-[92px] w-[190px] shrink-0 grid-cols-[70px_minmax(0,1fr)] gap-3 rounded-[6px] border bg-[#efe6de] p-2 text-left text-[#2d1715] shadow-[0_14px_32px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0',
                           isActive
                             ? 'border-[#fff8ef] ring-2 ring-[#fff8ef]/55'
                             : actor.is_new

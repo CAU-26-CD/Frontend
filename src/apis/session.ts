@@ -347,20 +347,6 @@ export const analyzeSessionVideo = async (sessionId: number): Promise<void> => {
   await instance.post(`/api/v1/sessions/${sessionId}/video/analyze`);
 };
 
-export const completeProjectSession = async (
-  projectId: number,
-  sessionId: number,
-): Promise<CompleteProjectSessionResponse> => {
-  const res = await instance.patch(
-    `/api/v1/projects/${projectId}/sessions/${sessionId}`,
-    {
-      in_progress: false,
-    },
-  );
-
-  return res.data;
-};
-
 export const startRehearsalSession = async (
   sessionId: number,
 ): Promise<RehearsalSessionStatusResponse> => {
