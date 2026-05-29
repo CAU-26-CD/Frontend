@@ -146,6 +146,40 @@ const toFiniteActorId = (value: unknown) => {
   return Number.isFinite(actorId) ? actorId : null;
 };
 
+const parseDateTimestamp = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+
+  return Number.isNaN(timestamp) ? null : timestamp;
+};
+
+const getVideoZeroOffsetSeconds = (video: SessionVideoResponse | null) => {
+  const trimOffsetSeconds = Number(video?.trim_offset_seconds);
+
+  if (Number.isFinite(trimOffsetSeconds)) {
+    return trimOffsetSeconds;
+  }
+
+  const recordingStartedAt = parseDateTimestamp(
+    video?.recording_started_at ?? null,
+  );
+  const videoZeroAt = parseDateTimestamp(video?.video_zero_at ?? null);
+
+  if (recordingStartedAt === null || videoZeroAt === null) {
+    return 0;
+  }
+
+  return Math.max(0, (videoZeroAt - recordingStartedAt) / 1000);
+};
+
+const toVideoTimelineSeconds = (
+  offsetSeconds: number,
+  video: SessionVideoResponse | null,
+) => Math.max(0, offsetSeconds - getVideoZeroOffsetSeconds(video));
+
 const normalizeRouteActors = (
   actors: ReviewRouteActor[] | undefined,
 ): Actor[] =>
@@ -370,7 +404,12 @@ export default function ReviewPage() {
         setFeedbacks(
           fetchedFeedbacks.map((feedback) => ({
             id: feedback.feedback_id,
-            timestamp: secondsToTimestamp(feedback.video_offset_seconds),
+            timestamp: secondsToTimestamp(
+              toVideoTimelineSeconds(
+                feedback.video_offset_seconds,
+                sessionVideo,
+              ),
+            ),
             actorIds:
               feedback.actor_ids ??
               inferActorIds(feedback.content, reviewActors),
@@ -400,6 +439,7 @@ export default function ReviewPage() {
     selectedFeedbackTags,
     selectedPriorityTags,
     sessionId,
+    sessionVideo,
   ]);
 
   const toggleFeedbackTag = (tagId: string) => {
