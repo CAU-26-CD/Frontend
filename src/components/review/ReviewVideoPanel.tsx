@@ -19,14 +19,6 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) => {
     return video.duration;
   }
 
-  if (video.seekable.length > 0) {
-    const seekableEnd = video.seekable.end(video.seekable.length - 1);
-
-    if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
-      return seekableEnd;
-    }
-  }
-
   return 0;
 };
 
