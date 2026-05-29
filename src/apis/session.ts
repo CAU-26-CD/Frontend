@@ -302,8 +302,16 @@ export const createProjectSession = async (
 
 export const getProjectSessions = async (
   projectId: number,
+  options?: { refresh?: boolean },
 ): Promise<CreateProjectSessionResponse[]> => {
-  const res = await instance.get(`/api/v1/projects/${projectId}/sessions`);
+  const res = await instance.get(`/api/v1/projects/${projectId}/sessions`, {
+    headers: options?.refresh
+      ? {
+          'Cache-Control': 'no-cache',
+        }
+      : undefined,
+    params: options?.refresh ? { _ts: Date.now() } : undefined,
+  });
 
   return res.data;
 };
