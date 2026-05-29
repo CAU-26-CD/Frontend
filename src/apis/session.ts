@@ -24,6 +24,7 @@ export type CreateProjectSessionResponse = {
   s_category: string;
   created_at: string;
   in_progress: boolean;
+  matching_completed?: boolean;
   user_id?: number;
   owner_id?: number;
   owner_user_id?: number;

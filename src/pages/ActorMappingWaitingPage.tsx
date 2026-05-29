@@ -11,8 +11,9 @@ type ActorMappingWaitingRouteState = {
 
 const SESSION_POLL_INTERVAL_MS = 1000;
 
-const isSessionMatchingCompleted = (inProgress: unknown) =>
-  inProgress === false || String(inProgress).toLowerCase() === 'false';
+const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
+  matchingCompleted === true ||
+  String(matchingCompleted).toLowerCase() === 'true';
 
 export default function ActorMappingWaitingPage() {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ export default function ActorMappingWaitingPage() {
           return;
         }
 
-        if (isSessionMatchingCompleted(matchedSession.in_progress)) {
+        if (isSessionMatchingCompleted(matchedSession.matching_completed)) {
           navigate(
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
