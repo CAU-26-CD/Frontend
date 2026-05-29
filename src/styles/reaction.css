@@ -336,6 +336,182 @@
   }
 }
 
+.reaction-walking-loading-panel {
+  min-height: 248px;
+}
+
+.reaction-walking-stage {
+  position: relative;
+  width: 192px;
+  height: 78px;
+}
+
+.reaction-walking-track {
+  position: absolute;
+  right: 12px;
+  bottom: 14px;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(67 27 27 / 24%),
+    transparent
+  );
+}
+
+.reaction-walking-person {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 26px;
+  height: 44px;
+  animation: reaction-walking-person 2.2s ease-in-out infinite;
+}
+
+.reaction-walking-head {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #431B1B;
+  box-shadow: 0 0 16px rgb(67 27 27 / 28%);
+}
+
+.reaction-walking-body {
+  position: absolute;
+  top: 13px;
+  left: 11px;
+  width: 6px;
+  height: 19px;
+  border-radius: 999px;
+  background: #431B1B;
+}
+
+.reaction-walking-leg {
+  position: absolute;
+  top: 29px;
+  left: 12px;
+  width: 5px;
+  height: 17px;
+  border-radius: 999px;
+  background: #431B1B;
+  transform-origin: top center;
+}
+
+.reaction-walking-leg-left {
+  animation: reaction-walking-leg-left 0.62s ease-in-out infinite;
+}
+
+.reaction-walking-leg-right {
+  animation: reaction-walking-leg-right 0.62s ease-in-out infinite;
+}
+
+.reaction-walking-step {
+  position: absolute;
+  bottom: 8px;
+  width: 14px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgb(67 27 27 / 28%);
+  transform: rotate(-16deg);
+  animation: reaction-walking-step 2.2s ease-in-out infinite;
+}
+
+.reaction-walking-step-1 {
+  --step-rotate: -16deg;
+  left: 52px;
+  animation-delay: 0.08s;
+}
+
+.reaction-walking-step-2 {
+  --step-rotate: 16deg;
+  left: 86px;
+  bottom: 17px;
+  transform: rotate(16deg);
+  animation-delay: 0.42s;
+}
+
+.reaction-walking-step-3 {
+  --step-rotate: -16deg;
+  left: 120px;
+  animation-delay: 0.76s;
+}
+
+.reaction-walking-step-4 {
+  --step-rotate: 16deg;
+  left: 154px;
+  bottom: 17px;
+  transform: rotate(16deg);
+  animation-delay: 1.1s;
+}
+
+@keyframes reaction-walking-person {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+
+  45% {
+    transform: translateX(116px) translateY(-3px);
+  }
+
+  50% {
+    transform: translateX(118px) translateY(0) scaleX(-1);
+  }
+
+  95% {
+    transform: translateX(2px) translateY(-3px) scaleX(-1);
+  }
+
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes reaction-walking-leg-left {
+  0%,
+  100% {
+    transform: rotate(28deg);
+  }
+
+  50% {
+    transform: rotate(-24deg);
+  }
+}
+
+@keyframes reaction-walking-leg-right {
+  0%,
+  100% {
+    transform: rotate(-24deg);
+  }
+
+  50% {
+    transform: rotate(28deg);
+  }
+}
+
+@keyframes reaction-walking-step {
+  0%,
+  28% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.72) rotate(var(--step-rotate, -16deg));
+  }
+
+  42%,
+  82% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(var(--step-rotate, -16deg));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.86) rotate(var(--step-rotate, -16deg));
+  }
+}
+
 .reaction-login-input::placeholder {
   color: rgb(45 23 21 / 76%);
 }

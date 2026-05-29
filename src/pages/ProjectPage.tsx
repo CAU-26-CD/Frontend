@@ -14,6 +14,71 @@ import searchGradient from '../images/icon/search_gradient.svg';
 import type { Project } from '../types/project';
 import { getStoredUserId } from '../utils/authStorage';
 
+type ProjectSkeletonCounts = {
+  all: number;
+  liked: number;
+};
+
+const EMPTY_PROJECT_SKELETON_COUNTS: ProjectSkeletonCounts = {
+  all: 0,
+  liked: 0,
+};
+
+const getProjectSkeletonCountsStorageKey = (userId: number) =>
+  `reaction-project-skeleton-counts:${userId}`;
+
+const normalizeProjectSkeletonCount = (value: unknown) => {
+  const count = Number(value);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+};
+
+const readProjectSkeletonCounts = (
+  userId: number | null,
+): ProjectSkeletonCounts => {
+  if (userId === null) {
+    return EMPTY_PROJECT_SKELETON_COUNTS;
+  }
+
+  try {
+    const cachedCounts = localStorage.getItem(
+      getProjectSkeletonCountsStorageKey(userId),
+    );
+
+    if (!cachedCounts) {
+      return EMPTY_PROJECT_SKELETON_COUNTS;
+    }
+
+    const parsedCounts = JSON.parse(
+      cachedCounts,
+    ) as Partial<ProjectSkeletonCounts>;
+
+    return {
+      all: normalizeProjectSkeletonCount(parsedCounts.all),
+      liked: normalizeProjectSkeletonCount(parsedCounts.liked),
+    };
+  } catch {
+    return EMPTY_PROJECT_SKELETON_COUNTS;
+  }
+};
+
+const getProjectSkeletonCounts = (
+  projects: Project[],
+): ProjectSkeletonCounts => ({
+  all: projects.length,
+  liked: projects.filter((project) => project.liked).length,
+});
+
+const saveProjectSkeletonCounts = (
+  userId: number,
+  counts: ProjectSkeletonCounts,
+) => {
+  localStorage.setItem(
+    getProjectSkeletonCountsStorageKey(userId),
+    JSON.stringify(counts),
+  );
+};
+
 function ProjectTile({
   project,
   onToggleLiked,
@@ -70,6 +135,10 @@ export default function ProjectPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [searchValue, setSearchValue] = useState('');
   const [userId, setUserId] = useState<number | null>(null);
+  const [skeletonCounts, setSkeletonCounts] =
+    useState<ProjectSkeletonCounts>(() =>
+      readProjectSkeletonCounts(getStoredUserId()),
+    );
   const [pendingLikeProjectIds, setPendingLikeProjectIds] = useState<
     number[]
   >([]);
@@ -87,6 +156,7 @@ export default function ProjectPage() {
         }
 
         setUserId(storedUserId);
+        setSkeletonCounts(readProjectSkeletonCounts(storedUserId));
 
         const [myProjects, likedProjects] = await Promise.all([
           getMyProjects(storedUserId),
@@ -96,15 +166,18 @@ export default function ProjectPage() {
           likedProjects.map((project) => project.project_id),
         );
 
-        setProjects(
-          myProjects.map((project) => ({
-            id: project.project_id,
-            title: project.title,
-            date: project.created_at,
-            description: project.description,
-            liked: likedProjectIds.has(project.project_id),
-          })),
-        );
+        const nextProjects = myProjects.map((project) => ({
+          id: project.project_id,
+          title: project.title,
+          date: project.created_at,
+          description: project.description,
+          liked: likedProjectIds.has(project.project_id),
+        }));
+        const nextSkeletonCounts = getProjectSkeletonCounts(nextProjects);
+
+        setProjects(nextProjects);
+        setSkeletonCounts(nextSkeletonCounts);
+        saveProjectSkeletonCounts(storedUserId, nextSkeletonCounts);
       } catch (error) {
         console.error('Failed to load projects', error);
       } finally {
@@ -130,6 +203,28 @@ export default function ProjectPage() {
 
   const likedProjects = filteredProjects.filter((project) => project.liked);
   const allProjects = filteredProjects;
+  const displayedLikedCount = isLoadingProjects
+    ? skeletonCounts.liked
+    : likedProjects.length;
+  const displayedAllCount = isLoadingProjects
+    ? skeletonCounts.all
+    : allProjects.length;
+
+  useEffect(() => {
+    if (userId === null || isLoadingProjects) {
+      return;
+    }
+
+    const nextSkeletonCounts = getProjectSkeletonCounts(projects);
+
+    setSkeletonCounts((currentCounts) =>
+      currentCounts.all === nextSkeletonCounts.all &&
+      currentCounts.liked === nextSkeletonCounts.liked
+        ? currentCounts
+        : nextSkeletonCounts,
+    );
+    saveProjectSkeletonCounts(userId, nextSkeletonCounts);
+  }, [isLoadingProjects, projects, userId]);
 
   const handleToggleLiked = async (projectId: number) => {
     if (userId === null || pendingLikeProjectIds.includes(projectId)) {
@@ -206,13 +301,13 @@ export default function ProjectPage() {
           <div className="mb-5 flex items-center gap-3">
             <Heart size={14} fill="#ffffff" strokeWidth={2.5} />
             <h2 className="reaction-ui-font text-[15px] font-bold">
-              Liked ({likedProjects.length})
+              Liked ({displayedLikedCount})
             </h2>
           </div>
 
           <div className="min-h-[150px]">
             {isLoadingProjects ? (
-              <CardSkeleton count={2} />
+              <CardSkeleton count={skeletonCounts.liked} />
             ) : (
               <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
                 {likedProjects.map((project) => (
@@ -233,7 +328,7 @@ export default function ProjectPage() {
             <div className="flex items-center gap-3">
               <span className="h-[8px] w-[8px] rounded-full bg-white" />
               <h2 className="reaction-ui-font text-[15px] font-bold">
-                All ({allProjects.length})
+                All ({displayedAllCount})
               </h2>
             </div>
 
@@ -247,7 +342,7 @@ export default function ProjectPage() {
           </div>
 
           {isLoadingProjects ? (
-            <CardSkeleton count={8} />
+            <CardSkeleton count={skeletonCounts.all} />
           ) : (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,236px))] gap-x-5 gap-y-6">
               {allProjects.map((project) => (

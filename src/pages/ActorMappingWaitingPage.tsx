@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getProjectSessions } from '../apis/session';
-import LoadingSpinner from '../components/LoadingSpinner';
+import WalkingLoadingPanel from '../components/WalkingLoadingPanel';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 
 type ActorMappingWaitingRouteState = {
@@ -113,10 +113,9 @@ export default function ActorMappingWaitingPage() {
         </div>
 
         <section className="reaction-ui-font flex flex-1 flex-col items-center justify-center text-center">
-          <LoadingSpinner
-            label="세션의 소유자가 배우 태그를 매칭중입니다."
-            size="lg"
-            className="min-h-0"
+          <WalkingLoadingPanel
+            title="배우 태그를 매칭중입니다"
+            description="세션 소유자가 매칭 완료를 누르면 리뷰 화면으로 이동합니다."
           />
           {statusMessage && (
             <p className="mt-5 text-sm font-semibold text-[#ffb4a8]">

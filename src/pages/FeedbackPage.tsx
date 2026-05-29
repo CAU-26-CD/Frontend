@@ -20,6 +20,7 @@ import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
 import LoadingSpinner from '../components/LoadingSpinner';
+import WalkingLoadingPanel from '../components/WalkingLoadingPanel';
 import CameraSessionModal from '../components/modals/CameraSessionModal';
 import VideoUploadCompleteModal from '../components/modals/VideoUploadCompleteModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
@@ -123,11 +124,14 @@ export default function RehearsalFeedbackPage() {
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
   const isVideoUploadInProgress =
     !isSessionOwner && VIDEO_UPLOAD_IN_PROGRESS_STATUSES.has(cameraStatusText);
+  const shouldShowVideoUploadOverlay =
+    !isSessionOwner && !isCameraGateOpen && isRecordingFinalized;
   const isFeedbackInputDisabled =
-    isCameraGateOpen || isRecordingFinalized || isVideoUploadInProgress;
+    isCameraGateOpen || isRecordingFinalized || shouldShowVideoUploadOverlay;
   const isLogoNavigationLocked =
-    !isRecordingFinalized &&
-    (cameraStatusText === 'connected' || cameraStatusText === 'recording');
+    shouldShowVideoUploadOverlay ||
+    (!isRecordingFinalized &&
+      (cameraStatusText === 'connected' || cameraStatusText === 'recording'));
   const shouldShowRecordingTime = isRecording || isRecordingFinalized;
   const recordingIndicatorColor = isRecordingFinalized ? '#9f9a95' : '#D15757';
   const recordingTime = `${String(
@@ -478,10 +482,10 @@ export default function RehearsalFeedbackPage() {
   const cameraSessionSlot = isVideoUploadInProgress ? (
     <div className="reaction-ui-font flex h-full w-full items-center justify-center">
       <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl">
-        <LoadingSpinner
-          label="비디오 업로드 중입니다"
-          size="sm"
-          className="[&>span:last-child]:text-[#431B1B]/72"
+        <WalkingLoadingPanel
+          title="비디오 업로드 중입니다"
+          description="업로드가 끝나면 배우 태그 매칭 대기 화면으로 이동합니다."
+          className="border-0 bg-transparent p-0 shadow-none backdrop-blur-0"
         />
       </div>
     </div>
@@ -636,6 +640,15 @@ export default function RehearsalFeedbackPage() {
           />
         </div>
       </div>
+
+      {shouldShowVideoUploadOverlay && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1b0708]/54 px-4 backdrop-blur-sm">
+          <WalkingLoadingPanel
+            title="비디오 업로드 중입니다"
+            description="업로드가 끝나면 세션 소유자의 배우 태그 매칭을 기다립니다."
+          />
+        </div>
+      )}
 
       {showUploadCompleteModal && (
         <VideoUploadCompleteModal

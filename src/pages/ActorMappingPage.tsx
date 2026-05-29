@@ -331,7 +331,13 @@ export default function ActorMappingPage() {
   }, [isSessionOwner, numericSessionId]);
 
   const handleMapToProjectActor = async (targetActorId: number) => {
-    if (!selectedActor || isSaving || deletingActorId !== null) {
+    if (
+      !selectedActor ||
+      Number.isNaN(numericSessionId) ||
+      currentUserId === null ||
+      isSaving ||
+      deletingActorId !== null
+    ) {
       return;
     }
 
@@ -348,9 +354,16 @@ export default function ActorMappingPage() {
 
     try {
       if (selectedActor.actor_id !== targetActorId) {
-        await mergeActorInto(selectedActor.actor_id, {
-          target_actor_id: targetActorId,
-        });
+        await mergeActorInto(
+          selectedActor.actor_id,
+          {
+            sessionId: numericSessionId,
+            userId: currentUserId,
+          },
+          {
+            target_actor_id: targetActorId,
+          },
+        );
       }
 
       setVideoActors((current) =>

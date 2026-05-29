@@ -23,6 +23,11 @@ export type MergeActorRequest = {
   target_actor_id: number;
 };
 
+export type ActorSessionContext = {
+  sessionId: number;
+  userId: number;
+};
+
 const normalizeCreatedActor = (
   data: unknown,
   fallbackName: string,
@@ -120,18 +125,34 @@ export const createProjectActor = async (
 
 export const renameActor = async (
   actorId: number,
+  context: ActorSessionContext,
   data: RenameActorRequest,
 ): Promise<string> => {
-  const res = await instance.patch(`/api/v1/actors/${actorId}`, data);
+  const res = await instance.patch(`/api/v1/actors/${actorId}`, data, {
+    params: {
+      session_id: context.sessionId,
+      user_id: context.userId,
+    },
+  });
 
   return res.data;
 };
 
 export const mergeActorInto = async (
   actorId: number,
+  context: ActorSessionContext,
   data: MergeActorRequest,
 ): Promise<string> => {
-  const res = await instance.post(`/api/v1/actors/${actorId}/merge-into`, data);
+  const res = await instance.post(
+    `/api/v1/actors/${actorId}/merge-into`,
+    data,
+    {
+      params: {
+        session_id: context.sessionId,
+        user_id: context.userId,
+      },
+    },
+  );
 
   return res.data;
 };
