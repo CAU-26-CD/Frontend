@@ -39,6 +39,8 @@ export type CameraSessionStatusResponse = {
   session_id: string;
   status: string;
   connected_at: string | null;
+  recording_started_at: string | null;
+  recording_elapsed_seconds: number | null;
   video_url: string | null;
 };
 
@@ -74,6 +76,9 @@ export type SessionVideoResponse = {
   analysis_result: unknown;
   actors: SessionVideoActor[];
   is_landscape: boolean | null;
+  recording_started_at: string | null;
+  video_zero_at: string | null;
+  trim_offset_seconds: number | null;
 };
 
 export type SessionVideoAppearance = {
@@ -135,6 +140,9 @@ const normalizeSessionVideo = (
       analysis_result: null,
       actors: [],
       is_landscape: null,
+      recording_started_at: null,
+      video_zero_at: null,
+      trim_offset_seconds: null,
     };
   }
 
@@ -150,6 +158,9 @@ const normalizeSessionVideo = (
       ),
     })),
     is_landscape: video.is_landscape ?? null,
+    recording_started_at: video.recording_started_at ?? null,
+    video_zero_at: video.video_zero_at ?? null,
+    trim_offset_seconds: video.trim_offset_seconds ?? null,
   };
 };
 

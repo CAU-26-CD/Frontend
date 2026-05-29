@@ -269,7 +269,7 @@ export default function CameraSessionModal({
                 isPanel ? 'mt-3 h-10 text-xs' : 'mt-5 h-12 text-sm',
               ].join(' ')}
             >
-              <span className="relative z-10">리허설 시작</span>
+              <span className="relative z-10">피드백 입력 시작</span>
             </button>
           </>
         ) : (
