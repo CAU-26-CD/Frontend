@@ -46,9 +46,12 @@ const VIDEO_UPLOAD_IN_PROGRESS_STATUSES = new Set([
   'uploading',
 ]);
 const RECORDING_FINALIZED_STATUSES = VIDEO_UPLOAD_IN_PROGRESS_STATUSES;
+const SESSION_POLL_INTERVAL_MS = 1000;
 
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
   status.started;
+const isSessionMatchingCompleted = (inProgress: unknown) =>
+  inProgress === false || String(inProgress).toLowerCase() === 'false';
 
 export default function RehearsalFeedbackPage() {
   const navigate = useNavigate();
@@ -207,7 +210,9 @@ export default function RehearsalFeedbackPage() {
 
     const loadCurrentSession = async () => {
       try {
-        const sessions = await getProjectSessions(numericProjectId);
+        const sessions = await getProjectSessions(numericProjectId, {
+          refresh: true,
+        });
         const matchedSession = sessions.find(
           (session) => session.session_id === numericSessionId,
         );
@@ -227,11 +232,14 @@ export default function RehearsalFeedbackPage() {
           saveSessionOwnerId(numericSessionId, nextOwnerId);
         }
 
-        if (matchedSession?.in_progress === false) {
+        if (isSessionMatchingCompleted(matchedSession?.in_progress)) {
           navigate(
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
               replace: true,
+              state: {
+                projectSessionTitle: matchedSession?.title ?? sessionTitle,
+              },
             },
           );
           return;
@@ -258,6 +266,82 @@ export default function RehearsalFeedbackPage() {
     navigate,
     rehearsalStartedStorageKey,
     routeSessionOwnerId,
+    sessionTitle,
+  ]);
+
+  useEffect(() => {
+    if (
+      Number.isNaN(numericProjectId) ||
+      Number.isNaN(numericSessionId) ||
+      isSessionOwner ||
+      (!isCameraGateOpen && !isRecordingFinalized && !isVideoUploadInProgress)
+    ) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadSessionCompletionStatus = async () => {
+      try {
+        const sessions = await getProjectSessions(numericProjectId, {
+          refresh: true,
+        });
+        const matchedSession = sessions.find(
+          (session) => session.session_id === numericSessionId,
+        );
+
+        if (ignore || !matchedSession) {
+          return;
+        }
+
+        setCurrentProjectSession(matchedSession);
+
+        const nextOwnerId =
+          getSessionOwnerId(matchedSession) ??
+          getStoredSessionOwnerId(numericSessionId) ??
+          routeSessionOwnerId ??
+          null;
+
+        if (nextOwnerId !== null) {
+          setSessionOwnerId(nextOwnerId);
+          saveSessionOwnerId(numericSessionId, nextOwnerId);
+        }
+
+        if (isSessionMatchingCompleted(matchedSession.in_progress)) {
+          navigate(
+            `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+            {
+              replace: true,
+              state: {
+                projectSessionTitle: matchedSession.title ?? sessionTitle,
+              },
+            },
+          );
+        }
+      } catch (error) {
+        console.error('Failed to poll session completion status', error);
+      }
+    };
+
+    void loadSessionCompletionStatus();
+    const intervalId = window.setInterval(() => {
+      void loadSessionCompletionStatus();
+    }, SESSION_POLL_INTERVAL_MS);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(intervalId);
+    };
+  }, [
+    isCameraGateOpen,
+    isRecordingFinalized,
+    isSessionOwner,
+    isVideoUploadInProgress,
+    navigate,
+    numericProjectId,
+    numericSessionId,
+    routeSessionOwnerId,
+    sessionTitle,
   ]);
 
   useEffect(() => {

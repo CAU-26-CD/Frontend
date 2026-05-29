@@ -26,6 +26,8 @@ const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
 const ANALYSIS_POLL_INTERVAL_MS = 2000;
 const pendingAnalysisStatuses = new Set(['pending', 'uploading', 'processing']);
+const isSessionMatchingCompleted = (inProgress: unknown) =>
+  inProgress === false || String(inProgress).toLowerCase() === 'false';
 const compareSessionVideoActors = (
   a: SessionVideoActor,
   b: SessionVideoActor,
@@ -34,6 +36,20 @@ const compareSessionVideoActors = (
   const bMapped = b.is_new ? 1 : 0;
 
   return aMapped - bMapped || a.actor_id - b.actor_id;
+};
+const getReviewActorsFromSessionVideoActors = (
+  actors: SessionVideoActor[],
+): Actor[] => {
+  const mappedActors = actors.filter((actor) => !actor.is_new);
+  const sourceActors = mappedActors.length > 0 ? mappedActors : actors;
+
+  return [...sourceActors]
+    .sort(compareSessionVideoActors)
+    .map((actor, index) => ({
+      id: actor.actor_id,
+      name: getActorDisplayName(actor),
+      shortcut: String(index + 1),
+    }));
 };
 
 type ActorMappingRouteState = {
@@ -132,13 +148,16 @@ export default function ActorMappingPage() {
         }
 
         if (
-          matchedSession?.in_progress === false &&
+          isSessionMatchingCompleted(matchedSession?.in_progress) &&
           !routeState?.allowActorMapping
         ) {
           navigate(
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
               replace: true,
+              state: {
+                projectSessionTitle: matchedSession?.title ?? sessionTitle,
+              },
             },
           );
         }
@@ -162,6 +181,7 @@ export default function ActorMappingPage() {
     numericSessionId,
     routeState?.allowActorMapping,
     routeState?.sessionOwnerId,
+    sessionTitle,
   ]);
 
   useEffect(() => {
@@ -459,6 +479,12 @@ export default function ActorMappingPage() {
       await completeSessionMatching(numericSessionId, currentUserId);
       navigate(
         `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+        {
+          state: {
+            projectSessionTitle: sessionTitle,
+            reviewActors: getReviewActorsFromSessionVideoActors(videoActors),
+          },
+        },
       );
     } catch (error) {
       console.error('Failed to complete session matching', error);

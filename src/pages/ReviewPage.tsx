@@ -1,6 +1,7 @@
 import { Settings, Video } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
+import { listProjectActors } from '../apis/actor';
 import { filterFeedbacks } from '../apis/feedback';
 import {
   getSessionVideo,
@@ -100,6 +101,15 @@ const priorityTags: ReviewPriorityTag[] = [
   { id: 'praise', label: '칭찬', color: '#80c7f5' },
 ];
 
+type ReviewRouteActor = Partial<Actor> & {
+  actor_id?: unknown;
+};
+
+type ReviewRouteState = {
+  projectSessionTitle?: string;
+  reviewActors?: ReviewRouteActor[];
+};
+
 const feedbackPriorities: FeedbackPriority[] = [
   'required',
   'recommended',
@@ -130,7 +140,51 @@ const normalizeFeedbackPriorities = (priority: string[]) =>
     feedbackPriorities.includes(item as FeedbackPriority),
   );
 
+const toFiniteActorId = (value: unknown) => {
+  const actorId = Number(value);
+
+  return Number.isFinite(actorId) ? actorId : null;
+};
+
+const normalizeRouteActors = (
+  actors: ReviewRouteActor[] | undefined,
+): Actor[] =>
+  (actors ?? [])
+    .map((actor, index) => {
+      const actorId = toFiniteActorId(actor.id ?? actor.actor_id);
+
+      if (actorId === null) {
+        return null;
+      }
+
+      return {
+        id: actorId,
+        name:
+          typeof actor.name === 'string' && actor.name.trim()
+            ? actor.name
+            : `배우 ${actorId}`,
+        shortcut:
+          typeof actor.shortcut === 'string' && actor.shortcut.trim()
+            ? actor.shortcut
+            : String(index + 1),
+      };
+    })
+    .filter((actor): actor is Actor => actor !== null);
+
+const applyActorShortcuts = (actors: Actor[]) =>
+  actors
+    .filter(
+      (actor, index, sourceActors) =>
+        sourceActors.findIndex((item) => item.id === actor.id) === index,
+    )
+    .map((actor, index) => ({
+      ...actor,
+      shortcut: String(index + 1),
+    }));
+
 export default function ReviewPage() {
+  const location = useLocation();
+  const routeState = location.state as ReviewRouteState | null;
   const { projectId, sessionId } = useParams<{
     projectId: string;
     sessionId: string;
@@ -140,6 +194,7 @@ export default function ReviewPage() {
   const [sessionVideo, setSessionVideo] = useState<SessionVideoResponse | null>(
     null,
   );
+  const [projectActors, setProjectActors] = useState<Actor[]>([]);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [videoMessage, setVideoMessage] = useState('');
   const [selectedFeedbackTags, setSelectedFeedbackTags] = useState<string[]>(
@@ -164,9 +219,13 @@ export default function ReviewPage() {
     ? 'Project'
     : `Project ${numericProjectId}`;
   const sessionTitle = Number.isNaN(numericSessionId)
-    ? 'Session'
-    : `Session ${numericSessionId}`;
-  const reviewActors = useMemo<Actor[]>(
+    ? (routeState?.projectSessionTitle ?? 'Session')
+    : (routeState?.projectSessionTitle ?? `Session ${numericSessionId}`);
+  const routeReviewActors = useMemo(
+    () => normalizeRouteActors(routeState?.reviewActors),
+    [routeState?.reviewActors],
+  );
+  const videoReviewActors = useMemo<Actor[]>(
     () =>
       sessionVideo?.actors.map((actor, index) => ({
         id: actor.actor_id,
@@ -175,6 +234,24 @@ export default function ReviewPage() {
       })) ?? [],
     [sessionVideo],
   );
+  const reviewActors = useMemo<Actor[]>(() => {
+    const projectActorNameById = new Map(
+      projectActors.map((actor) => [actor.id, actor.name]),
+    );
+    const primaryActors =
+      videoReviewActors.length > 0
+        ? videoReviewActors
+        : routeReviewActors.length > 0
+          ? routeReviewActors
+          : projectActors;
+
+    return applyActorShortcuts(
+      primaryActors.map((actor) => ({
+        ...actor,
+        name: projectActorNameById.get(actor.id) ?? actor.name,
+      })),
+    );
+  }, [projectActors, routeReviewActors, videoReviewActors]);
   const actorAppearances = useMemo<SessionVideoAppearance[]>(() => {
     if (!sessionVideo) {
       return [];
@@ -239,6 +316,37 @@ export default function ReviewPage() {
   }, [numericSessionId]);
 
   useEffect(() => {
+    if (Number.isNaN(numericProjectId)) {
+      setProjectActors([]);
+      return;
+    }
+
+    let ignore = false;
+
+    const loadProjectActors = async () => {
+      try {
+        const nextActors = await listProjectActors(numericProjectId);
+
+        if (!ignore) {
+          setProjectActors(nextActors);
+        }
+      } catch (error) {
+        console.error('Failed to load project actors for review', error);
+
+        if (!ignore) {
+          setProjectActors([]);
+        }
+      }
+    };
+
+    void loadProjectActors();
+
+    return () => {
+      ignore = true;
+    };
+  }, [numericProjectId]);
+
+  useEffect(() => {
     if (!sessionId) return;
 
     let ignore = false;
@@ -264,7 +372,8 @@ export default function ReviewPage() {
             id: feedback.feedback_id,
             timestamp: secondsToTimestamp(feedback.video_offset_seconds),
             actorIds:
-              feedback.actor_ids ?? inferActorIds(feedback.content, reviewActors),
+              feedback.actor_ids ??
+              inferActorIds(feedback.content, reviewActors),
             content: feedback.content,
             isUrgent: feedback.content.includes('!!!'),
             priority: normalizeFeedbackPriorities(feedback.priority ?? []),
