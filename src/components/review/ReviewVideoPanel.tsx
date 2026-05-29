@@ -176,6 +176,7 @@ export default function ReviewVideoPanel({
     const previousTime = Number.isFinite(video.currentTime)
       ? video.currentTime
       : 0;
+    const wasPaused = video.paused;
 
     isDurationProbeActiveRef.current = true;
 
@@ -183,9 +184,16 @@ export default function ReviewVideoPanel({
       syncVideoDuration(video);
 
       const nextDuration = getMetadataVideoDuration(video);
+      const restoredTime =
+        nextDuration > 0 ? Math.min(previousTime, nextDuration) : previousTime;
 
-      if (nextDuration > 0) {
-        video.currentTime = Math.min(previousTime, nextDuration);
+      if (Number.isFinite(restoredTime)) {
+        video.currentTime = restoredTime;
+        setCurrentTime(restoredTime);
+      }
+
+      if (!wasPaused) {
+        void video.play();
       }
 
       isDurationProbeActiveRef.current = false;
@@ -397,7 +405,6 @@ export default function ReviewVideoPanel({
                   const nextCurrentTime = video.currentTime;
 
                   syncVideoDuration(video);
-                  probeVideoDuration(video);
 
                   if (!isDurationProbeActiveRef.current) {
                     setCurrentTime(nextCurrentTime);
