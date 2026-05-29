@@ -39,6 +39,13 @@ type FeedbackRouteState = {
   allowActorMapping?: boolean;
 };
 
+const VIDEO_UPLOAD_IN_PROGRESS_STATUSES = new Set([
+  'stop',
+  'stopped',
+  'uploading',
+]);
+const RECORDING_FINALIZED_STATUSES = VIDEO_UPLOAD_IN_PROGRESS_STATUSES;
+
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
   status.started;
 
@@ -114,7 +121,10 @@ export default function RehearsalFeedbackPage() {
   const isSessionOwner =
     currentUserId !== null && sessionOwnerId === currentUserId;
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
-  const isFeedbackInputDisabled = isCameraGateOpen || isRecordingFinalized;
+  const isVideoUploadInProgress =
+    !isSessionOwner && VIDEO_UPLOAD_IN_PROGRESS_STATUSES.has(cameraStatusText);
+  const isFeedbackInputDisabled =
+    isCameraGateOpen || isRecordingFinalized || isVideoUploadInProgress;
   const isLogoNavigationLocked =
     !isRecordingFinalized &&
     (cameraStatusText === 'connected' || cameraStatusText === 'recording');
@@ -135,7 +145,7 @@ export default function RehearsalFeedbackPage() {
         setRecordingStartedAt((current) => current ?? Date.now());
       }
 
-      if (normalizedStatus === 'stop' || normalizedStatus === 'stopped') {
+      if (RECORDING_FINALIZED_STATUSES.has(normalizedStatus)) {
         setIsRecordingFinalized(true);
         setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
         setRecordingStartedAt(null);
@@ -465,7 +475,17 @@ export default function RehearsalFeedbackPage() {
     );
   };
 
-  const cameraSessionSlot = isCameraGateOpen ? (
+  const cameraSessionSlot = isVideoUploadInProgress ? (
+    <div className="reaction-ui-font flex h-full w-full items-center justify-center">
+      <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl">
+        <LoadingSpinner
+          label="비디오 업로드 중입니다"
+          size="sm"
+          className="[&>span:last-child]:text-[#431B1B]/72"
+        />
+      </div>
+    </div>
+  ) : isCameraGateOpen ? (
     cameraSession ? (
       <CameraSessionModal
         session={cameraSession}

@@ -19,6 +19,7 @@
   isolation: isolate;
   background-color: var(--reaction-bg);
   background-image: var(--reaction-bg-image, none);
+  background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
