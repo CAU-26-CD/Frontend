@@ -113,6 +113,7 @@ export function useFeedback(
     setFeedbacks((prev) => [...prev, optimisticFeedback]);
     setContent('');
     setTimestamp(null);
+    setSelectedActors([]);
     setPendingSubmissionCount((count) => count + 1);
 
     try {

@@ -729,8 +729,8 @@ export default function RehearsalFeedbackPage() {
       {shouldShowVideoUploadOverlay && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1b0708]/54 px-4 backdrop-blur-sm">
           <WalkingLoadingPanel
-            title="비디오 업로드 중입니다"
-            description="업로드가 끝나면 세션 소유자의 배우 태그 매칭을 기다립니다."
+            title="비디오 업로드 및 배우 태그 매핑 중입니다."
+            description=" 완료되면 리뷰 화면으로 이동합니다. 잠시만 기다려주세요"
           />
         </div>
       )}

@@ -38,21 +38,6 @@ const compareSessionVideoActors = (
 
   return aMapped - bMapped || a.actor_id - b.actor_id;
 };
-const getReviewActorsFromSessionVideoActors = (
-  actors: SessionVideoActor[],
-): Actor[] => {
-  const mappedActors = actors.filter((actor) => !actor.is_new);
-  const sourceActors = mappedActors.length > 0 ? mappedActors : actors;
-
-  return [...sourceActors]
-    .sort(compareSessionVideoActors)
-    .map((actor, index) => ({
-      id: actor.actor_id,
-      name: getActorDisplayName(actor),
-      shortcut: String(index + 1),
-    }));
-};
-
 type ActorMappingRouteState = {
   projectSessionTitle?: string;
   sessionOwnerId?: number;
@@ -483,7 +468,6 @@ export default function ActorMappingPage() {
         {
           state: {
             projectSessionTitle: sessionTitle,
-            reviewActors: getReviewActorsFromSessionVideoActors(videoActors),
           },
         },
       );
