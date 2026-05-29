@@ -27,14 +27,6 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) => {
     }
   }
 
-  if (video.buffered.length > 0) {
-    const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-
-    if (Number.isFinite(bufferedEnd) && bufferedEnd > 0) {
-      return bufferedEnd;
-    }
-  }
-
   return 0;
 };
 
@@ -174,7 +166,7 @@ export default function ReviewVideoPanel({
     const nextDuration = getMetadataVideoDuration(video);
 
     if (nextDuration > 0) {
-      setVideoDuration((current) => Math.max(current, nextDuration));
+      setVideoDuration(nextDuration);
     }
   };
   const seekToClientX = (clientX: number) => {
@@ -296,6 +288,12 @@ export default function ReviewVideoPanel({
     setCurrentTime(time);
     void video.play();
   };
+
+  useEffect(() => {
+    setVideoDuration(0);
+    setCurrentTime(0);
+    setIsPlaying(false);
+  }, [videoUrl]);
 
   useEffect(() => {
     if (actorOnlyPlaybackRequest === 0) {
