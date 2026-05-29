@@ -14,8 +14,29 @@ const actorTimelineColors = [
   '#efe6de',
 ];
 
-const getMetadataVideoDuration = (video: HTMLVideoElement) =>
-  Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+const getMetadataVideoDuration = (video: HTMLVideoElement) => {
+  if (Number.isFinite(video.duration) && video.duration > 0) {
+    return video.duration;
+  }
+
+  if (video.seekable.length > 0) {
+    const seekableEnd = video.seekable.end(video.seekable.length - 1);
+
+    if (Number.isFinite(seekableEnd) && seekableEnd > 0) {
+      return seekableEnd;
+    }
+  }
+
+  if (video.buffered.length > 0) {
+    const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+
+    if (Number.isFinite(bufferedEnd) && bufferedEnd > 0) {
+      return bufferedEnd;
+    }
+  }
+
+  return 0;
+};
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
@@ -148,6 +169,13 @@ export default function ReviewVideoPanel({
     const remainingSeconds = Math.floor(seconds % 60);
 
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  };
+  const syncVideoDuration = (video: HTMLVideoElement) => {
+    const nextDuration = getMetadataVideoDuration(video);
+
+    if (nextDuration > 0) {
+      setVideoDuration((current) => Math.max(current, nextDuration));
+    }
   };
   const seekToClientX = (clientX: number) => {
     const timeline = timelineRef.current;
@@ -305,23 +333,26 @@ export default function ReviewVideoPanel({
                 src={videoUrl}
                 preload="auto"
                 onLoadedMetadata={(event) => {
-                  const video = event.currentTarget;
-
-                  setVideoDuration(getMetadataVideoDuration(video));
+                  syncVideoDuration(event.currentTarget);
                 }}
                 onDurationChange={(event) => {
-                  const nextDuration = getMetadataVideoDuration(
-                    event.currentTarget,
-                  );
-
-                  if (nextDuration > 0) {
-                    setVideoDuration(nextDuration);
-                  }
+                  syncVideoDuration(event.currentTarget);
+                }}
+                onLoadedData={(event) => {
+                  syncVideoDuration(event.currentTarget);
+                }}
+                onCanPlay={(event) => {
+                  syncVideoDuration(event.currentTarget);
+                }}
+                onProgress={(event) => {
+                  syncVideoDuration(event.currentTarget);
                 }}
                 onTimeUpdate={(event) => {
-                  const nextCurrentTime = event.currentTarget.currentTime;
+                  const video = event.currentTarget;
+                  const nextCurrentTime = video.currentTime;
 
                   setCurrentTime(nextCurrentTime);
+                  syncVideoDuration(video);
                 }}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
