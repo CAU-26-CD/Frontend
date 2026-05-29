@@ -122,10 +122,8 @@ export default function ReviewVideoPanel({
     ...normalizedRequiredFeedbackMarkers.map((marker) => marker.time + 1),
     1,
   );
-  const timelineDuration = Math.max(
-    safeVideoDuration,
-    fallbackTimelineDuration,
-  );
+  const timelineDuration =
+    safeVideoDuration > 0 ? safeVideoDuration : fallbackTimelineDuration;
   const currentTimelineSecond = Math.min(
     timelineDuration,
     Math.floor(currentTime),
