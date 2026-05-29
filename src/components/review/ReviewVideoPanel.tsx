@@ -57,6 +57,7 @@ export default function ReviewVideoPanel({
 }: ReviewVideoPanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const isDurationProbeActiveRef = useRef(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -117,6 +118,7 @@ export default function ReviewVideoPanel({
   const safeVideoDuration = Number.isFinite(videoDuration)
     ? Math.max(0, videoDuration)
     : 0;
+  const hasVideoDuration = safeVideoDuration > 0;
   const videoFrameClassName =
     'relative h-full w-full overflow-hidden bg-[#17100f]';
   const videoClassName = 'h-full w-full bg-[#17100f] object-contain';
@@ -128,7 +130,7 @@ export default function ReviewVideoPanel({
     1,
   );
   const timelineDuration =
-    safeVideoDuration > 0 ? safeVideoDuration : fallbackTimelineDuration;
+    hasVideoDuration ? safeVideoDuration : fallbackTimelineDuration;
   const currentTimelineSecond = Math.min(
     timelineDuration,
     Math.floor(currentTime),
@@ -160,6 +162,46 @@ export default function ReviewVideoPanel({
     if (nextDuration > 0) {
       setVideoDuration(nextDuration);
     }
+  };
+  const probeVideoDuration = (video: HTMLVideoElement) => {
+    if (
+      isDurationProbeActiveRef.current ||
+      getMetadataVideoDuration(video) > 0 ||
+      video.readyState < HTMLMediaElement.HAVE_METADATA ||
+      video.duration !== Infinity
+    ) {
+      return;
+    }
+
+    const previousTime = Number.isFinite(video.currentTime)
+      ? video.currentTime
+      : 0;
+
+    isDurationProbeActiveRef.current = true;
+
+    const finishProbe = () => {
+      syncVideoDuration(video);
+
+      const nextDuration = getMetadataVideoDuration(video);
+
+      if (nextDuration > 0) {
+        video.currentTime = Math.min(previousTime, nextDuration);
+      }
+
+      isDurationProbeActiveRef.current = false;
+      video.removeEventListener('durationchange', finishProbe);
+      video.removeEventListener('timeupdate', finishProbe);
+    };
+
+    video.addEventListener('durationchange', finishProbe);
+    video.addEventListener('timeupdate', finishProbe);
+    video.currentTime = Number.MAX_SAFE_INTEGER;
+
+    window.setTimeout(() => {
+      if (isDurationProbeActiveRef.current) {
+        finishProbe();
+      }
+    }, 500);
   };
   const seekToClientX = (clientX: number) => {
     const timeline = timelineRef.current;
@@ -285,6 +327,7 @@ export default function ReviewVideoPanel({
     setVideoDuration(0);
     setCurrentTime(0);
     setIsPlaying(false);
+    isDurationProbeActiveRef.current = false;
   }, [videoUrl]);
 
   useEffect(() => {
@@ -323,16 +366,28 @@ export default function ReviewVideoPanel({
                 src={videoUrl}
                 preload="auto"
                 onLoadedMetadata={(event) => {
-                  syncVideoDuration(event.currentTarget);
+                  const video = event.currentTarget;
+
+                  syncVideoDuration(video);
+                  probeVideoDuration(video);
                 }}
                 onDurationChange={(event) => {
-                  syncVideoDuration(event.currentTarget);
+                  const video = event.currentTarget;
+
+                  syncVideoDuration(video);
+                  probeVideoDuration(video);
                 }}
                 onLoadedData={(event) => {
-                  syncVideoDuration(event.currentTarget);
+                  const video = event.currentTarget;
+
+                  syncVideoDuration(video);
+                  probeVideoDuration(video);
                 }}
                 onCanPlay={(event) => {
-                  syncVideoDuration(event.currentTarget);
+                  const video = event.currentTarget;
+
+                  syncVideoDuration(video);
+                  probeVideoDuration(video);
                 }}
                 onProgress={(event) => {
                   syncVideoDuration(event.currentTarget);
@@ -341,8 +396,12 @@ export default function ReviewVideoPanel({
                   const video = event.currentTarget;
                   const nextCurrentTime = video.currentTime;
 
-                  setCurrentTime(nextCurrentTime);
                   syncVideoDuration(video);
+                  probeVideoDuration(video);
+
+                  if (!isDurationProbeActiveRef.current) {
+                    setCurrentTime(nextCurrentTime);
+                  }
                 }}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
@@ -376,7 +435,7 @@ export default function ReviewVideoPanel({
 
                 <div className="min-w-[76px] text-[11px] font-bold text-[#fff8ef]/86">
                   {formatTime(currentTimelineSecond)} /{' '}
-                  {formatTime(timelineDuration)}
+                  {hasVideoDuration ? formatTime(timelineDuration) : '--:--'}
                 </div>
 
                 <div
