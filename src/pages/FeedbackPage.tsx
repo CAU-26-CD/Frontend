@@ -53,6 +53,33 @@ const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
 const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
   matchingCompleted === true ||
   String(matchingCompleted).toLowerCase() === 'true';
+const parseRecordingStartedAt = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+
+  return Number.isNaN(timestamp) ? null : timestamp;
+};
+const getRecordingStartedAtFromStatus = (
+  status: CameraSessionStatusResponse,
+) => {
+  const startedAt = parseRecordingStartedAt(status.recording_started_at);
+
+  if (startedAt !== null) {
+    return startedAt;
+  }
+
+  if (
+    typeof status.recording_elapsed_seconds === 'number' &&
+    Number.isFinite(status.recording_elapsed_seconds)
+  ) {
+    return Date.now() - Math.max(0, status.recording_elapsed_seconds) * 1000;
+  }
+
+  return null;
+};
 
 export default function RehearsalFeedbackPage() {
   const navigate = useNavigate();
@@ -149,8 +176,22 @@ export default function RehearsalFeedbackPage() {
       setCameraStatusText(normalizedStatus);
 
       if (normalizedStatus === 'recording') {
+        const serverRecordingStartedAt =
+          getRecordingStartedAtFromStatus(nextStatus);
+
         setIsRecordingFinalized(false);
-        setRecordingStartedAt((current) => current ?? Date.now());
+
+        if (serverRecordingStartedAt !== null) {
+          setRecordingStartedAt(serverRecordingStartedAt);
+          setRecordingElapsedSeconds(
+            Math.max(
+              0,
+              Math.floor((Date.now() - serverRecordingStartedAt) / 1000),
+            ),
+          );
+        } else {
+          setRecordingStartedAt((current) => current ?? Date.now());
+        }
       }
 
       if (RECORDING_FINALIZED_STATUSES.has(normalizedStatus)) {

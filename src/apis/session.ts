@@ -39,6 +39,8 @@ export type CameraSessionStatusResponse = {
   session_id: string;
   status: string;
   connected_at: string | null;
+  recording_started_at: string | null;
+  recording_elapsed_seconds: number | null;
   video_url: string | null;
 };
 
