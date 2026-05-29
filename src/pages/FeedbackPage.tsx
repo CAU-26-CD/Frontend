@@ -36,6 +36,7 @@ type FeedbackRouteState = {
   projectSessionTitle?: string;
   isSessionOwner?: boolean;
   sessionOwnerId?: number;
+  allowActorMapping?: boolean;
 };
 
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
@@ -113,6 +114,7 @@ export default function RehearsalFeedbackPage() {
   const isSessionOwner =
     currentUserId !== null && sessionOwnerId === currentUserId;
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
+  const isFeedbackInputDisabled = isCameraGateOpen || isRecordingFinalized;
   const isLogoNavigationLocked =
     !isRecordingFinalized &&
     (cameraStatusText === 'connected' || cameraStatusText === 'recording');
@@ -404,7 +406,7 @@ export default function RehearsalFeedbackPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isCameraGateOpen) return;
+      if (isFeedbackInputDisabled) return;
 
       const target = event.target;
       const isTyping =
@@ -423,7 +425,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleStartTimestamp, isCameraGateOpen]);
+  }, [handleStartTimestamp, isFeedbackInputDisabled]);
 
   const startRehearsal = async () => {
     if (Number.isNaN(numericSessionId)) {
@@ -457,6 +459,7 @@ export default function RehearsalFeedbackPage() {
         state: {
           projectSessionTitle: sessionTitle,
           sessionOwnerId,
+          allowActorMapping: true,
         },
       },
     );
@@ -569,7 +572,7 @@ export default function RehearsalFeedbackPage() {
           <section
             className={[
               'grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4 transition',
-              isCameraGateOpen ? 'pointer-events-none opacity-45' : '',
+              isFeedbackInputDisabled ? 'pointer-events-none opacity-45' : '',
             ].join(' ')}
           >
             <MovementArea
@@ -609,7 +612,7 @@ export default function RehearsalFeedbackPage() {
             onDelete={feedback.handleDelete}
             onToggleUrgent={feedback.handleToggleUrgent}
             feedbackListSlot={cameraSessionSlot}
-            isInteractionDisabled={isCameraGateOpen}
+            isInteractionDisabled={isFeedbackInputDisabled}
           />
         </div>
       </div>

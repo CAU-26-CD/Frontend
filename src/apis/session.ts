@@ -89,9 +89,16 @@ type RawSessionVideoAppearance = {
   detection_count?: unknown;
 };
 
-type RawSessionVideoResponse = Omit<SessionVideoResponse, 'actors'> & {
-  actors: RawSessionVideoActor[];
+type RawSessionVideoObjectResponse = Partial<
+  Omit<SessionVideoResponse, 'actors' | 's3_url'>
+> & {
+  s3_url?: string | null;
+  video_url?: string | null;
+  url?: string | null;
+  actors?: RawSessionVideoActor[] | null;
 };
+
+type RawSessionVideoResponse = RawSessionVideoObjectResponse | string;
 
 const FRAME_IMAGE_BASE_URL =
   import.meta.env.VITE_FRAME_IMAGE_BASE_URL ??
@@ -118,14 +125,40 @@ const toFrameImageUrl = (path: string | null | undefined) => {
 
 const normalizeSessionVideo = (
   video: RawSessionVideoResponse,
-): SessionVideoResponse => ({
-  ...video,
-  actors: video.actors.map((actor) => ({
-    ...actor,
-    thumbnail_url: toFrameImageUrl(
-      actor.thumbnail_url ?? actor.thumbnail_s3_key,
-    ),
-  })),
+): SessionVideoResponse => {
+  if (typeof video === 'string') {
+    return {
+      video_id: 0,
+      s3_url: video,
+      analysis_status: video ? 'done' : '',
+      analysis_result: null,
+      actors: [],
+      is_landscape: null,
+    };
+  }
+
+  return {
+    video_id: video.video_id ?? 0,
+    s3_url: video.s3_url ?? video.video_url ?? video.url ?? '',
+    analysis_status: video.analysis_status ?? '',
+    analysis_result: video.analysis_result ?? null,
+    actors: (video.actors ?? []).map((actor) => ({
+      ...actor,
+      thumbnail_url: toFrameImageUrl(
+        actor.thumbnail_url ?? actor.thumbnail_s3_key,
+      ),
+    })),
+    is_landscape: video.is_landscape ?? null,
+  };
+};
+
+const createSessionVideoRequestConfig = (options?: { refresh?: boolean }) => ({
+  headers: options?.refresh
+    ? {
+        'Cache-Control': 'no-cache',
+      }
+    : undefined,
+  params: options?.refresh ? { _ts: Date.now() } : undefined,
 });
 
 const parseAnalysisResult = (analysisResult: unknown) => {
@@ -281,16 +314,30 @@ export const getSessionVideo = async (
 ): Promise<SessionVideoResponse> => {
   const res = await instance.get<RawSessionVideoResponse>(
     `/api/v1/sessions/${sessionId}/video`,
-    options?.refresh
-      ? {
-          headers: {
+    createSessionVideoRequestConfig(options),
+  );
+
+  return normalizeSessionVideo(res.data);
+};
+
+export const getSessionVideoMatching = async (
+  sessionId: number,
+  userId: number,
+  options?: { refresh?: boolean },
+): Promise<SessionVideoResponse> => {
+  const res = await instance.get<RawSessionVideoResponse>(
+    `/api/v1/sessions/${sessionId}/video/matching`,
+    {
+      headers: options?.refresh
+        ? {
             'Cache-Control': 'no-cache',
-          },
-          params: {
-            _ts: Date.now(),
-          },
-        }
-      : undefined,
+          }
+        : undefined,
+      params: {
+        user_id: userId,
+        ...(options?.refresh ? { _ts: Date.now() } : {}),
+      },
+    },
   );
 
   return normalizeSessionVideo(res.data);

@@ -9,7 +9,7 @@ import {
 import {
   completeProjectSession,
   getProjectSessions,
-  getSessionVideo,
+  getSessionVideoMatching,
   type SessionVideoActor,
 } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -39,6 +39,7 @@ const compareSessionVideoActors = (
 type ActorMappingRouteState = {
   projectSessionTitle?: string;
   sessionOwnerId?: number;
+  allowActorMapping?: boolean;
 };
 
 export default function ActorMappingPage() {
@@ -130,7 +131,10 @@ export default function ActorMappingPage() {
           saveSessionOwnerId(numericSessionId, nextOwnerId);
         }
 
-        if (matchedSession?.in_progress === false) {
+        if (
+          matchedSession?.in_progress === false &&
+          !routeState?.allowActorMapping
+        ) {
           navigate(
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
@@ -156,6 +160,7 @@ export default function ActorMappingPage() {
     navigate,
     numericProjectId,
     numericSessionId,
+    routeState?.allowActorMapping,
     routeState?.sessionOwnerId,
   ]);
 
@@ -218,7 +223,11 @@ export default function ActorMappingPage() {
   }, [isSessionOwner, numericProjectId]);
 
   useEffect(() => {
-    if (Number.isNaN(numericSessionId) || !isSessionOwner) {
+    if (
+      Number.isNaN(numericSessionId) ||
+      !isSessionOwner ||
+      currentUserId === null
+    ) {
       setIsLoading(false);
       return;
     }
@@ -241,7 +250,10 @@ export default function ActorMappingPage() {
       setIsLoading(true);
 
       try {
-        const video = await getSessionVideo(numericSessionId);
+        const video = await getSessionVideoMatching(
+          numericSessionId,
+          currentUserId,
+        );
 
         if (ignore) return;
 
@@ -278,7 +290,7 @@ export default function ActorMappingPage() {
         window.clearTimeout(pollTimeoutId);
       }
     };
-  }, [isSessionOwner, numericSessionId]);
+  }, [currentUserId, isSessionOwner, numericSessionId]);
 
   useEffect(() => {
     if (Number.isNaN(numericSessionId) || !isSessionOwner) {
