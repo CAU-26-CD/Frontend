@@ -347,6 +347,17 @@ export const analyzeSessionVideo = async (sessionId: number): Promise<void> => {
   await instance.post(`/api/v1/sessions/${sessionId}/video/analyze`);
 };
 
+export const completeSessionMatching = async (
+  sessionId: number,
+  userId: number,
+): Promise<void> => {
+  await instance.post(`/api/v1/sessions/${sessionId}/matching/complete`, null, {
+    params: {
+      user_id: userId,
+    },
+  });
+};
+
 export const startRehearsalSession = async (
   sessionId: number,
 ): Promise<RehearsalSessionStatusResponse> => {

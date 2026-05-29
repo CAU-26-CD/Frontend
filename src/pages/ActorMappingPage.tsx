@@ -7,6 +7,7 @@ import {
   waitForPendingFeedbackCreates,
 } from '../apis/feedback';
 import {
+  completeSessionMatching,
   getProjectSessions,
   getSessionVideoMatching,
   type SessionVideoActor,
@@ -445,6 +446,7 @@ export default function ActorMappingPage() {
     if (
       Number.isNaN(numericProjectId) ||
       Number.isNaN(numericSessionId) ||
+      currentUserId === null ||
       isCompleting
     ) {
       return;
@@ -454,6 +456,7 @@ export default function ActorMappingPage() {
     setActorActionError(null);
 
     try {
+      await completeSessionMatching(numericSessionId, currentUserId);
       navigate(
         `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
       );

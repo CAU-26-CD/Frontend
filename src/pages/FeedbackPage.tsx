@@ -483,8 +483,8 @@ export default function RehearsalFeedbackPage() {
     <div className="reaction-ui-font flex h-full w-full items-center justify-center">
       <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl">
         <WalkingLoadingPanel
-          title="비디오 업로드 중입니다"
-          description="업로드가 끝나면 배우 태그 매칭 대기 화면으로 이동합니다."
+          title="영상 분석 중입니다."
+          description="영상 분석이 끝나면 리뷰 화면으로 이동합니다."
           className="border-0 bg-transparent p-0 shadow-none backdrop-blur-0"
         />
       </div>
