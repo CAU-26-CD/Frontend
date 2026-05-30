@@ -404,6 +404,7 @@ export default function ReviewPage() {
         setFeedbacks(
           fetchedFeedbacks.map((feedback) => ({
             id: feedback.feedback_id,
+            createdByUserId: feedback.created_by_user_id,
             timestamp: secondsToTimestamp(
               toVideoTimelineSeconds(
                 feedback.video_offset_seconds,

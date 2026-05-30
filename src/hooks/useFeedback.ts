@@ -31,6 +31,7 @@ const hasValidSessionId = (
 export function useFeedback(
   sessionId?: FeedbackSessionId,
   getCurrentOffsetSeconds: () => number = () => 0,
+  currentUserId?: number | null,
 ) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
@@ -46,6 +47,10 @@ export function useFeedback(
 
   useEffect(() => {
     if (!hasValidSessionId(sessionId)) return;
+    if (!currentUserId) {
+      setFeedbacks([]);
+      return;
+    }
 
     let ignore = false;
 
@@ -53,13 +58,16 @@ export function useFeedback(
       setIsLoadingFeedbacks(true);
 
       try {
-        const fetchedFeedbacks = await getFeedbacks(sessionId);
+        const fetchedFeedbacks = await getFeedbacks(sessionId, {
+          userId: currentUserId,
+        });
 
         if (ignore) return;
 
         setFeedbacks(
           fetchedFeedbacks.map((feedback) => ({
             id: feedback.feedback_id,
+            createdByUserId: feedback.created_by_user_id,
             timestamp: secondsToTimestamp(feedback.video_offset_seconds),
             actorIds: feedback.actor_ids,
             content: feedback.content,
@@ -83,7 +91,7 @@ export function useFeedback(
     return () => {
       ignore = true;
     };
-  }, [sessionId]);
+  }, [currentUserId, sessionId]);
 
   const handleStartTimestamp = useCallback(() => {
     setTimestamp(secondsToTimestamp(getCurrentOffsetSeconds()));
@@ -92,6 +100,7 @@ export function useFeedback(
   const handleSubmit = async () => {
     if (selectedActors.length === 0 || !timestamp || !content.trim()) return;
     if (!hasValidSessionId(sessionId)) return;
+    if (!currentUserId) return;
 
     const feedbackActorIds = selectedActors.map((actor) => actor.id);
     const feedbackContent = content;
@@ -101,6 +110,7 @@ export function useFeedback(
     );
     const optimisticFeedback: Feedback = {
       id: temporaryFeedbackId,
+      createdByUserId: currentUserId,
       timestamp: feedbackTimestamp,
       actorIds: feedbackActorIds,
       content: feedbackContent,
@@ -117,14 +127,19 @@ export function useFeedback(
     setPendingSubmissionCount((count) => count + 1);
 
     try {
-      const createdFeedback = await createFeedback(sessionId, {
-        content: feedbackContent,
-        video_offset_seconds: timestampToSeconds(feedbackTimestamp),
-        actor_ids: feedbackActorIds,
-      });
+      const createdFeedback = await createFeedback(
+        sessionId,
+        {
+          content: feedbackContent,
+          video_offset_seconds: timestampToSeconds(feedbackTimestamp),
+          actor_ids: feedbackActorIds,
+        },
+        currentUserId,
+      );
 
       const newFeedback: Feedback = {
         id: createdFeedback.feedback_id,
+        createdByUserId: createdFeedback.created_by_user_id,
         timestamp: feedbackTimestamp,
         actorIds: createdFeedback.actor_ids,
         content: createdFeedback.content,
@@ -213,19 +228,32 @@ export function useFeedback(
       console.error('Cannot update feedback without a valid session id');
       return;
     }
+    if (!currentUserId) {
+      console.error('Cannot update feedback without a valid user id');
+      setFeedbacks((prev) =>
+        prev.map((item) => (item.id === id ? targetFeedback : item)),
+      );
+      return;
+    }
 
     try {
-      const updatedFeedback = await updateFeedback(sessionId, id, {
-        content: nextContent,
-        video_offset_seconds: timestampToSeconds(targetFeedback.timestamp),
-        actor_ids: targetFeedback.actorIds,
-      });
+      const updatedFeedback = await updateFeedback(
+        sessionId,
+        id,
+        {
+          content: nextContent,
+          video_offset_seconds: timestampToSeconds(targetFeedback.timestamp),
+          actor_ids: targetFeedback.actorIds,
+        },
+        currentUserId,
+      );
 
       setFeedbacks((prev) =>
         prev.map((item) =>
           item.id === id
             ? {
                 ...item,
+                createdByUserId: updatedFeedback.created_by_user_id,
                 content: updatedFeedback.content,
                 timestamp: secondsToTimestamp(
                   updatedFeedback.video_offset_seconds,
@@ -266,9 +294,14 @@ export function useFeedback(
       setFeedbacks((prev) => [...prev, deletedFeedback]);
       return;
     }
+    if (!currentUserId) {
+      console.error('Cannot delete feedback without a valid user id');
+      setFeedbacks((prev) => [...prev, deletedFeedback]);
+      return;
+    }
 
     try {
-      await deleteFeedback(sessionId, id);
+      await deleteFeedback(sessionId, id, currentUserId);
     } catch (error) {
       console.error('Failed to delete feedback', error);
 

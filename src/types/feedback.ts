@@ -28,6 +28,7 @@ export interface Actor {
 
 export interface Feedback {
   id: number;
+  createdByUserId?: number;
   timestamp: string;
   actorIds: number[];
   content: string;

@@ -138,6 +138,7 @@ export default function RehearsalFeedbackPage() {
   const feedback = useFeedback(
     activeSessionId,
     getCurrentRecordingOffsetSeconds,
+    currentUserId,
   );
   const { handleStartTimestamp } = feedback;
   const projectTitle = Number.isNaN(numericProjectId)
