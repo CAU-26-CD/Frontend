@@ -9,7 +9,7 @@ type ActorMappingWaitingRouteState = {
   projectSessionTitle?: string;
 };
 
-const SESSION_POLL_INTERVAL_MS = 1000;
+const SESSION_POLL_INTERVAL_MS = 2000;
 
 const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
   matchingCompleted === true ||
@@ -70,9 +70,6 @@ export default function ActorMappingWaitingPage() {
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
               replace: true,
-              state: {
-                projectSessionTitle: matchedSession.title ?? sessionTitle,
-              },
             },
           );
           return;
@@ -97,13 +94,7 @@ export default function ActorMappingWaitingPage() {
       ignore = true;
       window.clearInterval(intervalId);
     };
-  }, [
-    hasInvalidSessionParams,
-    navigate,
-    numericProjectId,
-    numericSessionId,
-    sessionTitle,
-  ]);
+  }, [hasInvalidSessionParams, navigate, numericProjectId, numericSessionId]);
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
