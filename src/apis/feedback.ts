@@ -11,6 +11,7 @@ export type CreateFeedbackRequest = {
 export type CreateFeedbackResponse = {
   feedback_id: number;
   session_id: FeedbackSessionId;
+  created_by_user_id: number;
   content: string;
   video_offset_seconds: number;
   actor_ids: number[];
@@ -32,10 +33,12 @@ export type FilterFeedbacksFilters = {
   categories?: string[];
   priority?: FeedbackPriority[];
   actorIds?: number[];
+  userId?: number;
 };
 
 export type GetFeedbacksFilters = {
   actorIds?: number[];
+  userId?: number;
 };
 
 const pendingCreateFeedbacksBySession = new Map<string, Set<Promise<unknown>>>();
@@ -81,9 +84,12 @@ export const waitForPendingFeedbackCreates = async (
 export const createFeedback = async (
   sessionId: FeedbackSessionId,
   data: CreateFeedbackRequest,
+  userId: number,
 ): Promise<CreateFeedbackResponse> => {
   const request = instance
-    .post(`/api/v1/sessions/${sessionId}/feedbacks`, data)
+    .post(`/api/v1/sessions/${sessionId}/feedbacks`, data, {
+      params: { user_id: userId },
+    })
     .then((res) => res.data);
 
   return trackCreateFeedback(sessionId, request);
@@ -98,6 +104,9 @@ export const getFeedbacks = async (
   filters.actorIds?.forEach((actorId) => {
     params.append('actor_ids', String(actorId));
   });
+  if (filters.userId !== undefined) {
+    params.append('user_id', String(filters.userId));
+  }
 
   const res = await instance.get(`/api/v1/sessions/${sessionId}/feedbacks`, {
     params,
@@ -121,6 +130,9 @@ export const filterFeedbacks = async (
   filters.actorIds?.forEach((actorId) => {
     params.append('actor_ids', String(actorId));
   });
+  if (filters.userId !== undefined) {
+    params.append('user_id', String(filters.userId));
+  }
 
   const res = await instance.get(
     `/api/v1/sessions/${sessionId}/feedbacks/filter`,
@@ -145,9 +157,13 @@ export const classifySessionFeedbacks = async (
 export const deleteFeedback = async (
   sessionId: FeedbackSessionId,
   feedbackId: number,
+  userId: number,
 ): Promise<void> => {
   await instance.delete(
     `/api/v1/sessions/${sessionId}/feedbacks/${feedbackId}`,
+    {
+      params: { user_id: userId },
+    },
   );
 };
 
@@ -155,10 +171,14 @@ export const updateFeedback = async (
   sessionId: FeedbackSessionId,
   feedbackId: number,
   data: CreateFeedbackRequest,
+  userId: number,
 ): Promise<CreateFeedbackResponse> => {
   const res = await instance.patch(
     `/api/v1/sessions/${sessionId}/feedbacks/${feedbackId}`,
     data,
+    {
+      params: { user_id: userId },
+    },
   );
 
   return res.data;
