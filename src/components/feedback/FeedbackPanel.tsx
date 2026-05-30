@@ -148,6 +148,7 @@ export default function FeedbackPanel({
 
   const openActorCommand = useCallback(
     (commandIndex = content.length) => {
+      if (isInteractionDisabled) return;
       if (!timestamp) {
         onTimestampStart();
       }
@@ -165,7 +166,13 @@ export default function FeedbackPanel({
         textarea?.setSelectionRange(commandIndex + 1, commandIndex + 1);
       });
     },
-    [content, onContentChange, onTimestampStart, timestamp],
+    [
+      content,
+      isInteractionDisabled,
+      onContentChange,
+      onTimestampStart,
+      timestamp,
+    ],
   );
 
   useEffect(() => {
@@ -177,6 +184,7 @@ export default function FeedbackPanel({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
+      if (isInteractionDisabled) return;
       const isTyping =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
@@ -193,7 +201,7 @@ export default function FeedbackPanel({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [openActorCommand]);
+  }, [isInteractionDisabled, openActorCommand]);
 
   return (
     <aside className="reaction-ui-font flex h-full min-h-0 flex-col gap-3 overflow-hidden bg-transparent px-1 py-0 text-[#2d1715]">
@@ -312,7 +320,10 @@ export default function FeedbackPanel({
                             <button
                               type="button"
                               onClick={() => onEditSave(feedback.id)}
-                              disabled={!editingContent.trim()}
+                              disabled={
+                                isInteractionDisabled ||
+                                !editingContent.trim()
+                              }
                               className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B] disabled:text-[#c8b7aa]"
                             >
                               저장
@@ -330,6 +341,7 @@ export default function FeedbackPanel({
                             <button
                               type="button"
                               onClick={() => onEdit(feedback)}
+                              disabled={isInteractionDisabled}
                               className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                             >
                               수정
@@ -337,6 +349,7 @@ export default function FeedbackPanel({
                             <button
                               type="button"
                               onClick={() => onDelete(feedback.id)}
+                              disabled={isInteractionDisabled}
                               className="rounded-full border border-white/35 bg-white/20 px-2 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] backdrop-blur-lg transition hover:bg-white/34 hover:text-[#431B1B]"
                             >
                               삭제
@@ -348,6 +361,7 @@ export default function FeedbackPanel({
                       <button
                         type="button"
                         onClick={() => onToggleUrgent(feedback.id)}
+                        disabled={isInteractionDisabled}
                         className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                         aria-pressed={feedback.isUrgent}
                         aria-label={
@@ -424,9 +438,18 @@ export default function FeedbackPanel({
           <div
             ref={actorRowRef}
             tabIndex={0}
-            onClick={() => setActorRowActive(true)}
-            onFocus={() => setActorRowActive(true)}
+            onClick={() => {
+              if (!isInteractionDisabled) {
+                setActorRowActive(true);
+              }
+            }}
+            onFocus={() => {
+              if (!isInteractionDisabled) {
+                setActorRowActive(true);
+              }
+            }}
             onKeyDown={(e) => {
+              if (isInteractionDisabled) return;
               if (e.key === 'Backspace') {
                 e.preventDefault();
                 onActorBackspace();
@@ -457,6 +480,7 @@ export default function FeedbackPanel({
               <button
                 type="button"
                 onClick={() => openActorCommand()}
+                disabled={isInteractionDisabled}
                 className="rounded-full border border-white/24 bg-[#431B1B]/52 px-3 py-1 text-xs font-semibold text-[#fff8ef]/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-lg transition hover:scale-[1.03] hover:bg-[#431B1B]/66"
               >
                 배우 선택
@@ -468,6 +492,7 @@ export default function FeedbackPanel({
             <button
               type="button"
               onClick={onTimestampStart}
+              disabled={isInteractionDisabled}
               className="reaction-glass-pill rounded-full px-3 py-1 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
               타임스탬프 {timestamp ?? '00:00'}
@@ -484,6 +509,7 @@ export default function FeedbackPanel({
               ref={contentTextareaRef}
               value={content}
               onFocus={() => {
+                if (isInteractionDisabled) return;
                 setActorRowActive(false);
 
                 if (!timestamp) {
@@ -491,6 +517,7 @@ export default function FeedbackPanel({
                 }
               }}
               onChange={(e) => {
+                if (isInteractionDisabled) return;
                 const nextContent = e.target.value;
                 const commandValue =
                   actorCommandIndex === null
@@ -520,6 +547,7 @@ export default function FeedbackPanel({
                 }
               }}
               onKeyDown={(e) => {
+                if (isInteractionDisabled) return;
                 if (e.key === 'Backspace' && e.shiftKey) {
                   e.preventDefault();
                   onActorBackspace();
@@ -597,6 +625,7 @@ export default function FeedbackPanel({
                   ? '피드백을 입력하세요'
                   : '클릭하거나 Space를 눌러 피드백을 입력하세요'
               }
+              disabled={isInteractionDisabled}
               readOnly={!timestamp}
               className={[
                 'h-full w-full resize-none border-0 bg-transparent py-1 pl-1 pr-[72px] text-xs font-semibold text-[#431B1B] outline-none transition-colors placeholder:text-[#431B1B]/45',
@@ -612,6 +641,7 @@ export default function FeedbackPanel({
               }}
               className="absolute bottom-2 right-2 flex h-17 w-[56px] items-center justify-center rounded-[16px] border border-white/30 bg-[#431B1B]/58 text-[11px] font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] backdrop-blur-lg transition hover:scale-[1.04] hover:bg-[#431B1B]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-45"
               disabled={
+                isInteractionDisabled ||
                 selectedActors.length === 0 ||
                 !timestamp ||
                 !content.trim()
