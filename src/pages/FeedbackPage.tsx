@@ -106,6 +106,7 @@ export default function RehearsalFeedbackPage() {
     null,
   );
   const [isRecordingFinalized, setIsRecordingFinalized] = useState(false);
+  const [isRehearsalEntryBlocked, setIsRehearsalEntryBlocked] = useState(false);
   const [actors, setActors] = useState<Actor[]>([]);
   const [isLoadingActors, setIsLoadingActors] = useState(false);
   const [actorsError, setActorsError] = useState<string | null>(null);
@@ -289,6 +290,23 @@ export default function RehearsalFeedbackPage() {
 
         const hasStarted = sessionStorage.getItem(rehearsalStartedStorageKey);
 
+        if (!hasStarted && matchedSession?.in_progress) {
+          try {
+            const rehearsalStatus =
+              await getRehearsalSessionStatus(numericSessionId);
+
+            if (rehearsalStatus.started) {
+              setIsRehearsalEntryBlocked(true);
+              setIsCameraGateOpen(false);
+              return;
+            }
+          } catch (error) {
+            console.error('Failed to verify rehearsal entry status', error);
+          }
+        }
+
+        setIsRehearsalEntryBlocked(false);
+
         if (!hasStarted) {
           setIsCameraGateOpen(true);
         }
@@ -428,6 +446,7 @@ export default function RehearsalFeedbackPage() {
   useEffect(() => {
     if (
       hasRequestedCameraSessionRef.current ||
+      isRehearsalEntryBlocked ||
       Number.isNaN(numericSessionId) ||
       currentProjectSession?.in_progress === false
     ) {
@@ -449,7 +468,11 @@ export default function RehearsalFeedbackPage() {
     };
 
     void openCameraConnection();
-  }, [currentProjectSession?.in_progress, numericSessionId]);
+  }, [
+    currentProjectSession?.in_progress,
+    isRehearsalEntryBlocked,
+    numericSessionId,
+  ]);
 
   useEffect(() => {
     if (!isCameraGateOpen || Number.isNaN(numericSessionId)) {
@@ -653,6 +676,40 @@ export default function RehearsalFeedbackPage() {
       />
     </div>
   ) : null;
+
+  if (isRehearsalEntryBlocked) {
+    return (
+      <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
+        <DesignedHeader align="left" />
+        <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
+
+        <div className="relative z-10 mx-auto flex h-screen w-full max-w-[960px] flex-col overflow-hidden px-4 pb-7 pt-24 sm:px-6 lg:px-12">
+          <div className="reaction-ui-font flex shrink-0 items-center justify-between gap-4 text-sm font-semibold text-[#eee7dc]">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate">
+                My Projects / {projectTitle} / {sessionTitle}
+              </span>
+              <Video
+                size={20}
+                fill="#D15757"
+                stroke="#D15757"
+                strokeWidth={2.4}
+                className="shrink-0"
+                aria-hidden="true"
+              />
+            </div>
+          </div>
+
+          <section className="reaction-ui-font flex flex-1 items-center justify-center text-center">
+            <WalkingLoadingPanel
+              title="리허설 진행중입니다"
+              description="이미 시작된 세션에는 새로 진입할 수 없습니다."
+            />
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">

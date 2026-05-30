@@ -20,19 +20,18 @@ export default function FeedbackSessionCard({
   const sessionDate = session.date.includes('T')
     ? session.date.split('T')[0]
     : session.date.split(' ')[0];
-  const statusLabel =
-    isRehearsalStarted
-      ? '리허설 진행중입니다'
-      : session.status === 'inProgress'
-        ? '피드백 작성으로 이동'
-        : '피드백 세션 보기';
+  const statusLabel = isRehearsalStarted
+    ? '리허설 진행중입니다'
+    : session.status === 'inProgress'
+      ? '피드백 작성으로 이동'
+      : '피드백 세션 보기';
 
   const cardContent = (
     <article className="flex w-full flex-col items-center">
       <div
         className={[
           'reaction-project-card relative flex aspect-[236/114] w-full items-center justify-center overflow-hidden text-[#17100f] transition duration-300',
-          'group-hover:scale-[1.04]',
+          isRehearsalStarted ? '' : 'group-hover:scale-[1.04]',
         ].join(' ')}
       >
         <img
@@ -58,11 +57,25 @@ export default function FeedbackSessionCard({
       </time>
     </article>
   );
+  const wrapperClassName =
+    'group flex w-full max-w-[236px] flex-col items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#eee7dc]/70';
+
+  if (isRehearsalStarted) {
+    return (
+      <div
+        className={`${wrapperClassName} cursor-not-allowed`}
+        aria-disabled="true"
+        aria-label={`${session.title} ${statusLabel}`}
+      >
+        {cardContent}
+      </div>
+    );
+  }
 
   return (
     <Link
       to={sessionPath}
-      className="group flex w-full max-w-[236px] flex-col items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#eee7dc]/70"
+      className={wrapperClassName}
       aria-label={`${session.title} ${statusLabel}`}
     >
       {cardContent}
