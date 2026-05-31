@@ -6,8 +6,11 @@ import { filterFeedbacks } from '../apis/feedback';
 import {
   getSessionVideo,
   getSessionVideoActorAppearances,
+  getSessionVideoActorsAppearances,
   getSessionVideoAppearances,
+  parseSessionVideoAppearances,
   type SessionVideoAppearance,
+  type SessionVideoAppearancesResponse,
   type SessionVideoResponse,
 } from '../apis/session';
 import ReviewFeedbackPanel from '../components/review/ReviewFeedbackPanel';
@@ -228,6 +231,8 @@ export default function ReviewPage() {
   const [sessionVideo, setSessionVideo] = useState<SessionVideoResponse | null>(
     null,
   );
+  const [sessionVideoAppearanceInfo, setSessionVideoAppearanceInfo] =
+    useState<SessionVideoAppearancesResponse | null>(null);
   const [projectActors, setProjectActors] = useState<Actor[]>([]);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [videoMessage, setVideoMessage] = useState('');
@@ -259,15 +264,17 @@ export default function ReviewPage() {
     () => normalizeRouteActors(routeState?.reviewActors),
     [routeState?.reviewActors],
   );
-  const videoReviewActors = useMemo<Actor[]>(
-    () =>
-      sessionVideo?.actors.map((actor, index) => ({
-        id: actor.actor_id,
-        name: actor.name ?? `배우 ${actor.actor_id}`,
-        shortcut: String(index + 1),
-      })) ?? [],
-    [sessionVideo],
-  );
+  const videoReviewActors = useMemo<Actor[]>(() => {
+    const actors = sessionVideoAppearanceInfo?.actors.length
+      ? sessionVideoAppearanceInfo.actors
+      : (sessionVideo?.actors ?? []);
+
+    return actors.map((actor, index) => ({
+      id: actor.actor_id,
+      name: actor.name ?? `배우 ${actor.actor_id}`,
+      shortcut: String(index + 1),
+    }));
+  }, [sessionVideo, sessionVideoAppearanceInfo]);
   const reviewActors = useMemo<Actor[]>(() => {
     const projectActorNameById = new Map(
       projectActors.map((actor) => [actor.id, actor.name]),
@@ -287,6 +294,24 @@ export default function ReviewPage() {
     );
   }, [projectActors, routeReviewActors, videoReviewActors]);
   const actorAppearances = useMemo<SessionVideoAppearance[]>(() => {
+    if (sessionVideoAppearanceInfo) {
+      const actorAppearances = getSessionVideoActorsAppearances(
+        sessionVideoAppearanceInfo.actors,
+      );
+
+      if (actorAppearances.length > 0) {
+        return actorAppearances;
+      }
+
+      const analysisAppearances = parseSessionVideoAppearances(
+        sessionVideoAppearanceInfo.analysis_result,
+      );
+
+      if (analysisAppearances.length > 0) {
+        return analysisAppearances;
+      }
+    }
+
     if (!sessionVideo) {
       return [];
     }
@@ -295,8 +320,8 @@ export default function ReviewPage() {
 
     return actorAppearances.length > 0
       ? actorAppearances
-      : getSessionVideoAppearances(sessionVideo.analysis_result);
-  }, [sessionVideo]);
+      : parseSessionVideoAppearances(sessionVideo.analysis_result);
+  }, [sessionVideo, sessionVideoAppearanceInfo]);
   const actorIdsWithTimeline = useMemo(
     () => [
       ...new Set(actorAppearances.map((appearance) => appearance.actorId)),
@@ -342,7 +367,28 @@ export default function ReviewPage() {
       }
     };
 
+    const loadSessionVideoAppearances = async () => {
+      setSessionVideoAppearanceInfo(null);
+
+      try {
+        const appearances = await getSessionVideoAppearances(numericSessionId, {
+          refresh: true,
+        });
+
+        if (!ignore) {
+          setSessionVideoAppearanceInfo(appearances);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setSessionVideoAppearanceInfo(null);
+        }
+
+        console.error('Failed to load session video appearances', error);
+      }
+    };
+
     void loadSessionVideo();
+    void loadSessionVideoAppearances();
 
     return () => {
       ignore = true;
@@ -528,7 +574,6 @@ export default function ReviewPage() {
           <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4">
             <ReviewVideoPanel
               videoUrl={sessionVideo?.s3_url ?? ''}
-              actors={reviewActors}
               appearances={actorAppearances}
               requiredFeedbackMarkers={requiredFeedbackMarkers}
               selectedActorIds={selectedActorIds}

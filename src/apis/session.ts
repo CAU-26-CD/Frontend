@@ -81,6 +81,13 @@ export type SessionVideoResponse = {
   trim_offset_seconds: number | null;
 };
 
+export type SessionVideoAppearancesResponse = {
+  video_id: number;
+  analysis_status: string;
+  analysis_result: unknown;
+  actors: SessionVideoActor[];
+};
+
 export type SessionVideoAppearance = {
   actorId: number;
   startSeconds: number;
@@ -89,6 +96,8 @@ export type SessionVideoAppearance = {
 };
 
 type RawSessionVideoAppearance = {
+  actor_id?: unknown;
+  actorId?: unknown;
   person_id?: unknown;
   start_seconds?: unknown;
   end_seconds?: unknown;
@@ -105,6 +114,16 @@ type RawSessionVideoObjectResponse = Partial<
 };
 
 type RawSessionVideoResponse = RawSessionVideoObjectResponse | string;
+
+type RawSessionVideoAppearancesObjectResponse = Partial<
+  Omit<SessionVideoAppearancesResponse, 'actors'>
+> & {
+  actors?: RawSessionVideoActor[] | null;
+};
+
+type RawSessionVideoAppearancesResponse =
+  | RawSessionVideoAppearancesObjectResponse
+  | string;
 
 const FRAME_IMAGE_BASE_URL =
   import.meta.env.VITE_FRAME_IMAGE_BASE_URL ??
@@ -151,16 +170,41 @@ const normalizeSessionVideo = (
     s3_url: video.s3_url ?? video.video_url ?? video.url ?? '',
     analysis_status: video.analysis_status ?? '',
     analysis_result: video.analysis_result ?? null,
-    actors: (video.actors ?? []).map((actor) => ({
-      ...actor,
-      thumbnail_url: toFrameImageUrl(
-        actor.thumbnail_url ?? actor.thumbnail_s3_key,
-      ),
-    })),
+    actors: normalizeSessionVideoActors(video.actors),
     is_landscape: video.is_landscape ?? null,
     recording_started_at: video.recording_started_at ?? null,
     video_zero_at: video.video_zero_at ?? null,
     trim_offset_seconds: video.trim_offset_seconds ?? null,
+  };
+};
+
+const normalizeSessionVideoActors = (
+  actors: RawSessionVideoActor[] | null | undefined,
+): SessionVideoActor[] =>
+  (actors ?? []).map((actor) => ({
+    ...actor,
+    thumbnail_url: toFrameImageUrl(
+      actor.thumbnail_url ?? actor.thumbnail_s3_key,
+    ),
+  }));
+
+const normalizeSessionVideoAppearances = (
+  video: RawSessionVideoAppearancesResponse,
+): SessionVideoAppearancesResponse => {
+  if (typeof video === 'string') {
+    return {
+      video_id: 0,
+      analysis_status: video ? 'done' : '',
+      analysis_result: null,
+      actors: [],
+    };
+  }
+
+  return {
+    video_id: video.video_id ?? 0,
+    analysis_status: video.analysis_status ?? '',
+    analysis_result: video.analysis_result ?? null,
+    actors: normalizeSessionVideoActors(video.actors),
   };
 };
 
@@ -188,7 +232,27 @@ const parseAnalysisResult = (analysisResult: unknown) => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-export const getSessionVideoAppearances = (
+const getAppearanceActorId = (appearance: RawSessionVideoAppearance) => {
+  const directActorId = Number(appearance.actor_id ?? appearance.actorId);
+
+  if (Number.isFinite(directActorId)) {
+    return directActorId;
+  }
+
+  if (typeof appearance.person_id === 'string') {
+    const actorMatch = appearance.person_id.match(/^actor:(\d+)$/);
+
+    if (actorMatch) {
+      return Number(actorMatch[1]);
+    }
+  }
+
+  const personId = Number(appearance.person_id);
+
+  return Number.isFinite(personId) ? personId : NaN;
+};
+
+export const parseSessionVideoAppearances = (
   analysisResult: unknown,
 ): SessionVideoAppearance[] => {
   const parsedResult = parseAnalysisResult(analysisResult);
@@ -211,11 +275,7 @@ export const getSessionVideoAppearances = (
 
   return rawAppearances
     .map((appearance: RawSessionVideoAppearance) => {
-      const actorMatch =
-        typeof appearance.person_id === 'string'
-          ? appearance.person_id.match(/^actor:(\d+)$/)
-          : null;
-      const actorId = actorMatch ? Number(actorMatch[1]) : NaN;
+      const actorId = getAppearanceActorId(appearance);
       const startSeconds = Number(appearance.start_seconds);
       const endSeconds = Number(appearance.end_seconds);
       const detectionCount = Number(appearance.detection_count ?? 0);
@@ -268,10 +328,10 @@ const getRawActorAppearances = (actor: SessionVideoActor) => {
   return [];
 };
 
-export const getSessionVideoActorAppearances = (
-  video: SessionVideoResponse,
+export const getSessionVideoActorsAppearances = (
+  actors: SessionVideoActor[],
 ): SessionVideoAppearance[] =>
-  video.actors.flatMap((actor) =>
+  actors.flatMap((actor) =>
     getRawActorAppearances(actor)
       .map((appearance) => {
         const startSeconds = Number(appearance.start_seconds);
@@ -293,6 +353,10 @@ export const getSessionVideoActorAppearances = (
         Boolean(appearance),
       ),
   );
+
+export const getSessionVideoActorAppearances = (
+  video: SessionVideoResponse,
+): SessionVideoAppearance[] => getSessionVideoActorsAppearances(video.actors);
 
 export const createProjectSession = async (
   projectId: number,
@@ -338,6 +402,18 @@ export const getSessionVideo = async (
   );
 
   return normalizeSessionVideo(res.data);
+};
+
+export const getSessionVideoAppearances = async (
+  sessionId: number,
+  options?: { refresh?: boolean },
+): Promise<SessionVideoAppearancesResponse> => {
+  const res = await instance.get<RawSessionVideoAppearancesResponse>(
+    `/api/v1/sessions/${sessionId}/video/appearances`,
+    createSessionVideoRequestConfig(options),
+  );
+
+  return normalizeSessionVideoAppearances(res.data);
 };
 
 export const getSessionVideoMatching = async (

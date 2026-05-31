@@ -1,18 +1,8 @@
 import { Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionVideoAppearance } from '../../apis/session';
-import type { Actor } from '../../types/feedback';
 import LoadingSpinner from '../LoadingSpinner';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
-
-const actorTimelineColors = [
-  '#f6b3bb',
-  '#f6e2a8',
-  '#9bc7e8',
-  '#c6d8a8',
-  '#d7c4f2',
-  '#efe6de',
-];
 
 const getMetadataVideoDuration = (video: HTMLVideoElement) => {
   if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -24,7 +14,6 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) => {
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
-  actors: Actor[];
   appearances: SessionVideoAppearance[];
   requiredFeedbackMarkers: {
     feedbackId: number;
@@ -44,7 +33,6 @@ type ReviewVideoPanelProps = {
 
 export default function ReviewVideoPanel({
   videoUrl,
-  actors,
   appearances,
   requiredFeedbackMarkers,
   selectedActorIds,
@@ -61,10 +49,6 @@ export default function ReviewVideoPanel({
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const actorNamesById = useMemo(
-    () => new Map(actors.map((actor) => [actor.id, actor.name])),
-    [actors],
-  );
   const normalizedAppearances = useMemo(
     () =>
       appearances
@@ -129,8 +113,9 @@ export default function ReviewVideoPanel({
     ...normalizedRequiredFeedbackMarkers.map((marker) => marker.time + 1),
     1,
   );
-  const timelineDuration =
-    hasVideoDuration ? safeVideoDuration : fallbackTimelineDuration;
+  const timelineDuration = hasVideoDuration
+    ? safeVideoDuration
+    : fallbackTimelineDuration;
   const currentTimelineSecond = Math.min(
     timelineDuration,
     Math.floor(currentTime),
@@ -139,13 +124,6 @@ export default function ReviewVideoPanel({
     100,
     Math.max(0, (currentTime / timelineDuration) * 100),
   );
-  const getActorTimelineColor = (actorId: number) => {
-    const actorIndex = actors.findIndex((actor) => actor.id === actorId);
-
-    return actorTimelineColors[
-      Math.max(actorIndex, 0) % actorTimelineColors.length
-    ];
-  };
   const formatTime = (seconds: number) => {
     if (!Number.isFinite(seconds)) {
       return '00:00';
@@ -482,45 +460,7 @@ export default function ReviewVideoPanel({
                   }}
                   className="relative h-[26px] min-w-0 flex-1 cursor-pointer rounded-[6px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 >
-                  <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-[6px] -translate-y-1/2 overflow-hidden rounded-full bg-[#eee7dc]/26">
-                    {normalizedAppearances.map((appearance) => {
-                      const visibleStart = Math.min(
-                        timelineDuration,
-                        Math.max(0, appearance.startSeconds),
-                      );
-                      const visibleEnd = Math.min(
-                        timelineDuration,
-                        Math.max(0, appearance.endSeconds),
-                      );
-
-                      if (visibleEnd <= 0 || visibleStart >= timelineDuration) {
-                        return null;
-                      }
-
-                      const left = (visibleStart / timelineDuration) * 100;
-                      const width =
-                        ((visibleEnd - visibleStart) / timelineDuration) * 100;
-                      const color = getActorTimelineColor(appearance.actorId);
-                      const isSelected =
-                        selectedActorIds.length === 0 ||
-                        selectedActorIds.includes(appearance.actorId);
-
-                      return (
-                        <span
-                          key={`${appearance.actorId}-${appearance.startSeconds}-${appearance.endSeconds}`}
-                          className="absolute top-0 h-full rounded-full"
-                          style={{
-                            left: `${Math.max(0, left)}%`,
-                            width: `${Math.min(100 - left, Math.max(1.2, width))}%`,
-                            backgroundColor: color,
-                            opacity: isSelected ? 1 : 0.5,
-                          }}
-                          title={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} ${formatTime(appearance.startSeconds)}-${formatTime(appearance.endSeconds)}`}
-                          aria-label={`${actorNamesById.get(appearance.actorId) ?? `배우 ${appearance.actorId}`} 등장 구간`}
-                        />
-                      );
-                    })}
-                  </div>
+                  <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-[6px] -translate-y-1/2 overflow-hidden rounded-full bg-[#eee7dc]/26" />
                   {normalizedRequiredFeedbackMarkers.map((marker) => {
                     if (marker.time > timelineDuration) {
                       return null;

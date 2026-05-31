@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createProjectActor } from '../apis/actor';
@@ -19,6 +20,22 @@ const initialCreateForm: CreateProjectForm = {
   name: '',
   description: '',
   joinCode: '',
+};
+
+const getCreateProjectErrorMessage = (error: unknown) => {
+  if (isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+
+    if (
+      error.response?.status === 400 &&
+      typeof detail === 'string' &&
+      detail.includes('이미 사용 중인 코드')
+    ) {
+      return '이미 존재하는 JOIN CODE입니다.';
+    }
+  }
+
+  return '프로젝트 생성에 실패했습니다.';
 };
 
 export default function NewProject() {
@@ -102,7 +119,7 @@ export default function NewProject() {
       setActorCreateError(null);
     } catch (error) {
       console.error('Failed to create project', error);
-      setCreateProjectErrorMessage('프로젝트 생성에 실패했습니다.');
+      setCreateProjectErrorMessage(getCreateProjectErrorMessage(error));
     } finally {
       setIsCreatingProject(false);
     }

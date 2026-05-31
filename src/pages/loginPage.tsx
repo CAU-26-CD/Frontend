@@ -103,9 +103,7 @@ export default function LoginPage() {
                   ? 'reaction-login-input-error !border-[#9f1f2d]'
                   : 'border-white/85'
               }`}
-              placeholder={
-                validationErrors.email ?? '아이디를 입력해주세요'
-              }
+              placeholder={validationErrors.email ?? '아이디를 입력해주세요'}
               autoComplete="username"
               aria-invalid={Boolean(validationErrors.email)}
             />
@@ -151,12 +149,12 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="reaction-ui-font h-[35px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35 disabled:cursor-not-allowed disabled:opacity-65"
             >
-              {isSubmitting ? '로그인 중' : '로그인'}
+              로그인
             </button>
           </div>
 
           <p className="reaction-ui-font relative z-10 mt-2 min-h-[14px] text-center text-[10px] font-semibold text-[#7a1d24]">
-            {isSubmitting ? '로그인 중입니다.' : errorMessage}
+            {errorMessage}
           </p>
 
           <div className="reaction-ui-font relative z-10 mt-[6px] flex items-center justify-center gap-3 text-[10px] font-medium text-[#2d1715]/70">
