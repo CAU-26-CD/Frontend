@@ -114,7 +114,7 @@ export default function DesignedHeader({
           onClick={() => {
             void handleLogout();
           }}
-          className="reaction-ui-font cursor-pointer text-[16px] font-bold text-[#ffffff] transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="reaction-ui-font cursor-pointer rounded-full px-3 py-1 text-[16px] font-bold text-[#ffffff] transition hover:bg-white/12 hover:text-white hover:shadow-[0_0_18px_rgba(255,255,255,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
           Logout
         </button>

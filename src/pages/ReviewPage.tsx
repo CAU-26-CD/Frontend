@@ -1,5 +1,5 @@
 import { Settings, Video } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { listProjectActors } from '../apis/actor';
 import { filterFeedbacks } from '../apis/feedback';
@@ -525,11 +525,21 @@ export default function ReviewPage() {
       direction,
     }));
   };
-  const highlightFeedback = (feedbackId: number) => {
+  const highlightFeedback = useCallback((feedbackId: number | null) => {
     setHighlightedFeedbackId(feedbackId);
-  };
+  }, []);
 
   const completedCount = useMemo(() => feedbacks.length, [feedbacks.length]);
+  const feedbackPlaybackMarkers = useMemo(
+    () =>
+      feedbacks
+        .map((feedback) => ({
+          feedbackId: feedback.id,
+          time: timestampToSeconds(feedback.timestamp),
+        }))
+        .filter((marker) => Number.isFinite(marker.time) && marker.time >= 0),
+    [feedbacks],
+  );
   const requiredFeedbackMarkers = useMemo(
     () =>
       feedbacks
@@ -577,6 +587,7 @@ export default function ReviewPage() {
             <ReviewVideoPanel
               videoUrl={sessionVideo?.s3_url ?? ''}
               appearances={actorAppearances}
+              feedbackPlaybackMarkers={feedbackPlaybackMarkers}
               requiredFeedbackMarkers={requiredFeedbackMarkers}
               selectedActorIds={selectedActorIds}
               isVideoLoading={isLoadingVideo}
@@ -585,6 +596,7 @@ export default function ReviewPage() {
               actorTimelineNavigationRequest={actorTimelineNavigationRequest}
               highlightedFeedbackId={highlightedFeedbackId}
               onRequiredFeedbackMarkerClick={highlightFeedback}
+              onPlaybackFeedbackChange={highlightFeedback}
             />
             <ReviewFilterBar
               feedbackTags={feedbackTags}

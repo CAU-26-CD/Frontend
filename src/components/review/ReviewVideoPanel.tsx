@@ -15,6 +15,10 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) => {
 type ReviewVideoPanelProps = {
   videoUrl: string;
   appearances: SessionVideoAppearance[];
+  feedbackPlaybackMarkers: {
+    feedbackId: number;
+    time: number;
+  }[];
   requiredFeedbackMarkers: {
     feedbackId: number;
     time: number;
@@ -29,11 +33,13 @@ type ReviewVideoPanelProps = {
   };
   highlightedFeedbackId?: number | null;
   onRequiredFeedbackMarkerClick: (feedbackId: number) => void;
+  onPlaybackFeedbackChange: (feedbackId: number | null) => void;
 };
 
 export default function ReviewVideoPanel({
   videoUrl,
   appearances,
+  feedbackPlaybackMarkers,
   requiredFeedbackMarkers,
   selectedActorIds,
   isVideoLoading,
@@ -42,10 +48,12 @@ export default function ReviewVideoPanel({
   actorTimelineNavigationRequest,
   highlightedFeedbackId = null,
   onRequiredFeedbackMarkerClick,
+  onPlaybackFeedbackChange,
 }: ReviewVideoPanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const isDurationProbeActiveRef = useRef(false);
+  const lastPlaybackHighlightedFeedbackIdRef = useRef<number | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -88,6 +96,28 @@ export default function ReviewVideoPanel({
         .sort((a, b) => a.time - b.time || a.feedbackId - b.feedbackId),
     [requiredFeedbackMarkers],
   );
+  const normalizedFeedbackPlaybackMarkers = useMemo(
+    () =>
+      feedbackPlaybackMarkers
+        .map((marker) => ({
+          feedbackId: marker.feedbackId,
+          time: Math.floor(Number(marker.time)),
+        }))
+        .filter((marker) => Number.isFinite(marker.time) && marker.time >= 0)
+        .sort((a, b) => a.time - b.time || a.feedbackId - b.feedbackId),
+    [feedbackPlaybackMarkers],
+  );
+  const playbackFeedbackIdBySecond = useMemo(() => {
+    const feedbackIdBySecond = new Map<number, number>();
+
+    normalizedFeedbackPlaybackMarkers.forEach((marker) => {
+      if (!feedbackIdBySecond.has(marker.time)) {
+        feedbackIdBySecond.set(marker.time, marker.feedbackId);
+      }
+    });
+
+    return feedbackIdBySecond;
+  }, [normalizedFeedbackPlaybackMarkers]);
   const selectedActorAppearances = useMemo(
     () =>
       selectedActorIds.length === 0
@@ -310,10 +340,14 @@ export default function ReviewVideoPanel({
   };
 
   useEffect(() => {
-    setVideoDuration(0);
-    setCurrentTime(0);
-    setIsPlaying(false);
     isDurationProbeActiveRef.current = false;
+    lastPlaybackHighlightedFeedbackIdRef.current = null;
+
+    queueMicrotask(() => {
+      setVideoDuration(0);
+      setCurrentTime(0);
+      setIsPlaying(false);
+    });
   }, [videoUrl]);
 
   useEffect(() => {
@@ -333,6 +367,28 @@ export default function ReviewVideoPanel({
       seekSelectedActorTimeline(actorTimelineNavigationRequest.direction);
     });
   }, [actorTimelineNavigationRequest, seekSelectedActorTimeline]);
+
+  useEffect(() => {
+    const nextHighlightedFeedbackId =
+      playbackFeedbackIdBySecond.get(currentTimelineSecond) ?? null;
+
+    if (nextHighlightedFeedbackId === null) {
+      return;
+    }
+
+    if (
+      lastPlaybackHighlightedFeedbackIdRef.current === nextHighlightedFeedbackId
+    ) {
+      return;
+    }
+
+    lastPlaybackHighlightedFeedbackIdRef.current = nextHighlightedFeedbackId;
+    onPlaybackFeedbackChange(nextHighlightedFeedbackId);
+  }, [
+    currentTimelineSecond,
+    onPlaybackFeedbackChange,
+    playbackFeedbackIdBySecond,
+  ]);
 
   return (
     <section className="relative h-full min-h-[360px] w-full overflow-hidden">

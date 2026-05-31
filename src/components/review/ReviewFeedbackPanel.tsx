@@ -1,5 +1,5 @@
 import { ArrowUp } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import LoadingSpinner from '../LoadingSpinner';
 import type { Actor, Feedback, FeedbackPriority } from '../../types/feedback';
 import type { ReviewFeedbackTag, ReviewPriorityTag } from './ReviewFilterBar';
@@ -67,6 +67,16 @@ const categoryLabelByValue: Record<string, string> = {
   'meta:other': '기타',
 };
 
+const timestampSortValue = (timestamp: string) => {
+  const parts = timestamp.split(':').map((part) => Number(part));
+
+  if (parts.some((part) => Number.isNaN(part))) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return parts.reduce((total, part) => total * 60 + part, 0);
+};
+
 export default function ReviewFeedbackPanel({
   feedbacks,
   actors,
@@ -79,13 +89,26 @@ export default function ReviewFeedbackPanel({
   isLoading = false,
 }: ReviewFeedbackPanelProps) {
   const feedbackRefs = useRef(new Map<number, HTMLElement>());
-  const visibleFeedbacks = feedbacks.filter((feedback) => {
-    const matchesActor =
-      selectedActorIds.length === 0 ||
-      selectedActorIds.some((actorId) => feedback.actorIds.includes(actorId));
+  const feedbackListRef = useRef<HTMLDivElement | null>(null);
+  const visibleFeedbacks = useMemo(
+    () =>
+      [
+        ...feedbacks.filter((feedback) => {
+          const matchesActor =
+            selectedActorIds.length === 0 ||
+            selectedActorIds.some((actorId) =>
+              feedback.actorIds.includes(actorId),
+            );
 
-    return matchesActor;
-  });
+          return matchesActor;
+        }),
+      ].sort(
+        (left, right) =>
+          timestampSortValue(left.timestamp) -
+          timestampSortValue(right.timestamp),
+      ),
+    [feedbacks, selectedActorIds],
+  );
 
   const selectedActorNames = selectedActorIds
     .map((actorId) => actors.find((actor) => actor.id === actorId)?.name)
@@ -125,23 +148,55 @@ export default function ReviewFeedbackPanel({
       return;
     }
 
-    feedbackRefs.current.get(highlightedFeedbackId)?.scrollIntoView({
+    const feedbackList = feedbackListRef.current;
+    const feedbackNode = feedbackRefs.current.get(highlightedFeedbackId);
+    const highlightedFeedbackIndex = visibleFeedbacks.findIndex(
+      (feedback) => feedback.id === highlightedFeedbackId,
+    );
+    const previousFeedback =
+      highlightedFeedbackIndex > 0
+        ? visibleFeedbacks[highlightedFeedbackIndex - 1]
+        : null;
+    const previousFeedbackNode = previousFeedback
+      ? feedbackRefs.current.get(previousFeedback.id)
+      : null;
+
+    if (!feedbackList || !feedbackNode) {
+      return;
+    }
+
+    const nextScrollTop = previousFeedbackNode
+      ? previousFeedbackNode.offsetTop + previousFeedbackNode.offsetHeight * 0.8
+      : feedbackNode.offsetTop;
+    const maxScrollTop = Math.max(
+      0,
+      feedbackList.scrollHeight - feedbackList.clientHeight,
+    );
+
+    if (nextScrollTop > maxScrollTop) {
+      return;
+    }
+
+    feedbackList.scrollTo({
       behavior: 'smooth',
-      block: 'center',
+      top: Math.max(0, nextScrollTop),
     });
-  }, [highlightedFeedbackId]);
+  }, [highlightedFeedbackId, visibleFeedbacks]);
 
   return (
     <aside className="reaction-ui-font flex h-full min-h-0 flex-col gap-3 overflow-hidden bg-transparent px-1 py-0 text-[#2d1715]">
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] border-2 border-stone-200/50 bg-transparent p-3">
-        <div className="reaction-hidden-scrollbar flex h-full flex-col gap-2 overflow-y-auto pr-3 text-[#eee7dc]">
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] border-2 border-stone-200/50 bg-transparent p-1">
+        <div
+          ref={feedbackListRef}
+          className="reaction-hidden-scrollbar flex h-full min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain px-2 py-1 pr-3 text-[#eee7dc]"
+        >
           {isLoading ? (
             <LoadingSpinner
               label="피드백을 불러오는 중입니다"
               className="h-full"
             />
           ) : (
-            visibleFeedbacks.map((feedback) => {
+            visibleFeedbacks.map((feedback, index) => {
               const feedbackCategories = feedback.categories ?? [];
               const primaryTag = feedbackTags.find((tag) =>
                 feedbackCategories.some(
@@ -152,6 +207,11 @@ export default function ReviewFeedbackPanel({
               const primaryCategory = feedbackCategories[0];
               const primaryPriority = getPrimaryPriority(feedback);
               const isHighlighted = feedback.id === highlightedFeedbackId;
+              const isLastFeedback = index === visibleFeedbacks.length - 1;
+              const timelineColor =
+                primaryTag?.color ??
+                (primaryPriority ? priorityColorById[primaryPriority] : null) ??
+                '#fff8ef';
               const feedbackActorNames = feedback.actorIds
                 .map(
                   (actorId) =>
@@ -159,6 +219,8 @@ export default function ReviewFeedbackPanel({
                 )
                 .filter(Boolean)
                 .join(', ');
+              const categoryLabel =
+                categoryLabelByValue[primaryCategory] ?? primaryTag?.label;
 
               return (
                 <article
@@ -171,54 +233,52 @@ export default function ReviewFeedbackPanel({
                     }
                   }}
                   className={[
-                    'grid grid-cols-[58px_minmax(0,1fr)] items-start gap-2 rounded-[7px] px-2 py-1 text-xs font-semibold leading-relaxed transition',
+                    'grid grid-cols-[18px_minmax(0,1fr)] items-start gap-2 rounded-[7px] px-1.5 py-1.5 text-xs font-semibold leading-relaxed transition',
                     isHighlighted
-                      ? 'bg-[#fff8ef]/58 text-[#2d1715] ring-2 ring-white/88 shadow-[0_0_18px_rgba(255,255,255,0.3)]'
-                      : 'ring-2 ring-transparent',
+                      ? 'bg-[#fff8ef]/58 text-[#2d1715] shadow-[0_0_0_1px_rgba(255,255,255,0.42),0_0_18px_rgba(255,255,255,0.2)]'
+                      : 'text-[#eee7dc]',
                   ].join(' ')}
                 >
-                  <span
-                    className="font-bold"
-                    style={{
-                      color: isHighlighted
-                        ? '#431B1B'
-                        : primaryPriority
-                          ? priorityColorById[primaryPriority]
-                          : '#fff8ef',
-                    }}
-                  >
-                    {feedback.timestamp}
-                  </span>
-                  <p className="min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                    {feedbackActorNames && (
-                      <span
-                        className={[
-                          'mr-1',
-                          isHighlighted
-                            ? 'text-[#431B1B]/78'
-                            : 'text-[#fff8ef]/86',
-                        ].join(' ')}
-                      >
-                        | {feedbackActorNames}
-                      </span>
-                    )}
-                    {primaryTag && (
-                      <span
-                        className="mr-1 rounded-[4px] px-1.5 py-0.5 text-[11px] font-bold text-[#431B1B]"
-                        style={{ backgroundColor: primaryTag.color }}
-                      >
-                        {categoryLabelByValue[primaryCategory] ??
-                          primaryTag.label}
-                      </span>
-                    )}
+                  <div className="flex flex-col items-center pt-1">
                     <span
-                      className={
-                        isHighlighted ? 'text-[#2d1715]' : 'text-[#eee7dc]/86'
-                      }
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: timelineColor }}
+                      aria-hidden="true"
+                    />
+                    {!isLastFeedback && (
+                      <span className="mt-2 h-5 w-px rounded-full bg-[#eee7dc]/30" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <time
+                      className="block text-[12px] font-black leading-none"
+                      style={{ color: timelineColor }}
+                    >
+                      {feedback.timestamp}
+                    </time>
+                    <p
+                      className={[
+                        'mt-1 min-w-0 truncate text-[12px] font-bold',
+                        isHighlighted
+                          ? 'text-[#431B1B]/82'
+                          : 'text-[#fff8ef]/86',
+                      ].join(' ')}
+                    >
+                      {feedbackActorNames || '배우 미지정'}
+                      {categoryLabel && (
+                        <span className="ml-1">[{categoryLabel}]</span>
+                      )}
+                    </p>
+                    <p
+                      className={[
+                        'mt-0.5 min-w-0 whitespace-pre-wrap break-words text-[12px] font-semibold leading-relaxed [overflow-wrap:anywhere]',
+                        isHighlighted ? 'text-[#2d1715]' : 'text-[#eee7dc]/84',
+                      ].join(' ')}
                     >
                       {feedback.content}
-                    </span>
-                  </p>
+                    </p>
+                  </div>
                 </article>
               );
             })
@@ -238,7 +298,7 @@ export default function ReviewFeedbackPanel({
             <span className="text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/50">
               Actor
             </span>
-            <div className="reaction-hidden-scrollbar flex min-w-0 gap-1.5 overflow-x-auto">
+            <div className="reaction-hidden-scrollbar flex min-w-0 gap-1.5 overflow-x-auto border-l border-[#431B1B]/18 pl-2">
               {selectedActorNames.length > 0 ? (
                 selectedActorNames.map((label) => (
                   <span
@@ -260,7 +320,7 @@ export default function ReviewFeedbackPanel({
             <span className="text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/50">
               Feedback
             </span>
-            <div className="reaction-hidden-scrollbar flex min-w-0 gap-1.5 overflow-x-auto">
+            <div className="reaction-hidden-scrollbar flex min-w-0 gap-1.5 overflow-x-auto border-l border-[#431B1B]/18 pl-2">
               {selectedFeedbackChips.length > 0 ? (
                 selectedFeedbackChips.map((chip) => (
                   <span
