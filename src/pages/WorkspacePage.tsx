@@ -6,9 +6,15 @@ import CardSkeleton from '../components/CardSkeleton';
 import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 import type { FeedbackSession } from '../types/feedback';
 
-const sessionCategories = ['장면별 연습', '런쓰루', '워크쓰루', '텐투텐'] as const;
+const sessionCategories = [
+  '장면별 연습',
+  '런쓰루',
+  '워크쓰루',
+  '텐투텐',
+] as const;
 
 type SessionCategory = (typeof sessionCategories)[number];
 
@@ -23,9 +29,7 @@ export default function WorkspacePage() {
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [selectedCategory, setSelectedCategory] =
     useState<SessionCategory | null>(null);
-  const projectTitle = Number.isNaN(numericProjectId)
-    ? 'Project'
-    : `Project ${numericProjectId}`;
+  const { projectTitle } = useProjectBreadcrumb(numericProjectId);
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId)) return;

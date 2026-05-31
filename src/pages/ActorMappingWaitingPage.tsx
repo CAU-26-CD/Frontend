@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getProjectSessions } from '../apis/session';
 import WalkingLoadingPanel from '../components/WalkingLoadingPanel';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 
 type ActorMappingWaitingRouteState = {
   projectSessionTitle?: string;
@@ -33,14 +34,13 @@ export default function ActorMappingWaitingPage() {
   const statusMessage = hasInvalidSessionParams
     ? '세션 정보를 확인할 수 없습니다.'
     : pollingStatusMessage;
-  const projectTitle = Number.isNaN(numericProjectId)
-    ? 'Project'
-    : `Project ${numericProjectId}`;
-  const sessionTitle =
-    routeState?.projectSessionTitle ??
-    (Number.isNaN(numericSessionId)
-      ? 'Session'
-      : `Session ${numericSessionId}`);
+  const { projectTitle, sessionTitle } = useProjectBreadcrumb(
+    numericProjectId,
+    numericSessionId,
+    {
+      fallbackSessionTitle: routeState?.projectSessionTitle,
+    },
+  );
 
   useEffect(() => {
     if (hasInvalidSessionParams) {

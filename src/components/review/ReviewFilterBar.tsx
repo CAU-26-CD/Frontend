@@ -127,50 +127,91 @@ export default function ReviewFilterBar({
   return (
     <section
       className={[
-        'relative z-20 flex h-full min-h-[112px] rounded-2xl border border-[#d3c3b7] bg-[#efe6de] px-6 py-4 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]',
+        'relative z-20 flex min-h-[142px] rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] px-4 py-3 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)] sm:px-5',
         isPriorityMenuOpen ? 'overflow-visible' : 'overflow-hidden',
       ].join(' ')}
     >
-      <div className="grid h-full w-full min-w-0 grid-cols-[76px_minmax(0,1fr)_minmax(180px,0.42fr)] gap-x-5 gap-y-2">
-        <p className="self-center text-xs font-bold leading-tight">
-          Feedback
-          <br />
-          Tag
-        </p>
+      <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.38fr)]">
+        <div className="grid min-w-0 content-center gap-2">
+          <div className="grid min-w-0 grid-cols-[74px_minmax(0,1fr)] items-center gap-3">
+            <p className="text-xs font-bold leading-tight">
+              Feedback
+              <br />
+              Tag
+            </p>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {feedbackTags.map((tag) => {
-            const isSelected = selectedFeedbackTags.includes(tag.id);
+            <div className="reaction-hidden-scrollbar flex min-w-0 gap-2 overflow-x-auto pb-1">
+              {feedbackTags.map((tag) => {
+                const isSelected = selectedFeedbackTags.includes(tag.id);
 
-            return (
-              <button
-                key={tag.id}
-                type="button"
-                onClick={() => onFeedbackTagToggle(tag.id)}
-                className={[
-                  'h-7 rounded-[5px] px-3 text-xs font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
-                  isSelected
-                    ? 'text-[#431B1B] ring-2 ring-[#431B1B]/35'
-                    : 'text-[#431B1B]/70',
-                ].join(' ')}
-                style={{ backgroundColor: tag.color }}
-              >
-                {tag.label}
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => onFeedbackTagToggle(tag.id)}
+                    className={[
+                      'h-8 flex-none rounded-[5px] px-3 text-xs font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                      isSelected
+                        ? 'text-[#431B1B] ring-2 ring-[#431B1B]/35'
+                        : 'text-[#431B1B]/70',
+                    ].join(' ')}
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    {tag.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid min-w-0 grid-cols-[74px_minmax(0,1fr)] items-center gap-3">
+            <p className="text-xs font-bold leading-tight">Actor Tag</p>
+
+            <div className="reaction-hidden-scrollbar flex min-w-0 gap-2 overflow-x-auto pb-1">
+              {actors.length > 0 ? (
+                actors.map((actor) => {
+                  const isSelected = selectedActorIds.includes(actor.id);
+
+                  return (
+                    <button
+                      key={actor.id}
+                      type="button"
+                      onClick={() => onActorToggle(actor.id)}
+                      className={[
+                        'h-8 flex-none rounded-[5px] px-3 text-xs font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                        isSelected
+                          ? 'bg-[#431B1B] text-[#fff8ef]'
+                          : 'bg-white/45 text-[#431B1B]/72 hover:text-[#431B1B]',
+                      ].join(' ')}
+                    >
+                      {actor.name}
+                    </button>
+                  );
+                })
+              ) : (
+                <span className="flex h-8 items-center text-[11px] font-bold text-[#431B1B]/38">
+                  배우 태그 없음
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="row-span-2 flex min-w-0 flex-col justify-center border-l border-[#431B1B]/12 pl-5">
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+        <div className="grid min-w-0 gap-2 border-t border-[#431B1B]/12 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+          <div className="min-w-0 rounded-[8px] bg-white/28 px-2.5 py-2">
+            <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/52">
+              <span>Selected Actor</span>
+              <span>{selectedActors.length}</span>
+            </div>
+
+            <div className="reaction-hidden-scrollbar flex min-h-8 min-w-0 items-center gap-1.5 overflow-x-auto">
               {selectedActors.length > 0 ? (
                 selectedActors.map((actor) => (
                   <button
                     key={actor.id}
                     type="button"
                     onClick={() => onActorToggle(actor.id)}
-                    className="h-7 rounded-[5px] bg-[#431B1B] px-2.5 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30"
+                    className="h-7 flex-none rounded-[5px] bg-[#431B1B] px-2.5 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30"
                   >
                     {actor.name}
                   </button>
@@ -181,8 +222,10 @@ export default function ReviewFilterBar({
                 </span>
               )}
             </div>
+          </div>
 
-            <div ref={priorityMenuRef} className="relative shrink-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <div ref={priorityMenuRef} className="relative min-w-0">
               <button
                 ref={priorityButtonRef}
                 type="button"
@@ -190,7 +233,7 @@ export default function ReviewFilterBar({
                   updatePriorityMenuPosition();
                   setIsPriorityMenuOpen((current) => !current);
                 }}
-                className="flex h-7 max-w-[132px] items-center gap-1.5 rounded-[5px] bg-[#431B1B] px-3 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30"
+                className="flex h-8 max-w-[178px] items-center gap-1.5 rounded-[5px] bg-[#431B1B] px-3 text-xs font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30"
                 aria-expanded={isPriorityMenuOpen}
                 aria-haspopup="menu"
               >
@@ -241,19 +284,12 @@ export default function ReviewFilterBar({
                 </div>
               )}
             </div>
-          </div>
 
-          {selectedActors.length > 0 && !canPlaySelectedActors && (
-            <p className="mt-1 text-[10px] font-bold text-[#A94444]/72">
-              선택한 배우의 등장 구간이 없습니다.
-            </p>
-          )}
-          <div className="mt-2 flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => onSelectedActorTimelineMove('previous')}
               disabled={!canPlaySelectedActors}
-              className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
+              className="flex h-8 w-8 items-center justify-center rounded-[5px] bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
               aria-label="이전 등장 구간으로 이동"
               title="이전 등장 구간"
             >
@@ -263,7 +299,7 @@ export default function ReviewFilterBar({
               type="button"
               onClick={onSelectedActorPlayback}
               disabled={!canPlaySelectedActors}
-              className="flex h-7 items-center gap-1.5 rounded-[5px] bg-[#431B1B] px-3 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
+              className="flex h-8 items-center gap-1.5 rounded-[5px] bg-[#431B1B] px-3 text-[11px] font-bold text-[#fff8ef] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
             >
               <Play size={12} fill="#fff8ef" strokeWidth={2.8} />
               선택 배우 재생
@@ -272,37 +308,19 @@ export default function ReviewFilterBar({
               type="button"
               onClick={() => onSelectedActorTimelineMove('next')}
               disabled={!canPlaySelectedActors}
-              className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
+              className="flex h-8 w-8 items-center justify-center rounded-[5px] bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
               aria-label="다음 등장 구간으로 이동"
               title="다음 등장 구간"
             >
               <ChevronRight size={15} strokeWidth={3} />
             </button>
           </div>
-        </div>
 
-        <p className="self-center text-xs font-bold leading-tight">Actor Tag</p>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {actors.map((actor) => {
-            const isSelected = selectedActorIds.includes(actor.id);
-
-            return (
-              <button
-                key={actor.id}
-                type="button"
-                onClick={() => onActorToggle(actor.id)}
-                className={[
-                  'h-7 rounded-[5px] px-3 text-xs font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
-                  isSelected
-                    ? 'bg-[#431B1B] text-[#fff8ef]'
-                    : 'bg-white/45 text-[#431B1B]/72 hover:text-[#431B1B]',
-                ].join(' ')}
-              >
-                {actor.name}
-              </button>
-            );
-          })}
+          {selectedActors.length > 0 && !canPlaySelectedActors && (
+            <p className="text-[10px] font-bold text-[#A94444]/72">
+              선택한 배우의 등장 구간이 없습니다.
+            </p>
+          )}
         </div>
       </div>
     </section>

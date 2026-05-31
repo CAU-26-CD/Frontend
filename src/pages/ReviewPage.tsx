@@ -20,6 +20,7 @@ import ReviewFilterBar, {
 } from '../components/review/ReviewFilterBar';
 import ReviewVideoPanel from '../components/review/ReviewVideoPanel';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 import type { Actor, Feedback, FeedbackPriority } from '../types/feedback';
 
 const feedbackTags: ReviewFeedbackTag[] = [
@@ -254,12 +255,13 @@ export default function ReviewPage() {
     }>({ id: 0, direction: 'next' });
   const numericProjectId = Number(projectId);
   const numericSessionId = Number(sessionId);
-  const projectTitle = Number.isNaN(numericProjectId)
-    ? 'Project'
-    : `Project ${numericProjectId}`;
-  const sessionTitle = Number.isNaN(numericSessionId)
-    ? (routeState?.projectSessionTitle ?? 'Session')
-    : (routeState?.projectSessionTitle ?? `Session ${numericSessionId}`);
+  const { projectTitle, sessionTitle } = useProjectBreadcrumb(
+    numericProjectId,
+    numericSessionId,
+    {
+      fallbackSessionTitle: routeState?.projectSessionTitle,
+    },
+  );
   const routeReviewActors = useMemo(
     () => normalizeRouteActors(routeState?.reviewActors),
     [routeState?.reviewActors],
@@ -571,7 +573,7 @@ export default function ReviewPage() {
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
-          <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4">
+          <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4">
             <ReviewVideoPanel
               videoUrl={sessionVideo?.s3_url ?? ''}
               appearances={actorAppearances}

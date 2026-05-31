@@ -89,18 +89,36 @@ export default function ReviewFeedbackPanel({
 
   const selectedActorNames = selectedActorIds
     .map((actorId) => actors.find((actor) => actor.id === actorId)?.name)
-    .filter(Boolean);
-  const selectedFeedbackTagLabels = selectedFeedbackTags
-    .map((tagId) => feedbackTags.find((tag) => tag.id === tagId)?.label)
-    .filter(Boolean);
-  const selectedPriorityLabels = selectedPriorityTags
-    .map((priority) => priorityTags.find((tag) => tag.id === priority)?.label)
-    .filter(Boolean);
-  const selectedLabels = [
-    ...selectedFeedbackTagLabels,
-    ...selectedPriorityLabels,
-    ...selectedActorNames,
-  ];
+    .filter((name): name is string => Boolean(name));
+  const selectedFeedbackChips = [
+    ...selectedFeedbackTags.map((tagId) => {
+      const tag = feedbackTags.find((feedbackTag) => feedbackTag.id === tagId);
+
+      return tag
+        ? {
+            id: `feedback-${tag.id}`,
+            label: tag.label,
+            color: tag.color,
+          }
+        : null;
+    }),
+    ...selectedPriorityTags.map((priority) => {
+      const tag = priorityTags.find(
+        (priorityTag) => priorityTag.id === priority,
+      );
+
+      return tag
+        ? {
+            id: `priority-${tag.id}`,
+            label: tag.label,
+            color: tag.color,
+          }
+        : null;
+    }),
+  ].filter(
+    (chip): chip is { id: string; label: string; color: string } =>
+      chip !== null,
+  );
 
   useEffect(() => {
     if (highlightedFeedbackId === null) {
@@ -214,20 +232,52 @@ export default function ReviewFeedbackPanel({
         </div>
       </div>
 
-      <div className="flex min-h-[36px] items-center justify-between gap-3 rounded-[10px] bg-[#efe6de] px-4 text-xs font-bold text-[#431B1B] shadow-[0_14px_32px_rgba(0,0,0,0.18)]">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {selectedLabels.length > 0 ? (
-            selectedLabels.map((label) => (
-              <span
-                key={label}
-                className="rounded-[5px] bg-[#431B1B]/10 px-2 py-1 text-[11px]"
-              >
-                {label}
-              </span>
-            ))
-          ) : (
-            <span className="text-[#431B1B]/45">선택된 필터 없음</span>
-          )}
+      <div className="flex min-h-[74px] items-center justify-between gap-3 rounded-[10px] bg-[#efe6de] px-3 py-2 text-xs font-bold text-[#431B1B] shadow-[0_14px_32px_rgba(0,0,0,0.18)]">
+        <div className="grid min-w-0 flex-1 gap-1.5">
+          <div className="grid min-w-0 grid-cols-[58px_minmax(0,1fr)] items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/50">
+              Actor
+            </span>
+            <div className="reaction-hidden-scrollbar flex min-w-0 gap-1.5 overflow-x-auto">
+              {selectedActorNames.length > 0 ? (
+                selectedActorNames.map((label) => (
+                  <span
+                    key={label}
+                    className="flex h-6 flex-none items-center rounded-[5px] bg-[#431B1B] px-2 text-[11px] font-bold text-[#fff8ef]"
+                  >
+                    {label}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] font-bold text-[#431B1B]/38">
+                  전체 배우
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid min-w-0 grid-cols-[58px_minmax(0,1fr)] items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/50">
+              Feedback
+            </span>
+            <div className="reaction-hidden-scrollbar flex min-w-0 gap-1.5 overflow-x-auto">
+              {selectedFeedbackChips.length > 0 ? (
+                selectedFeedbackChips.map((chip) => (
+                  <span
+                    key={chip.id}
+                    className="flex h-6 flex-none items-center rounded-[5px] px-2 text-[11px] font-bold text-[#431B1B]"
+                    style={{ backgroundColor: chip.color }}
+                  >
+                    {chip.label}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] font-bold text-[#431B1B]/38">
+                  전체 피드백
+                </span>
+              )}
+            </div>
+          </div>
         </div>
         <ArrowUp size={17} strokeWidth={3} className="shrink-0" />
       </div>

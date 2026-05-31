@@ -14,6 +14,7 @@ import {
 } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 import type { Actor } from '../types/feedback';
 import { getStoredUserId } from '../utils/authStorage';
 import {
@@ -82,14 +83,13 @@ export default function ActorMappingPage() {
       : getStoredSessionOwnerId(numericSessionId);
   });
   const [isCheckingSessionOwner, setIsCheckingSessionOwner] = useState(true);
-  const projectTitle = Number.isNaN(numericProjectId)
-    ? 'Project'
-    : `Project ${numericProjectId}`;
-  const sessionTitle =
-    routeState?.projectSessionTitle ??
-    (Number.isNaN(numericSessionId)
-      ? 'Session'
-      : `Session ${numericSessionId}`);
+  const { projectTitle, sessionTitle } = useProjectBreadcrumb(
+    numericProjectId,
+    numericSessionId,
+    {
+      fallbackSessionTitle: routeState?.projectSessionTitle,
+    },
+  );
   const isSessionOwner =
     currentUserId !== null && sessionOwnerId === currentUserId;
   const selectedActor =

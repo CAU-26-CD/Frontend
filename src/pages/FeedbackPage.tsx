@@ -16,6 +16,7 @@ import type {
 } from '../apis/session';
 import { listProjectActors } from '../apis/actor';
 import { useFeedback } from '../hooks/useFeedback';
+import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
@@ -141,15 +142,14 @@ export default function RehearsalFeedbackPage() {
     currentUserId,
   );
   const { handleStartTimestamp } = feedback;
-  const projectTitle = Number.isNaN(numericProjectId)
-    ? 'Project'
-    : `Project ${numericProjectId}`;
-  const sessionTitle =
-    routeState?.projectSessionTitle ??
-    currentProjectSession?.title ??
-    (Number.isNaN(numericSessionId)
-      ? 'Session'
-      : `Session ${numericSessionId}`);
+  const { projectTitle, sessionTitle } = useProjectBreadcrumb(
+    numericProjectId,
+    numericSessionId,
+    {
+      fallbackSessionTitle:
+        routeState?.projectSessionTitle ?? currentProjectSession?.title,
+    },
+  );
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
   const isSessionOwnerKnown = sessionOwnerId !== null;
   const isSessionOwner =
