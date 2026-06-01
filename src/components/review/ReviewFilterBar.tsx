@@ -43,8 +43,8 @@ export default function ReviewFilterBar({
   onSelectedActorPlayback,
   onSelectedActorTimelineMove,
 }: ReviewFilterBarProps) {
-  const topFeedbackTags = feedbackTags.slice(0, 3);
-  const bottomFeedbackTags = feedbackTags.slice(3, 7);
+  const topFeedbackTags = feedbackTags.slice(3, 7);
+  const bottomFeedbackTags = feedbackTags.slice(0, 3);
   const selectedActors = actors.filter((actor) =>
     selectedActorIds.includes(actor.id),
   );
@@ -104,7 +104,7 @@ export default function ReviewFilterBar({
                   key={rowIndex}
                   className={[
                     'grid gap-1',
-                    rowIndex === 0 ? 'grid-cols-3' : 'grid-cols-4',
+                    rowIndex === 0 ? 'grid-cols-4' : 'grid-cols-3',
                   ].join(' ')}
                 >
                   {tagRow.map((tag) => {

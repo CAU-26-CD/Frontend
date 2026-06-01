@@ -25,7 +25,7 @@ import type { Actor, Feedback, FeedbackPriority } from '../types/feedback';
 
 const feedbackTags: ReviewFeedbackTag[] = [
   {
-    id: 'chemistry',
+    id: 'sync',
     label: '페어합',
     color: '#c6d8a8',
     values: [
@@ -34,11 +34,6 @@ const feedbackTags: ReviewFeedbackTag[] = [
       'sync:emotional_bond',
       'sync:audio_cue',
       'sync:lighting',
-      'chemistry:eye_contact',
-      'chemistry:timing_sync',
-      'chemistry:emotional_bond',
-      'technical:audio_cue',
-      'technical:lighting',
     ],
   },
   {
@@ -59,18 +54,13 @@ const feedbackTags: ReviewFeedbackTag[] = [
     ],
   },
   {
-    id: 'blocking',
+    id: 'movement',
     label: '동선',
     color: '#f5e6a8',
-    values: [
-      'movement:path',
-      'movement:entrance_exit',
-      'blocking:movement',
-      'blocking:entrance_exit',
-    ],
+    values: ['movement:path', 'movement:entrance_exit'],
   },
   {
-    id: 'sound',
+    id: 'vocal',
     label: '소리',
     color: '#f7b1bd',
     values: [
@@ -98,18 +88,10 @@ const feedbackTags: ReviewFeedbackTag[] = [
     ],
   },
   {
-    id: 'memorization',
+    id: 'text',
     label: '암기',
     color: '#f6d7df',
-    values: [
-      'text:mistake',
-      'text:omission',
-      'text:lyrics',
-      'text:memorization',
-      'script:mistake',
-      'script:omission',
-      'script:memorization',
-    ],
+    values: ['text:mistake', 'text:omission', 'text:lyrics', 'text:memorization'],
   },
   {
     id: 'meta',
@@ -122,7 +104,6 @@ const feedbackTags: ReviewFeedbackTag[] = [
       'meta:header',
       'meta:unclear',
       'meta:other',
-      'technical:staff_collab',
     ],
   },
 ];
@@ -466,12 +447,8 @@ export default function ReviewPage() {
       setIsLoadingFeedbacks(true);
 
       try {
-        const selectedCategories = selectedFeedbackTags.flatMap(
-          (tagId) =>
-            feedbackTags.find((tag) => tag.id === tagId)?.values ?? [tagId],
-        );
         const fetchedFeedbacks = await filterFeedbacks(sessionId, {
-          categories: selectedCategories,
+          categories: selectedFeedbackTags,
           priority: selectedPriorityTags,
           actorIds: selectedActorIds,
         });
