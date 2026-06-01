@@ -17,6 +17,8 @@ export interface FeedbackSession {
   date: string;
   status: FeedbackSessionStatus;
   isRehearsalStarted?: boolean;
+  isSessionOwner?: boolean;
+  sessionOwnerId?: number | null;
 }
 
 export interface Actor {

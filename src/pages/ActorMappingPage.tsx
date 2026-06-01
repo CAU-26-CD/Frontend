@@ -27,9 +27,24 @@ const getActorDisplayName = (actor: SessionVideoActor) =>
   actor.name ?? `배우 ${actor.actor_id}`;
 const ANALYSIS_POLL_INTERVAL_MS = 2000;
 const pendingAnalysisStatuses = new Set(['pending', 'uploading', 'processing']);
-const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
-  matchingCompleted === true ||
-  String(matchingCompleted).toLowerCase() === 'true';
+const isSessionMatchingCompleted = (
+  session:
+    | {
+        matching_completed?: unknown;
+      }
+    | null
+    | undefined,
+) => {
+  if (!session) {
+    return false;
+  }
+
+  return (
+    session.matching_completed === true ||
+    session.matching_completed === 1 ||
+    String(session.matching_completed).toLowerCase() === 'true'
+  );
+};
 const compareSessionVideoActors = (
   a: SessionVideoActor,
   b: SessionVideoActor,
@@ -134,7 +149,7 @@ export default function ActorMappingPage() {
         }
 
         if (
-          isSessionMatchingCompleted(matchedSession?.matching_completed) &&
+          isSessionMatchingCompleted(matchedSession) &&
           !routeState?.allowActorMapping
         ) {
           navigate(
@@ -452,9 +467,15 @@ export default function ActorMappingPage() {
     if (
       Number.isNaN(numericProjectId) ||
       Number.isNaN(numericSessionId) ||
-      currentUserId === null ||
       isCompleting
     ) {
+      return;
+    }
+
+    const matchingUserId = currentUserId ?? sessionOwnerId;
+
+    if (matchingUserId === null) {
+      setActorActionError('세션 소유자 정보를 확인하지 못했습니다.');
       return;
     }
 
@@ -462,7 +483,7 @@ export default function ActorMappingPage() {
     setActorActionError(null);
 
     try {
-      await completeSessionMatching(numericSessionId, currentUserId);
+      await completeSessionMatching(numericSessionId, matchingUserId);
       navigate(
         `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
         {

@@ -17,6 +17,16 @@ export default function FeedbackSessionCard({
     session.status === 'inProgress'
       ? `/project/${projectId}/workspace/${session.id}/feedback`
       : `/project/${projectId}/workspace/${session.id}/review`;
+  const sessionRouteState =
+    session.status === 'inProgress'
+      ? {
+          projectSessionTitle: session.title,
+          isSessionOwner: session.isSessionOwner ?? false,
+          sessionOwnerId: session.sessionOwnerId ?? undefined,
+        }
+      : {
+          projectSessionTitle: session.title,
+        };
   const sessionDate = session.date.includes('T')
     ? session.date.split('T')[0]
     : session.date.split(' ')[0];
@@ -75,6 +85,7 @@ export default function FeedbackSessionCard({
   return (
     <Link
       to={sessionPath}
+      state={sessionRouteState}
       className={wrapperClassName}
       aria-label={`${session.title} ${statusLabel}`}
     >

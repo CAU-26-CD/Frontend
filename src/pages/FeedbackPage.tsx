@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   getCameraSessionStatus,
   getProjectSessions,
+  getSessionVideo,
   createCameraSession,
   getRehearsalSessionStatus,
   startRehearsalSession,
@@ -23,7 +24,8 @@ import MovementArea from '../components/feedback/MovementArea';
 import LoadingSpinner from '../components/LoadingSpinner';
 import WalkingLoadingPanel from '../components/WalkingLoadingPanel';
 import CameraSessionModal from '../components/modals/CameraSessionModal';
-import VideoUploadCompleteModal from '../components/modals/VideoUploadCompleteModal';
+import VideoUploadLoadingModal from '../components/modals/VideoUploadLoadingModal';
+import VideoUploadRequestModal from '../components/modals/VideoUploadRequestModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import type { Actor } from '../types/feedback';
 import { getStoredUserId } from '../utils/authStorage';
@@ -41,19 +43,31 @@ type FeedbackRouteState = {
   allowActorMapping?: boolean;
 };
 
-const VIDEO_UPLOAD_IN_PROGRESS_STATUSES = new Set([
-  'stop',
-  'stopped',
-  'uploading',
+const VIDEO_UPLOAD_COMPLETE_STATUSES = new Set([
+  'done',
+  'complete',
+  'completed',
+  'uploaded',
 ]);
-const RECORDING_FINALIZED_STATUSES = VIDEO_UPLOAD_IN_PROGRESS_STATUSES;
 const SESSION_POLL_INTERVAL_MS = 1000;
 
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
   status.started;
-const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
-  matchingCompleted === true ||
-  String(matchingCompleted).toLowerCase() === 'true';
+const isSessionMatchingCompleted = (
+  session: CreateProjectSessionResponse | null | undefined,
+) => {
+  if (!session) {
+    return false;
+  }
+
+  const matchingCompleted = session.matching_completed as unknown;
+
+  return (
+    matchingCompleted === true ||
+    matchingCompleted === 1 ||
+    String(matchingCompleted).toLowerCase() === 'true'
+  );
+};
 const parseRecordingStartedAt = (value: string | null) => {
   if (!value) {
     return null;
@@ -63,6 +77,25 @@ const parseRecordingStartedAt = (value: string | null) => {
 
   return Number.isNaN(timestamp) ? null : timestamp;
 };
+const normalizeCameraStatus = (status: string | null | undefined) =>
+  status?.trim().toLowerCase().replace(/[\s-]+/g, '_') ?? '';
+const hasCameraVideoUrl = (status: CameraSessionStatusResponse) =>
+  Boolean(status.video_url?.trim());
+const isVideoUploadCompleteStatus = (
+  normalizedStatus: string,
+  status: CameraSessionStatusResponse,
+) =>
+  VIDEO_UPLOAD_COMPLETE_STATUSES.has(normalizedStatus) ||
+  hasCameraVideoUrl(status);
+const hasRecordingEvidence = (
+  normalizedStatus: string,
+  status: CameraSessionStatusResponse,
+) =>
+  normalizedStatus === 'recording' ||
+  Boolean(status.recording_started_at) ||
+  (typeof status.recording_elapsed_seconds === 'number' &&
+    Number.isFinite(status.recording_elapsed_seconds) &&
+    status.recording_elapsed_seconds > 0);
 const getRecordingStartedAtFromStatus = (
   status: CameraSessionStatusResponse,
 ) => {
@@ -100,13 +133,13 @@ export default function RehearsalFeedbackPage() {
   const [isCameraGateOpen, setIsCameraGateOpen] = useState(
     Boolean(routeState?.openCameraSession),
   );
-  const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
   const [cameraStatusText, setCameraStatusText] = useState('');
   const [logoNavigationMessage, setLogoNavigationMessage] = useState('');
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(
     null,
   );
   const [isRecordingFinalized, setIsRecordingFinalized] = useState(false);
+  const [hasVideoUploadStarted, setHasVideoUploadStarted] = useState(false);
   const [isRehearsalEntryBlocked, setIsRehearsalEntryBlocked] = useState(false);
   const [actors, setActors] = useState<Actor[]>([]);
   const [isLoadingActors, setIsLoadingActors] = useState(false);
@@ -114,6 +147,7 @@ export default function RehearsalFeedbackPage() {
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const hasRequestedCameraSessionRef = useRef(false);
   const hasShownUploadCompleteRef = useRef(false);
+  const hasCameraRecordingStartedRef = useRef(false);
   const parsedProjectId = Number(projectId);
   const numericProjectId = parsedProjectId;
   const activeSessionId = sessionId ?? '';
@@ -151,18 +185,31 @@ export default function RehearsalFeedbackPage() {
     },
   );
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
-  const isSessionOwnerKnown = sessionOwnerId !== null;
+  const hasExplicitSessionOwnerFlag =
+    typeof routeState?.isSessionOwner === 'boolean';
+  const isExplicitSessionOwner = routeState?.isSessionOwner === true;
+  const isSessionOwnerKnown =
+    hasExplicitSessionOwnerFlag || sessionOwnerId !== null;
   const isSessionOwner =
-    currentUserId !== null && sessionOwnerId === currentUserId;
+    isExplicitSessionOwner ||
+    (currentUserId !== null && sessionOwnerId === currentUserId);
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
-  const isVideoUploadInProgress =
-    !isSessionOwner && VIDEO_UPLOAD_IN_PROGRESS_STATUSES.has(cameraStatusText);
+  const isCameraRecordingEnded = cameraStatusText === 'end';
+  const isCameraUploadDone =
+    VIDEO_UPLOAD_COMPLETE_STATUSES.has(cameraStatusText);
+  const isVideoUploadInProgress = hasVideoUploadStarted && !isCameraUploadDone;
+  const shouldShowVideoUploadRequestOverlay =
+    !isCameraGateOpen && isCameraRecordingEnded && !hasVideoUploadStarted;
   const shouldShowVideoUploadOverlay =
-    !isSessionOwner && !isCameraGateOpen && isRecordingFinalized;
+    !isCameraGateOpen && isVideoUploadInProgress;
   const isFeedbackInputDisabled =
-    isCameraGateOpen || isRecordingFinalized || shouldShowVideoUploadOverlay;
+    isCameraGateOpen ||
+    isRecordingFinalized ||
+    shouldShowVideoUploadRequestOverlay ||
+    isVideoUploadInProgress;
   const isLogoNavigationLocked =
-    shouldShowVideoUploadOverlay ||
+    shouldShowVideoUploadRequestOverlay ||
+    isVideoUploadInProgress ||
     (!isRecordingFinalized &&
       (cameraStatusText === 'connected' || cameraStatusText === 'recording'));
   const shouldShowRecordingTime = isRecording || isRecordingFinalized;
@@ -171,11 +218,74 @@ export default function RehearsalFeedbackPage() {
     Math.floor(recordingElapsedSeconds / 60),
   ).padStart(2, '0')}:${String(recordingElapsedSeconds % 60).padStart(2, '0')}`;
 
+  const routeAfterVideoUploadDone = useCallback(() => {
+    if (!isSessionOwnerKnown || hasShownUploadCompleteRef.current) {
+      return;
+    }
+
+    setHasVideoUploadStarted(true);
+    setIsRecordingFinalized(true);
+    setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
+    setRecordingStartedAt(null);
+    hasShownUploadCompleteRef.current = true;
+    sessionStorage.removeItem(rehearsalStartedStorageKey);
+
+    if (Number.isNaN(numericProjectId) || !activeSessionId) {
+      return;
+    }
+
+    if (isSessionOwner) {
+      navigate(
+        `/project/${numericProjectId}/workspace/${activeSessionId}/actors`,
+        {
+          replace: true,
+          state: {
+            projectSessionTitle: sessionTitle,
+            sessionOwnerId,
+            allowActorMapping: true,
+          },
+        },
+      );
+      return;
+    }
+
+    navigate(
+      `/project/${numericProjectId}/workspace/${activeSessionId}/actors/waiting`,
+      {
+        replace: true,
+        state: {
+          projectSessionTitle: sessionTitle,
+        },
+      },
+    );
+  }, [
+    activeSessionId,
+    getCurrentRecordingOffsetSeconds,
+    isSessionOwner,
+    isSessionOwnerKnown,
+    navigate,
+    numericProjectId,
+    rehearsalStartedStorageKey,
+    sessionOwnerId,
+    sessionTitle,
+  ]);
+
   const applyCameraStatus = useCallback(
     (nextStatus: CameraSessionStatusResponse) => {
-      const normalizedStatus = nextStatus.status?.toLowerCase() ?? '';
+      const normalizedStatus = normalizeCameraStatus(nextStatus.status);
+      const isUploadComplete = isVideoUploadCompleteStatus(
+        normalizedStatus,
+        nextStatus,
+      );
+      const hasStartedRecording =
+        hasCameraRecordingStartedRef.current ||
+        hasRecordingEvidence(normalizedStatus, nextStatus);
 
       setCameraStatusText(normalizedStatus);
+
+      if (hasStartedRecording) {
+        hasCameraRecordingStartedRef.current = true;
+      }
 
       if (normalizedStatus === 'recording') {
         const serverRecordingStartedAt =
@@ -196,46 +306,19 @@ export default function RehearsalFeedbackPage() {
         }
       }
 
-      if (RECORDING_FINALIZED_STATUSES.has(normalizedStatus)) {
+      if (normalizedStatus === 'end') {
         setIsRecordingFinalized(true);
         setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
         setRecordingStartedAt(null);
       }
 
-      if (normalizedStatus === 'done' || nextStatus.video_url) {
-        setIsRecordingFinalized(true);
-        setRecordingElapsedSeconds(getCurrentRecordingOffsetSeconds());
-        setRecordingStartedAt(null);
-
-        if (!isSessionOwnerKnown) {
-          return;
-        }
-
-        hasShownUploadCompleteRef.current = true;
-
-        if (isSessionOwner) {
-          setShowUploadCompleteModal(true);
-        } else if (!Number.isNaN(numericProjectId)) {
-          navigate(
-            `/project/${numericProjectId}/workspace/${activeSessionId}/actors/waiting`,
-            {
-              replace: true,
-              state: {
-                projectSessionTitle: sessionTitle,
-              },
-            },
-          );
-        }
+      if (isUploadComplete) {
+        routeAfterVideoUploadDone();
       }
     },
     [
-      activeSessionId,
       getCurrentRecordingOffsetSeconds,
-      isSessionOwner,
-      isSessionOwnerKnown,
-      navigate,
-      numericProjectId,
-      sessionTitle,
+      routeAfterVideoUploadDone,
     ],
   );
 
@@ -276,7 +359,7 @@ export default function RehearsalFeedbackPage() {
           saveSessionOwnerId(numericSessionId, nextOwnerId);
         }
 
-        if (isSessionMatchingCompleted(matchedSession?.matching_completed)) {
+        if (isSessionMatchingCompleted(matchedSession)) {
           navigate(
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
@@ -368,7 +451,7 @@ export default function RehearsalFeedbackPage() {
           saveSessionOwnerId(numericSessionId, nextOwnerId);
         }
 
-        if (isSessionMatchingCompleted(matchedSession.matching_completed)) {
+        if (isSessionMatchingCompleted(matchedSession)) {
           navigate(
             `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
             {
@@ -536,6 +619,46 @@ export default function RehearsalFeedbackPage() {
   }, [applyCameraStatus, cameraSession, isCameraGateOpen]);
 
   useEffect(() => {
+    if (
+      isCameraGateOpen ||
+      Number.isNaN(numericSessionId) ||
+      hasShownUploadCompleteRef.current
+    ) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadVideoUploadStatus = async () => {
+      try {
+        const video = await getSessionVideo(numericSessionId, {
+          refresh: true,
+        });
+
+        if (ignore || hasShownUploadCompleteRef.current) {
+          return;
+        }
+
+        if (video.s3_url) {
+          setHasVideoUploadStarted(true);
+        }
+      } catch {
+        // Video can be absent until the upload is actually created.
+      }
+    };
+
+    void loadVideoUploadStatus();
+    const intervalId = window.setInterval(() => {
+      void loadVideoUploadStatus();
+    }, SESSION_POLL_INTERVAL_MS);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isCameraGateOpen, numericSessionId]);
+
+  useEffect(() => {
     if (!logoNavigationMessage) {
       return;
     }
@@ -610,36 +733,7 @@ export default function RehearsalFeedbackPage() {
     }
   };
 
-  const openActorMapping = () => {
-    if (Number.isNaN(numericProjectId)) {
-      return;
-    }
-
-    sessionStorage.removeItem(rehearsalStartedStorageKey);
-
-    navigate(
-      `/project/${numericProjectId}/workspace/${activeSessionId}/actors`,
-      {
-        state: {
-          projectSessionTitle: sessionTitle,
-          sessionOwnerId,
-          allowActorMapping: true,
-        },
-      },
-    );
-  };
-
-  const cameraSessionSlot = isVideoUploadInProgress ? (
-    <div className="reaction-ui-font flex h-full w-full items-center justify-center">
-      <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl">
-        <WalkingLoadingPanel
-          title="영상 분석 중입니다."
-          description="영상 분석이 끝나면 리뷰 화면으로 이동합니다."
-          className="border-0 bg-transparent p-0 shadow-none backdrop-blur-0"
-        />
-      </div>
-    </div>
-  ) : isCameraGateOpen ? (
+  const cameraSessionSlot = isCameraGateOpen ? (
     cameraSession ? (
       <CameraSessionModal
         session={cameraSession}
@@ -800,46 +894,43 @@ export default function RehearsalFeedbackPage() {
             />
           </section>
 
-          <FeedbackPanel
-            actors={actors}
-            feedbacks={feedback.feedbacks}
-            selectedActors={feedback.selectedActors}
-            timestamp={feedback.timestamp}
-            content={feedback.content}
-            editingId={feedback.editingId}
-            editingContent={feedback.editingContent}
-            onActorSelect={feedback.addSelectedActor}
-            onActorBackspace={feedback.removeLastSelectedActor}
-            onTimestampStart={feedback.handleStartTimestamp}
-            onContentChange={feedback.setContent}
-            onSubmit={feedback.handleSubmit}
-            onEdit={feedback.handleEdit}
-            onEditContentChange={feedback.setEditingContent}
-            onEditSave={feedback.handleEditSave}
-            onEditCancel={feedback.handleEditCancel}
-            onDelete={feedback.handleDelete}
-            onToggleUrgent={feedback.handleToggleUrgent}
-            feedbackListSlot={cameraSessionSlot}
-            isInteractionDisabled={isFeedbackInputDisabled}
-          />
+          <div
+            className={[
+              'h-full min-h-0 transition',
+              shouldShowVideoUploadRequestOverlay || shouldShowVideoUploadOverlay
+                ? 'pointer-events-none opacity-45'
+                : '',
+            ].join(' ')}
+          >
+            <FeedbackPanel
+              actors={actors}
+              feedbacks={feedback.feedbacks}
+              selectedActors={feedback.selectedActors}
+              timestamp={feedback.timestamp}
+              content={feedback.content}
+              editingId={feedback.editingId}
+              editingContent={feedback.editingContent}
+              onActorSelect={feedback.addSelectedActor}
+              onActorBackspace={feedback.removeLastSelectedActor}
+              onTimestampStart={feedback.handleStartTimestamp}
+              onContentChange={feedback.setContent}
+              onSubmit={feedback.handleSubmit}
+              onEdit={feedback.handleEdit}
+              onEditContentChange={feedback.setEditingContent}
+              onEditSave={feedback.handleEditSave}
+              onEditCancel={feedback.handleEditCancel}
+              onDelete={feedback.handleDelete}
+              onToggleUrgent={feedback.handleToggleUrgent}
+              feedbackListSlot={cameraSessionSlot}
+              isInteractionDisabled={isFeedbackInputDisabled}
+            />
+          </div>
         </div>
       </div>
 
-      {shouldShowVideoUploadOverlay && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1b0708]/54 px-4 backdrop-blur-sm">
-          <WalkingLoadingPanel
-            title="비디오 업로드 및 배우 태그 매핑 중입니다."
-            description=" 완료되면 리뷰 화면으로 이동합니다. 잠시만 기다려주세요"
-          />
-        </div>
-      )}
+      {shouldShowVideoUploadOverlay && <VideoUploadLoadingModal />}
 
-      {showUploadCompleteModal && (
-        <VideoUploadCompleteModal
-          onConfirm={openActorMapping}
-          confirmLabel="태그 매칭하기"
-        />
-      )}
+      {shouldShowVideoUploadRequestOverlay && <VideoUploadRequestModal />}
     </main>
   );
 }

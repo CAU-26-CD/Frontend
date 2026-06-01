@@ -32,6 +32,7 @@ export default function CameraSessionModal({
 
   const isConnected = normalizedStatus === 'connected';
   const isRecording = normalizedStatus === 'recording';
+  const isRecordingEnded = normalizedStatus === 'end';
   const isDone =
     normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
   const canStartRehearsal = isOwner && (isConnected || isRecording);
@@ -39,7 +40,11 @@ export default function CameraSessionModal({
   const isVideoUploadInProgress =
     VIDEO_UPLOAD_STATUSES.has(normalizedStatus) && !isDone;
   const isWaitingForConnection =
-    !isConnected && !isRecording && !isVideoUploadInProgress && !isDone;
+    !isConnected &&
+    !isRecording &&
+    !isRecordingEnded &&
+    !isVideoUploadInProgress &&
+    !isDone;
   const nonOwnerStatus = isDone
     ? {
         title: '영상 업로드 완료',
@@ -48,6 +53,14 @@ export default function CameraSessionModal({
         progress: 100,
         icon: CheckCircle2,
       }
+    : isRecordingEnded
+      ? {
+          title: '리허설 종료',
+          description: '카메라에서 영상을 업로드하면 다음 단계로 전환됩니다.',
+          badge: '업로드 대기',
+          progress: 76,
+          icon: UploadCloud,
+        }
     : isVideoUploadInProgress
       ? {
           title: '비디오 업로드 중',
@@ -90,11 +103,11 @@ export default function CameraSessionModal({
     {
       label: '녹화',
       isActive: isConnected || isRecording,
-      isComplete: isVideoUploadInProgress || isDone,
+      isComplete: isRecordingEnded || isVideoUploadInProgress || isDone,
     },
     {
       label: '리뷰 대기',
-      isActive: isVideoUploadInProgress || isDone,
+      isActive: isRecordingEnded || isVideoUploadInProgress || isDone,
       isComplete: isDone,
     },
   ];

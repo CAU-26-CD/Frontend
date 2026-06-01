@@ -8,6 +8,11 @@ import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 import type { FeedbackSession } from '../types/feedback';
+import { getStoredUserId } from '../utils/authStorage';
+import {
+  getSessionOwnerId,
+  getStoredSessionOwnerId,
+} from '../utils/sessionOwner';
 
 const sessionCategories = [
   '장면별 연습',
@@ -19,6 +24,10 @@ const sessionCategories = [
 type SessionCategory = (typeof sessionCategories)[number];
 
 const normalizeSessionCategory = (category: string) => category.trim();
+const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
+  matchingCompleted === true ||
+  matchingCompleted === 1 ||
+  String(matchingCompleted).toLowerCase() === 'true';
 
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,6 +39,7 @@ export default function WorkspacePage() {
   const [selectedCategory, setSelectedCategory] =
     useState<SessionCategory | null>(null);
   const { projectTitle } = useProjectBreadcrumb(numericProjectId);
+  const currentUserId = getStoredUserId();
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId)) return;
@@ -45,7 +55,11 @@ export default function WorkspacePage() {
         const sessions = await getProjectSessions(numericProjectId);
         const rehearsalStatuses = await Promise.all(
           sessions.map(async (session) => {
-            if (!session.in_progress) {
+            const isMatchingCompleted = isSessionMatchingCompleted(
+              session.matching_completed,
+            );
+
+            if (!session.in_progress || isMatchingCompleted) {
               return [session.session_id, false] as const;
             }
 
@@ -69,17 +83,33 @@ export default function WorkspacePage() {
         }
 
         setFeedbackSessions(
-          sessions.map((session) => ({
-            id: session.session_id,
-            projectId: session.project_id,
-            title: session.title,
-            category: normalizeSessionCategory(session.s_category),
-            date: session.created_at,
-            status: session.in_progress ? 'inProgress' : 'completed',
-            isRehearsalStarted:
-              session.in_progress &&
-              (startedSessionIds.get(session.session_id) ?? false),
-          })),
+          sessions.map((session) => {
+            const isMatchingCompleted = isSessionMatchingCompleted(
+              session.matching_completed,
+            );
+            const sessionOwnerId =
+              getSessionOwnerId(session) ??
+              getStoredSessionOwnerId(session.session_id);
+            const isOwnedByCurrentUser =
+              currentUserId !== null &&
+              sessionOwnerId !== null &&
+              sessionOwnerId === currentUserId;
+
+            return {
+              id: session.session_id,
+              projectId: session.project_id,
+              title: session.title,
+              category: normalizeSessionCategory(session.s_category),
+              date: session.created_at,
+              status: isMatchingCompleted ? 'completed' : 'inProgress',
+              isRehearsalStarted:
+                !isMatchingCompleted &&
+                session.in_progress &&
+                (startedSessionIds.get(session.session_id) ?? false),
+              isSessionOwner: isOwnedByCurrentUser,
+              sessionOwnerId,
+            };
+          }),
         );
       } catch (error) {
         console.error('Failed to load sessions', error);
@@ -100,7 +130,7 @@ export default function WorkspacePage() {
       ignore = true;
       window.clearInterval(intervalId);
     };
-  }, [numericProjectId]);
+  }, [currentUserId, numericProjectId]);
 
   const filteredSessions = selectedCategory
     ? feedbackSessions.filter(
