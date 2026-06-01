@@ -11,6 +11,7 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) => {
 
   return 0;
 };
+const SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS = 0.1;
 
 type ReviewVideoPanelProps = {
   videoUrl: string;
@@ -254,17 +255,44 @@ export default function ReviewVideoPanel({
   const findNextSelectedAppearance = useCallback(
     (time: number) =>
       selectedActorAppearances.find(
-        (appearance) => Math.floor(appearance.startSeconds) > time + 0.1,
+        (appearance) =>
+          appearance.startSeconds >
+          time + SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS,
       ) ?? selectedActorAppearances[0],
     [selectedActorAppearances],
   );
   const findPreviousSelectedAppearance = useCallback(
-    (time: number) =>
-      [...selectedActorAppearances]
-        .reverse()
-        .find(
-          (appearance) => Math.floor(appearance.startSeconds) < time - 0.1,
-        ) ?? selectedActorAppearances[selectedActorAppearances.length - 1],
+    (time: number) => {
+      if (selectedActorAppearances.length === 0) {
+        return undefined;
+      }
+
+      const currentAppearanceIndex = selectedActorAppearances.findIndex(
+        (appearance) =>
+          time >=
+            appearance.startSeconds -
+              SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS &&
+          time <=
+            appearance.endSeconds + SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS,
+      );
+
+      if (currentAppearanceIndex !== -1) {
+        return selectedActorAppearances[
+          (currentAppearanceIndex - 1 + selectedActorAppearances.length) %
+            selectedActorAppearances.length
+        ];
+      }
+
+      return (
+        [...selectedActorAppearances]
+          .reverse()
+          .find(
+            (appearance) =>
+              appearance.startSeconds <
+              time - SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS,
+          ) ?? selectedActorAppearances[selectedActorAppearances.length - 1]
+      );
+    },
     [selectedActorAppearances],
   );
   const seekSelectedActorTimeline = useCallback(
