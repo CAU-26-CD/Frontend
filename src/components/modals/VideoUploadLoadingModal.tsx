@@ -39,10 +39,10 @@ export default function VideoUploadLoadingModal() {
           id="video-upload-loading-title"
           className="mt-5 text-lg font-extrabold text-[#2d1715]"
         >
-          비디오 업로드 중입니다
+          비디오 업로드 및 분석중입니다
         </h2>
         <p className="mt-2 text-sm font-semibold leading-relaxed text-[#806b61]">
-          업로드가 완료되면 다음 단계로 자동 전환됩니다.
+          업로드가 완료되면 다음 단계로 이동합니다.
         </p>
 
         <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#d8c9bd]">
