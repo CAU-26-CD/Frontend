@@ -33,20 +33,52 @@ const priorityOrder: FeedbackPriority[] = [
 const getPrimaryPriority = (feedback: Feedback) =>
   priorityOrder.find((priority) => feedback.priority?.includes(priority));
 
+const getFeedbackCategoryTags = (
+  feedbackCategories: string[],
+  feedbackTags: ReviewFeedbackTag[],
+) =>
+  feedbackTags.filter((tag) =>
+    feedbackCategories.some(
+      (category) => category === tag.id || tag.values.includes(category),
+    ),
+  );
+
 const categoryLabelByValue: Record<string, string> = {
+  'vocal:pitch': '음정',
+  'vocal:rhythm': '박자',
+  'vocal:diction': '발음',
+  'vocal:breath': '호흡',
+  'vocal:expression_singing': '노래 표현',
+  'vocal:multitasking': '노래+행동',
   'acting:expression': '표정',
   'acting:emotion': '감정선',
   'acting:tone': '대사 톤',
   'acting:gaze': '시선',
   'acting:character': '캐릭터',
   'acting:reaction': '리액션',
-  'vocal:pitch': '음정',
-  'vocal:rhythm': '박자',
-  'vocal:diction': '발음',
-  'vocal:breath': '호흡',
+  'acting:improvisation': '즉흥 연기',
+  'movement:path': '동선',
+  'movement:entrance_exit': '입퇴장',
+  'gesture:gesture': '제스처',
+  'gesture:posture': '자세',
+  'gesture:footwork': '잔발',
+  'gesture:props': '소품',
+  'sync:eye_contact': '시선 교환',
+  'sync:timing_sync': '합',
+  'sync:emotional_bond': '관계성',
+  'sync:audio_cue': '음향 큐',
+  'sync:lighting': '조명',
+  'text:mistake': '대사 실수',
+  'text:omission': '대사 누락',
+  'text:lyrics': '가사 실수',
+  'text:memorization': '암기',
+  'meta:schedule': '일정',
+  'meta:homework': '과제',
+  'meta:condition': '컨디션',
+  'meta:header': '헤더',
+  'meta:unclear': '정보 부족',
+  'meta:other': '기타',
   'vocal:lyrics': '가사',
-  'vocal:expression_singing': '노래 표현',
-  'vocal:multitasking': '노래+동작',
   'blocking:movement': '동선',
   'blocking:posture': '자세',
   'blocking:gesture': '제스처',
@@ -64,7 +96,6 @@ const categoryLabelByValue: Record<string, string> = {
   'technical:audio_cue': '음향',
   'technical:lighting': '조명',
   'technical:staff_collab': '스태프 협업',
-  'meta:other': '기타',
 };
 
 const timestampSortValue = (timestamp: string) => {
@@ -150,24 +181,12 @@ export default function ReviewFeedbackPanel({
 
     const feedbackList = feedbackListRef.current;
     const feedbackNode = feedbackRefs.current.get(highlightedFeedbackId);
-    const highlightedFeedbackIndex = visibleFeedbacks.findIndex(
-      (feedback) => feedback.id === highlightedFeedbackId,
-    );
-    const previousFeedback =
-      highlightedFeedbackIndex > 0
-        ? visibleFeedbacks[highlightedFeedbackIndex - 1]
-        : null;
-    const previousFeedbackNode = previousFeedback
-      ? feedbackRefs.current.get(previousFeedback.id)
-      : null;
 
     if (!feedbackList || !feedbackNode) {
       return;
     }
 
-    const nextScrollTop = previousFeedbackNode
-      ? previousFeedbackNode.offsetTop + previousFeedbackNode.offsetHeight * 0.8
-      : feedbackNode.offsetTop;
+    const nextScrollTop = feedbackNode.offsetTop;
     const maxScrollTop = Math.max(
       0,
       feedbackList.scrollHeight - feedbackList.clientHeight,
@@ -198,18 +217,15 @@ export default function ReviewFeedbackPanel({
           ) : (
             visibleFeedbacks.map((feedback, index) => {
               const feedbackCategories = feedback.categories ?? [];
-              const primaryTag = feedbackTags.find((tag) =>
-                feedbackCategories.some(
-                  (category) =>
-                    category === tag.id || tag.values.includes(category),
-                ),
+              const categoryTags = getFeedbackCategoryTags(
+                feedbackCategories,
+                feedbackTags,
               );
               const primaryCategory = feedbackCategories[0];
               const primaryPriority = getPrimaryPriority(feedback);
               const isHighlighted = feedback.id === highlightedFeedbackId;
               const isLastFeedback = index === visibleFeedbacks.length - 1;
               const timelineColor =
-                primaryTag?.color ??
                 (primaryPriority ? priorityColorById[primaryPriority] : null) ??
                 '#fff8ef';
               const feedbackActorNames = feedback.actorIds
@@ -220,7 +236,9 @@ export default function ReviewFeedbackPanel({
                 .filter(Boolean)
                 .join(', ');
               const categoryLabel =
-                categoryLabelByValue[primaryCategory] ?? primaryTag?.label;
+                categoryTags.length === 0
+                  ? categoryLabelByValue[primaryCategory]
+                  : null;
 
               return (
                 <article
@@ -251,32 +269,46 @@ export default function ReviewFeedbackPanel({
                   </div>
 
                   <div className="min-w-0">
-                    <time
-                      className="block text-[12px] font-black leading-none"
-                      style={{ color: timelineColor }}
-                    >
-                      {feedback.timestamp}
-                    </time>
-                    <p
-                      className={[
-                        'mt-1 min-w-0 truncate text-[12px] font-bold',
-                        isHighlighted
-                          ? 'text-[#431B1B]/82'
-                          : 'text-[#fff8ef]/86',
-                      ].join(' ')}
-                    >
-                      {feedbackActorNames || '배우 미지정'}
-                      {categoryLabel && (
-                        <span className="ml-1">[{categoryLabel}]</span>
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <time
+                        className="shrink-0 rounded-full bg-white/18 px-1.5 py-0.5 text-[12px] font-black leading-none shadow-[0_0_10px_rgba(255,255,255,0.18)] ring-1 ring-white/18 backdrop-blur-[1px]"
+                        style={{ color: timelineColor }}
+                      >
+                        {feedback.timestamp}
+                      </time>
+                      {categoryTags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex h-5 max-w-full items-center rounded-[5px] px-2 text-[10px] font-bold text-[#431B1B]"
+                          style={{ backgroundColor: tag.color }}
+                        >
+                          <span className="truncate">{tag.label}</span>
+                        </span>
+                      ))}
+                      {categoryTags.length === 0 && categoryLabel && (
+                        <span className="inline-flex h-5 max-w-full items-center rounded-[5px] bg-white/45 px-2 text-[10px] font-bold text-[#431B1B]">
+                          <span className="truncate">{categoryLabel}</span>
+                        </span>
                       )}
-                    </p>
+                    </div>
                     <p
                       className={[
-                        'mt-0.5 min-w-0 whitespace-pre-wrap break-words text-[12px] font-semibold leading-relaxed [overflow-wrap:anywhere]',
+                        'mt-1 min-w-0 break-words text-[12px] font-semibold leading-relaxed [overflow-wrap:anywhere]',
                         isHighlighted ? 'text-[#2d1715]' : 'text-[#eee7dc]/84',
                       ].join(' ')}
                     >
-                      {feedback.content}
+                      <span
+                        className={[
+                          'font-bold',
+                          isHighlighted
+                            ? 'text-[#431B1B]/82'
+                            : 'text-[#fff8ef]/86',
+                        ].join(' ')}
+                      >
+                        {feedbackActorNames || '배우 미지정'}
+                      </span>
+                      <span className="mx-1 text-current/50">-</span>
+                      <span>{feedback.content}</span>
                     </p>
                   </div>
                 </article>
