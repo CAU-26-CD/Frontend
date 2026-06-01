@@ -197,7 +197,13 @@ export default function RehearsalFeedbackPage() {
   const isCameraRecordingEnded = cameraStatusText === 'end';
   const isCameraUploadDone =
     VIDEO_UPLOAD_COMPLETE_STATUSES.has(cameraStatusText);
-  const isVideoUploadInProgress = hasVideoUploadStarted && !isCameraUploadDone;
+  const isNonOwnerWaitingForMatching =
+    !isSessionOwner &&
+    hasVideoUploadStarted &&
+    !isSessionMatchingCompleted(currentProjectSession);
+  const isVideoUploadInProgress =
+    (isSessionOwner && hasVideoUploadStarted && !isCameraUploadDone) ||
+    isNonOwnerWaitingForMatching;
   const shouldShowVideoUploadRequestOverlay =
     !isCameraGateOpen && isCameraRecordingEnded && !hasVideoUploadStarted;
   const shouldShowVideoUploadOverlay =
@@ -312,12 +318,13 @@ export default function RehearsalFeedbackPage() {
         setRecordingStartedAt(null);
       }
 
-      if (isUploadComplete) {
+      if (isUploadComplete && isSessionOwner) {
         routeAfterVideoUploadDone();
       }
     },
     [
       getCurrentRecordingOffsetSeconds,
+      isSessionOwner,
       routeAfterVideoUploadDone,
     ],
   );
@@ -417,8 +424,7 @@ export default function RehearsalFeedbackPage() {
     if (
       Number.isNaN(numericProjectId) ||
       Number.isNaN(numericSessionId) ||
-      isSessionOwner ||
-      (!isCameraGateOpen && !isRecordingFinalized && !isVideoUploadInProgress)
+      isSessionOwner
     ) {
       return;
     }
@@ -477,10 +483,7 @@ export default function RehearsalFeedbackPage() {
       window.clearInterval(intervalId);
     };
   }, [
-    isCameraGateOpen,
-    isRecordingFinalized,
     isSessionOwner,
-    isVideoUploadInProgress,
     navigate,
     numericProjectId,
     numericSessionId,
@@ -591,6 +594,7 @@ export default function RehearsalFeedbackPage() {
   useEffect(() => {
     if (
       !cameraSession ||
+      !isSessionOwner ||
       isCameraGateOpen ||
       hasShownUploadCompleteRef.current
     ) {
@@ -616,7 +620,7 @@ export default function RehearsalFeedbackPage() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [applyCameraStatus, cameraSession, isCameraGateOpen]);
+  }, [applyCameraStatus, cameraSession, isCameraGateOpen, isSessionOwner]);
 
   useEffect(() => {
     if (
@@ -739,7 +743,7 @@ export default function RehearsalFeedbackPage() {
         session={cameraSession}
         sessionName={sessionTitle}
         onStart={startRehearsal}
-        onStatusChange={applyCameraStatus}
+        onStatusChange={isSessionOwner ? applyCameraStatus : undefined}
         variant="panel"
         isOwner={isSessionOwner}
       />
