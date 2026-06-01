@@ -196,7 +196,7 @@ export default function RehearsalFeedbackPage() {
   const isRecording = cameraStatusText === 'recording' && !isRecordingFinalized;
   const isCameraRecordingEnded = cameraStatusText === 'end';
   const isCameraUploadDone =
-    VIDEO_UPLOAD_COMPLETE_STATUSES.has(cameraStatusText);
+    isSessionOwner && VIDEO_UPLOAD_COMPLETE_STATUSES.has(cameraStatusText);
   const isNonOwnerWaitingForMatching =
     !isSessionOwner &&
     hasVideoUploadStarted &&
@@ -594,7 +594,6 @@ export default function RehearsalFeedbackPage() {
   useEffect(() => {
     if (
       !cameraSession ||
-      !isSessionOwner ||
       isCameraGateOpen ||
       hasShownUploadCompleteRef.current
     ) {
@@ -743,7 +742,7 @@ export default function RehearsalFeedbackPage() {
         session={cameraSession}
         sessionName={sessionTitle}
         onStart={startRehearsal}
-        onStatusChange={isSessionOwner ? applyCameraStatus : undefined}
+        onStatusChange={applyCameraStatus}
         variant="panel"
         isOwner={isSessionOwner}
       />

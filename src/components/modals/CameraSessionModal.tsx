@@ -28,15 +28,12 @@ export default function CameraSessionModal({
   const [cameraStatus, setCameraStatus] =
     useState<CameraSessionStatusResponse | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const visibleCameraStatus = isOwner ? cameraStatus : null;
-  const visibleStatusError = isOwner ? statusError : null;
-  const normalizedStatus = visibleCameraStatus?.status?.toLowerCase() ?? '';
+  const normalizedStatus = cameraStatus?.status?.toLowerCase() ?? '';
 
   const isConnected = normalizedStatus === 'connected';
   const isRecording = normalizedStatus === 'recording';
   const isRecordingEnded = normalizedStatus === 'end';
-  const isDone =
-    normalizedStatus === 'done' || Boolean(visibleCameraStatus?.video_url);
+  const isDone = normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
   const canStartRehearsal = isOwner && (isConnected || isRecording);
   const isPanel = variant === 'panel';
   const isVideoUploadInProgress =
@@ -115,10 +112,6 @@ export default function CameraSessionModal({
   ];
 
   useEffect(() => {
-    if (!isOwner) {
-      return;
-    }
-
     const loadStatus = async () => {
       try {
         const nextStatus = await getCameraSessionStatus(session.session_id);
@@ -263,15 +256,15 @@ export default function CameraSessionModal({
                 </div>
               )}
 
-              {visibleStatusError && (
+              {statusError && (
                 <p className="mt-3 text-xs font-semibold text-[#A94444]">
-                  {visibleStatusError}
+                  {statusError}
                 </p>
               )}
 
-              {visibleCameraStatus && (
+              {cameraStatus && (
                 <p className="mt-3 text-xs font-semibold text-[#806b61]">
-                  현재 상태: {visibleCameraStatus.status}
+                  현재 상태: {cameraStatus.status}
                 </p>
               )}
             </div>
@@ -359,9 +352,9 @@ export default function CameraSessionModal({
             </div>
 
             <div className="mt-auto pt-5">
-              {visibleStatusError ? (
+              {statusError ? (
                 <p className="rounded-lg border border-[#A94444]/20 bg-[#A94444]/10 px-3 py-2 text-xs font-semibold text-[#A94444]">
-                  {visibleStatusError}
+                  {statusError}
                 </p>
               ) : (
                 <p className="rounded-lg border border-white/40 bg-white/28 px-3 py-2 text-xs font-semibold text-[#806b61]">
