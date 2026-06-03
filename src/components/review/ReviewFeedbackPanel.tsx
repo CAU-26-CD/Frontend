@@ -108,6 +108,8 @@ const timestampSortValue = (timestamp: string) => {
   return parts.reduce((total, part) => total * 60 + part, 0);
 };
 
+const highlightedFeedbackTopGap = 12;
+
 export default function ReviewFeedbackPanel({
   feedbacks,
   actors,
@@ -186,19 +188,15 @@ export default function ReviewFeedbackPanel({
       return;
     }
 
-    const nextScrollTop = feedbackNode.offsetTop;
+    const nextScrollTop = feedbackNode.offsetTop - highlightedFeedbackTopGap;
     const maxScrollTop = Math.max(
       0,
       feedbackList.scrollHeight - feedbackList.clientHeight,
     );
 
-    if (nextScrollTop > maxScrollTop) {
-      return;
-    }
-
     feedbackList.scrollTo({
       behavior: 'smooth',
-      top: Math.max(0, nextScrollTop),
+      top: Math.min(maxScrollTop, Math.max(0, nextScrollTop)),
     });
   }, [highlightedFeedbackId, visibleFeedbacks]);
 
@@ -207,7 +205,7 @@ export default function ReviewFeedbackPanel({
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-[10px] border-2 border-stone-200/50 bg-transparent p-1">
         <div
           ref={feedbackListRef}
-          className="reaction-hidden-scrollbar flex h-full min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain px-2 py-1 pr-3 text-[#eee7dc]"
+          className="reaction-hidden-scrollbar flex h-full min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain px-2 pb-1 pt-3 pr-3 text-[#eee7dc]"
         >
           {isLoading ? (
             <LoadingSpinner
@@ -231,9 +229,11 @@ export default function ReviewFeedbackPanel({
               const feedbackActorNames = feedback.actorIds
                 .map(
                   (actorId) =>
-                    actors.find((actor) => actor.id === actorId)?.name,
+                    actors.find((actor) => actor.id === actorId)?.name ??
+                    feedback.actorNames?.[feedback.actorIds.indexOf(actorId)],
                 )
                 .filter(Boolean)
+                .filter((name, index, names) => names.indexOf(name) === index)
                 .join(', ');
               const categoryLabel =
                 categoryTags.length === 0

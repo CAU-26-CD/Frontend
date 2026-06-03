@@ -70,6 +70,7 @@ export function useFeedback(
             createdByUserId: feedback.created_by_user_id,
             timestamp: secondsToTimestamp(feedback.video_offset_seconds),
             actorIds: feedback.actor_ids,
+            actorNames: feedback.actor_names,
             content: feedback.content,
             isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
             aiTags: [],
@@ -103,6 +104,7 @@ export function useFeedback(
     if (!currentUserId) return;
 
     const feedbackActorIds = selectedActors.map((actor) => actor.id);
+    const feedbackActorNames = selectedActors.map((actor) => actor.name);
     const feedbackContent = content;
     const feedbackTimestamp = timestamp;
     const temporaryFeedbackId = -(
@@ -113,6 +115,7 @@ export function useFeedback(
       createdByUserId: currentUserId,
       timestamp: feedbackTimestamp,
       actorIds: feedbackActorIds,
+      actorNames: feedbackActorNames,
       content: feedbackContent,
       isUrgent: URGENT_MARK_PATTERN.test(feedbackContent),
       aiTags: [],
@@ -142,6 +145,7 @@ export function useFeedback(
         createdByUserId: createdFeedback.created_by_user_id,
         timestamp: feedbackTimestamp,
         actorIds: createdFeedback.actor_ids,
+        actorNames: createdFeedback.actor_names ?? feedbackActorNames,
         content: createdFeedback.content,
         isUrgent: URGENT_MARK_PATTERN.test(createdFeedback.content),
         aiTags: [],
@@ -259,6 +263,8 @@ export function useFeedback(
                   updatedFeedback.video_offset_seconds,
                 ),
                 actorIds: updatedFeedback.actor_ids,
+                actorNames:
+                  updatedFeedback.actor_names ?? targetFeedback.actorNames,
                 isUrgent: URGENT_MARK_PATTERN.test(updatedFeedback.content),
                 analysisStatus: 'idle',
                 isPersisted: true,

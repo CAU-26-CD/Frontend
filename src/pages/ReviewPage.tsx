@@ -297,13 +297,21 @@ export default function ReviewPage() {
         : routeReviewActors.length > 0
           ? routeReviewActors
           : projectActors;
+    const actorById = new Map<number, Actor>();
 
-    return applyActorShortcuts(
-      primaryActors.map((actor) => ({
+    primaryActors.forEach((actor) => {
+      actorById.set(actor.id, {
         ...actor,
         name: projectActorNameById.get(actor.id) ?? actor.name,
-      })),
-    );
+      });
+    });
+    projectActors.forEach((actor) => {
+      if (!actorById.has(actor.id)) {
+        actorById.set(actor.id, actor);
+      }
+    });
+
+    return applyActorShortcuts([...actorById.values()]);
   }, [projectActors, routeReviewActors, videoReviewActors]);
   const actorAppearances = useMemo<SessionVideoAppearance[]>(() => {
     if (sessionVideoAppearanceInfo) {
@@ -468,6 +476,7 @@ export default function ReviewPage() {
             actorIds:
               feedback.actor_ids ??
               inferActorIds(feedback.content, reviewActors),
+            actorNames: feedback.actor_names,
             content: feedback.content,
             isUrgent: feedback.content.includes('!!!'),
             priority: normalizeFeedbackPriorities(feedback.priority ?? []),

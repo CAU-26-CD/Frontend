@@ -234,9 +234,11 @@ export default function FeedbackPanel({
                 const feedbackActorNames = feedback.actorIds
                   .map(
                     (actorId) =>
-                      actors.find((actor) => actor.id === actorId)?.name,
+                      actors.find((actor) => actor.id === actorId)?.name ??
+                      feedback.actorNames?.[feedback.actorIds.indexOf(actorId)],
                   )
                   .filter(Boolean)
+                  .filter((name, index, names) => names.indexOf(name) === index)
                   .join(', ');
                 const isMovementFeedback = feedback.content.startsWith(
                   MOVEMENT_FEEDBACK_PREFIX,

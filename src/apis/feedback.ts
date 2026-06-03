@@ -15,6 +15,7 @@ export type CreateFeedbackResponse = {
   content: string;
   video_offset_seconds: number;
   actor_ids: number[];
+  actor_names?: string[];
   created_at: string;
 };
 

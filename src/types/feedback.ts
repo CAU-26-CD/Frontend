@@ -33,6 +33,7 @@ export interface Feedback {
   createdByUserId?: number;
   timestamp: string;
   actorIds: number[];
+  actorNames?: string[];
   content: string;
   isUrgent: boolean;
   priority?: FeedbackPriority[];
