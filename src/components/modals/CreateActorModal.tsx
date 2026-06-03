@@ -61,7 +61,7 @@ export default function CreateActorModal({
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="w-full max-w-sm rounded-2xl border border-white/35 bg-[#efe6de]/92 p-6 text-center text-[#2d1715] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+        className="w-full max-w-sm rounded-2xl border border-white/35 bg-[#efe6de]/92 p-6 text-center text-[#431B1B] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl"
       >
         <h2 className="text-lg font-bold">배우 등록</h2>
         <p className="mt-2 text-sm font-semibold text-[#806b61]">
@@ -77,7 +77,7 @@ export default function CreateActorModal({
             value={actorName}
             onChange={(event) => setActorName(event.target.value)}
             autoFocus
-            className="h-11 min-w-0 flex-1 rounded-full border border-[#c8b7aa] bg-white/30 px-5 text-center text-sm font-bold text-[#2d1715] outline-none transition placeholder:text-[#806b61]/60 focus:border-[#431B1B] focus:bg-white/45 focus:ring-2 focus:ring-[#431B1B]/15"
+            className="h-11 min-w-0 flex-1 rounded-full border border-[#c8b7aa] bg-white/30 px-5 text-center text-sm font-bold text-[#431B1B] outline-none transition placeholder:text-[#806b61]/60 focus:border-[#431B1B] focus:bg-white/45 focus:ring-2 focus:ring-[#431B1B]/15"
             placeholder="배우 이름"
             maxLength={20}
           />

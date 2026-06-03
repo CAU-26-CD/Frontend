@@ -33,7 +33,8 @@ export default function CameraSessionModal({
   const isConnected = normalizedStatus === 'connected';
   const isRecording = normalizedStatus === 'recording';
   const isRecordingEnded = normalizedStatus === 'end';
-  const isDone = normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
+  const isDone =
+    normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
   const canStartRehearsal = isOwner && (isConnected || isRecording);
   const isPanel = variant === 'panel';
   const isVideoUploadInProgress =
@@ -60,37 +61,39 @@ export default function CameraSessionModal({
           progress: 76,
           icon: UploadCloud,
         }
-    : isVideoUploadInProgress
-      ? {
-          title: '비디오 업로드 중',
-          description: '업로드가 끝나면 세션 소유자의 태그 매칭을 기다립니다.',
-          badge: '업로드 중',
-          progress: 84,
-          icon: UploadCloud,
-        }
-      : isRecording
+      : isVideoUploadInProgress
         ? {
-            title: '리허설 녹화 중',
-            description: '녹화가 끝나면 영상 업로드 상태로 전환됩니다.',
-            badge: '녹화 중',
-            progress: 66,
-            icon: Video,
+            title: '비디오 업로드 중',
+            description:
+              '업로드가 끝나면 세션 소유자의 태그 매칭을 기다립니다.',
+            badge: '업로드 중',
+            progress: 84,
+            icon: UploadCloud,
           }
-        : isConnected
+        : isRecording
           ? {
-              title: '카메라 연결 완료',
-              description: '세션 소유자가 리허설을 시작하면 참여할 수 있습니다.',
-              badge: '시작 대기',
-              progress: 36,
-              icon: Radio,
+              title: '리허설 녹화 중',
+              description: '녹화가 끝나면 영상 업로드 상태로 전환됩니다.',
+              badge: '녹화 중',
+              progress: 66,
+              icon: Video,
             }
-          : {
-              title: '카메라 연결 대기',
-              description: '세션 소유자가 휴대폰 카메라를 연결하고 있습니다.',
-              badge: '대기 중',
-              progress: 14,
-              icon: Camera,
-            };
+          : isConnected
+            ? {
+                title: '카메라 연결 완료',
+                description:
+                  '세션 소유자가 리허설을 시작하면 참여할 수 있습니다.',
+                badge: '시작 대기',
+                progress: 36,
+                icon: Radio,
+              }
+            : {
+                title: '카메라 연결 대기',
+                description: '세션 소유자가 휴대폰 카메라를 연결하고 있습니다.',
+                badge: '대기 중',
+                progress: 14,
+                icon: Camera,
+              };
   const NonOwnerStatusIcon = nonOwnerStatus.icon;
   const nonOwnerSteps = [
     {
@@ -146,8 +149,8 @@ export default function CameraSessionModal({
       <div
         className={
           isPanel
-            ? 'flex h-full w-80 max-w-full flex-col overflow-hidden rounded-2xl border border-white/35 bg-[#efe6de]/88 p-4 text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl'
-            : 'w-full max-w-md rounded-2xl border border-white/35 bg-[#efe6de]/88 p-6 text-[#2d1715] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl'
+            ? 'flex h-full w-80 max-w-full flex-col overflow-hidden rounded-2xl border border-white/35 bg-[#efe6de]/88 p-4 text-[#431B1B] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl'
+            : 'w-full max-w-md rounded-2xl border border-white/35 bg-[#efe6de]/88 p-6 text-[#431B1B] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl'
         }
       >
         <div

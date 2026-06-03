@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
 import type { Actor } from '../../types/feedback';
@@ -49,11 +49,13 @@ export default function MovementArea({
 }: MovementAreaProps) {
   const [movementPath, setMovementPath] = useState<number[]>([]);
   const [cursorPoint, setCursorPoint] = useState<MovementPoint | null>(null);
+  const lastAppliedMovementContentRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!content && !timestamp) {
       setMovementPath([]);
       setCursorPoint(null);
+      lastAppliedMovementContentRef.current = null;
     }
   }, [content, timestamp]);
 
@@ -68,17 +70,55 @@ export default function MovementArea({
     )} 순서로 이동`;
   };
 
+  const removeLastAppliedMovementContent = (value: string) => {
+    const lastAppliedMovementContent = lastAppliedMovementContentRef.current;
+
+    if (!lastAppliedMovementContent) {
+      return value;
+    }
+
+    const movementSuffix = `\n${lastAppliedMovementContent}`;
+
+    if (value.endsWith(movementSuffix)) {
+      return value.slice(0, -movementSuffix.length).trimEnd();
+    }
+
+    if (value === lastAppliedMovementContent) {
+      return '';
+    }
+
+    return value;
+  };
+
+  const appendMovementContent = (baseContent: string, movementContent: string) => {
+    const normalizedBaseContent = baseContent.trimEnd();
+
+    return normalizedBaseContent
+      ? `${normalizedBaseContent}\n${movementContent}`
+      : movementContent;
+  };
+
   const applyMovementPath = (nextPath: number[]) => {
     setMovementPath(nextPath);
 
     if (nextPath.length > 0) {
-      onContentChange(buildMovementContent(nextPath));
+      const movementContent = buildMovementContent(nextPath);
+      const baseContent = removeLastAppliedMovementContent(content);
+
+      onContentChange(appendMovementContent(baseContent, movementContent));
+      lastAppliedMovementContentRef.current = movementContent;
       return;
     }
 
-    if (content.startsWith(MOVEMENT_FEEDBACK_PREFIX)) {
+    const baseContent = removeLastAppliedMovementContent(content);
+
+    if (baseContent !== content) {
+      onContentChange(baseContent);
+    } else if (content.startsWith(MOVEMENT_FEEDBACK_PREFIX)) {
       onContentChange('');
     }
+
+    lastAppliedMovementContentRef.current = null;
   };
 
   const handlePointClick = (pointId: number) => {
