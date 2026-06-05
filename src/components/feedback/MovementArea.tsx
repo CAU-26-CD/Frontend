@@ -3,8 +3,6 @@ import type { KeyboardEvent, MouseEvent } from 'react';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
 import type { Actor } from '../../types/feedback';
 
-const MOVEMENT_FEEDBACK_PREFIX = '[동선]';
-
 const MOVEMENT_POINTS = [
   { id: 1, x: 22, y: 36 },
   { id: 2, x: 16.5, y: 55 },
@@ -65,7 +63,7 @@ export default function MovementArea({
         ? selectedActors.map((actor) => actor.name).join(', ')
         : '배우';
 
-    return `${MOVEMENT_FEEDBACK_PREFIX} ${actorNames}: ${nextPath.join(
+    return `${actorNames}: ${nextPath.join(
       ', ',
     )} 순서로 이동`;
   };
@@ -114,8 +112,6 @@ export default function MovementArea({
 
     if (baseContent !== content) {
       onContentChange(baseContent);
-    } else if (content.startsWith(MOVEMENT_FEEDBACK_PREFIX)) {
-      onContentChange('');
     }
 
     lastAppliedMovementContentRef.current = null;

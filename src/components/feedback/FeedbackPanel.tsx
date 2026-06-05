@@ -8,7 +8,6 @@ import type { Actor, Feedback } from '../../types/feedback';
 
 const FEEDBACK_PAGE_SIZE = 15;
 const URGENT_MARK_PATTERN = /!{3,}/;
-const MOVEMENT_FEEDBACK_PREFIX = '[동선]';
 
 type FeedbackPanelProps = {
   actors: Actor[];
@@ -240,10 +239,6 @@ export default function FeedbackPanel({
                   .filter(Boolean)
                   .filter((name, index, names) => names.indexOf(name) === index)
                   .join(', ');
-                const isMovementFeedback = feedback.content.startsWith(
-                  MOVEMENT_FEEDBACK_PREFIX,
-                );
-
                 return (
                   <div
                     key={feedback.id}
@@ -251,9 +246,7 @@ export default function FeedbackPanel({
                       'group relative min-h-[86px] w-80 max-w-full shrink-0 overflow-hidden rounded-md border px-3 py-2.5 text-sm transition-colors',
                       feedback.isUrgent
                         ? 'border-[#DF8181] bg-[#D15757] text-[#fff8ef] shadow-none'
-                        : isMovementFeedback
-                          ? 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none'
-                          : 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none',
+                        : 'border-[#d5c8bc] bg-[#efe6de] text-[#2d1715] shadow-none',
                     ].join(' ')}
                   >
                     <div
@@ -268,18 +261,6 @@ export default function FeedbackPanel({
                           <span>|</span>
                           <span>{feedbackActorNames}</span>
                         </>
-                      )}
-                      {isMovementFeedback && (
-                        <span
-                          className={[
-                            'ml-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                            feedback.isUrgent
-                              ? 'border-white/50 bg-white/16 text-[#fff8ef]'
-                              : 'border-[#c59b74] bg-[#fff8ef]/75 text-[#8a4734]',
-                          ].join(' ')}
-                        >
-                          동선
-                        </span>
                       )}
                     </div>
 
