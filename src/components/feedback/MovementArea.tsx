@@ -57,7 +57,7 @@ export default function MovementArea({
   }, [content, timestamp]);
 
   const buildMovementContent = (nextPath: number[]) => {
-    return `${nextPath.join(', ')}`;
+    return `동선: ${nextPath.join(' -> ')}`;
   };
 
   const removeLastAppliedMovementContent = (value: string) => {
