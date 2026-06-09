@@ -38,7 +38,6 @@ type MovementAreaProps = {
 };
 
 export default function MovementArea({
-  selectedActors,
   timestamp,
   content,
   onTimestampStart,
@@ -58,14 +57,7 @@ export default function MovementArea({
   }, [content, timestamp]);
 
   const buildMovementContent = (nextPath: number[]) => {
-    const actorNames =
-      selectedActors.length > 0
-        ? selectedActors.map((actor) => actor.name).join(', ')
-        : '배우';
-
-    return `${actorNames}: ${nextPath.join(
-      ', ',
-    )} 순서로 이동`;
+    return `${nextPath.join(', ')}`;
   };
 
   const removeLastAppliedMovementContent = (value: string) => {
@@ -88,7 +80,10 @@ export default function MovementArea({
     return value;
   };
 
-  const appendMovementContent = (baseContent: string, movementContent: string) => {
+  const appendMovementContent = (
+    baseContent: string,
+    movementContent: string,
+  ) => {
     const normalizedBaseContent = baseContent.trimEnd();
 
     return normalizedBaseContent
