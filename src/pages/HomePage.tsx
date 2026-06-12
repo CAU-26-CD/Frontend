@@ -14,19 +14,31 @@ export default function HomePage() {
       <div className="reaction-home-vignette absolute inset-0 z-0" />
 
       <nav className="relative z-10 mx-auto grid h-[82px] w-full max-w-[850px] grid-cols-4 items-center px-7 text-center text-[13px] font-semibold text-[#f4eee6] sm:h-[88px] sm:px-10">
-        <Link to="/" className="transition hover:text-white">
+        <button
+          type="button"
+          disabled
+          className="cursor-default bg-transparent p-0 font-[inherit] text-inherit"
+        >
           About
-        </Link>
-        <a
-          href="mailto:contact@reaction.local"
-          className="transition hover:text-white"
+        </button>
+        <button
+          type="button"
+          disabled
+          className="cursor-default bg-transparent p-0 font-[inherit] text-inherit"
         >
           Contact
-        </a>
-        <Link to="/project/new" className="transition hover:text-white">
+        </button>
+        <button
+          type="button"
+          disabled
+          className="cursor-default bg-transparent p-0 font-[inherit] text-inherit"
+        >
           Sign up
-        </Link>
-        <Link to="/login" className="transition hover:text-white">
+        </button>
+        <Link
+          to="/login"
+          className="justify-self-center rounded-full border border-[#fff8ef]/80 bg-[#fff8ef] px-5 py-2 text-[#431B1B] shadow-[0_0_18px_rgba(255,248,239,0.32)] transition hover:bg-white"
+        >
           Login
         </Link>
       </nav>
