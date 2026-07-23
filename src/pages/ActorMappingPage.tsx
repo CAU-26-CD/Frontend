@@ -14,7 +14,10 @@ import {
 } from '../apis/session';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { useProjectActorsRealtime } from '../hooks/useProjectActorsRealtime';
 import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
+import { useRealtimeScope } from '../hooks/useRealtimeScope';
+import { realtimeClient } from '../realtime';
 import type { Actor } from '../types/feedback';
 import { getStoredUserId } from '../utils/authStorage';
 import {
@@ -105,6 +108,20 @@ export default function ActorMappingPage() {
       fallbackSessionTitle: routeState?.projectSessionTitle,
     },
   );
+  useRealtimeScope(
+    {
+      project_id: numericProjectId,
+      session_id: numericSessionId,
+      user_id: currentUserId ?? undefined,
+    },
+    !Number.isNaN(numericProjectId) && !Number.isNaN(numericSessionId),
+  );
+  useProjectActorsRealtime({
+    projectId: numericProjectId,
+    sessionId: numericSessionId,
+    enabled: !Number.isNaN(numericProjectId),
+    setActors: setProjectActors,
+  });
   const isSessionOwner =
     currentUserId !== null && sessionOwnerId === currentUserId;
   const selectedActor =
@@ -119,6 +136,185 @@ export default function ActorMappingPage() {
   const isWaitingForAnalysis =
     isLoading || pendingAnalysisStatuses.has(analysisStatus);
   const hasAnalysisFailed = analysisStatus === 'failed';
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {
+      return;
+    }
+
+    const matchesCurrentScope = (
+      scopeProjectId: number | undefined,
+      scopeSessionId: number | string | undefined,
+      payloadProjectId?: number,
+      payloadSessionId?: number | string,
+    ) => {
+      if (scopeProjectId !== undefined && scopeProjectId !== numericProjectId) {
+        return false;
+      }
+      if (
+        payloadProjectId !== undefined &&
+        payloadProjectId !== numericProjectId
+      ) {
+        return false;
+      }
+      if (
+        scopeSessionId !== undefined &&
+        String(scopeSessionId) !== String(numericSessionId)
+      ) {
+        return false;
+      }
+      if (
+        payloadSessionId !== undefined &&
+        String(payloadSessionId) !== String(numericSessionId)
+      ) {
+        return false;
+      }
+
+      return true;
+    };
+
+    const unsubscribeUpdated = realtimeClient.subscribe(
+      'actor.updated',
+      (event) => {
+        if (
+          !matchesCurrentScope(
+            event.scope?.project_id,
+            event.scope?.session_id,
+            event.payload.project_id,
+            event.payload.session_id,
+          )
+        ) {
+          return;
+        }
+
+        setVideoActors((currentActors) =>
+          currentActors.map((actor) =>
+            actor.actor_id === event.payload.actor_id
+              ? { ...actor, name: event.payload.name }
+              : actor,
+          ),
+        );
+      },
+    );
+
+    const unsubscribeDeleted = realtimeClient.subscribe(
+      'actor.deleted',
+      (event) => {
+        if (
+          !matchesCurrentScope(
+            event.scope?.project_id,
+            event.scope?.session_id,
+            event.payload.project_id,
+            event.payload.session_id,
+          )
+        ) {
+          return;
+        }
+
+        setVideoActors((currentActors) => {
+          const nextActors = currentActors.filter(
+            (actor) => actor.actor_id !== event.payload.actor_id,
+          );
+
+          setSelectedActorId((currentSelectedActorId) =>
+            currentSelectedActorId === event.payload.actor_id
+              ? (nextActors[0]?.actor_id ?? null)
+              : currentSelectedActorId,
+          );
+
+          return nextActors;
+        });
+      },
+    );
+
+    const unsubscribeMerged = realtimeClient.subscribe(
+      'actor.merged',
+      (event) => {
+        if (
+          !matchesCurrentScope(
+            event.scope?.project_id,
+            event.scope?.session_id,
+            event.payload.project_id,
+            event.payload.session_id,
+          )
+        ) {
+          return;
+        }
+
+        setVideoActors((currentActors) => {
+          const targetActor = projectActors.find(
+            (actor) => actor.id === event.payload.target_actor_id,
+          );
+          const hasTargetActor = currentActors.some(
+            (actor) => actor.actor_id === event.payload.target_actor_id,
+          );
+          const nextActors = hasTargetActor
+            ? currentActors.filter(
+                (actor) => actor.actor_id !== event.payload.actor_id,
+              )
+            : currentActors.map((actor) =>
+                actor.actor_id === event.payload.actor_id
+                  ? {
+                      ...actor,
+                      actor_id: event.payload.target_actor_id,
+                      name: targetActor?.name ?? actor.name,
+                      is_new: false,
+                    }
+                  : actor,
+              );
+
+          setSelectedActorId((currentSelectedActorId) =>
+            currentSelectedActorId === event.payload.actor_id
+              ? event.payload.target_actor_id
+              : currentSelectedActorId,
+          );
+
+          return nextActors;
+        });
+      },
+    );
+
+    const unsubscribeSessionStatus = realtimeClient.subscribe(
+      'session.status.changed',
+      (event) => {
+        if (
+          event.scope?.project_id !== undefined &&
+          event.scope.project_id !== numericProjectId
+        ) {
+          return;
+        }
+        if (String(event.payload.session_id) !== String(numericSessionId)) {
+          return;
+        }
+        if (!isSessionMatchingCompleted(event.payload)) {
+          return;
+        }
+
+        navigate(
+          `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+          {
+            replace: true,
+            state: {
+              projectSessionTitle: event.payload.title ?? sessionTitle,
+            },
+          },
+        );
+      },
+    );
+
+    return () => {
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+      unsubscribeMerged();
+      unsubscribeSessionStatus();
+    };
+  }, [
+    navigate,
+    numericProjectId,
+    numericSessionId,
+    projectActors,
+    sessionTitle,
+  ]);
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {

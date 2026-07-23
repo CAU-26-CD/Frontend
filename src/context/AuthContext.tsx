@@ -1,23 +1,9 @@
-import {
-  createContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMe, postLogin } from '../apis/auth';
+import { AuthContext } from './authContextValue';
+import { realtimeClient } from '../realtime';
 import type { LoginRequest, User } from '../types/auth';
 import { clearStoredAuth, saveStoredUserId } from '../utils/authStorage';
-
-interface AuthContextValue {
-  user: User | null;
-  isLogin: boolean;
-  isLoading: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -39,6 +25,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     clearStoredAuth();
+    realtimeClient.disconnect();
     setUser(null);
   };
 

@@ -5,6 +5,8 @@ import { getProjectSessions } from '../apis/session';
 import WalkingLoadingPanel from '../components/WalkingLoadingPanel';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
+import { useRealtimeScope } from '../hooks/useRealtimeScope';
+import { realtimeClient } from '../realtime';
 
 type ActorMappingWaitingRouteState = {
   projectSessionTitle?: string;
@@ -56,6 +58,56 @@ export default function ActorMappingWaitingPage() {
       fallbackSessionTitle: routeState?.projectSessionTitle,
     },
   );
+
+  useRealtimeScope(
+    {
+      project_id: numericProjectId,
+      session_id: numericSessionId,
+    },
+    !hasInvalidSessionParams,
+  );
+
+  useEffect(() => {
+    if (hasInvalidSessionParams) {
+      return;
+    }
+
+    const unsubscribe = realtimeClient.subscribe(
+      'session.status.changed',
+      (event) => {
+        if (
+          event.scope?.project_id !== undefined &&
+          event.scope.project_id !== numericProjectId
+        ) {
+          return;
+        }
+        if (String(event.payload.session_id) !== String(numericSessionId)) {
+          return;
+        }
+        if (!isSessionMatchingCompleted(event.payload)) {
+          return;
+        }
+
+        navigate(
+          `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+          {
+            replace: true,
+            state: {
+              projectSessionTitle: event.payload.title ?? sessionTitle,
+            },
+          },
+        );
+      },
+    );
+
+    return unsubscribe;
+  }, [
+    hasInvalidSessionParams,
+    navigate,
+    numericProjectId,
+    numericSessionId,
+    sessionTitle,
+  ]);
 
   useEffect(() => {
     if (hasInvalidSessionParams) {

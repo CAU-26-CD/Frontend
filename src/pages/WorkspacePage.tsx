@@ -2,11 +2,15 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProjectSessions, getRehearsalSessionStatus } from '../apis/session';
+import type { CreateProjectSessionResponse } from '../apis/session';
 import CardSkeleton from '../components/CardSkeleton';
 import FeedbackSessionCard from '../components/FeedbackSessionCard';
 import Sidebar from '../components/sidebar/Sidebar';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { useRealtimeScope } from '../hooks/useRealtimeScope';
 import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
+import { realtimeClient } from '../realtime';
+import type { SessionStatusChangedPayload } from '../realtime/events';
 import type { FeedbackSession } from '../types/feedback';
 import { getStoredUserId } from '../utils/authStorage';
 import {
@@ -28,6 +32,73 @@ const isSessionMatchingCompleted = (matchingCompleted: unknown) =>
   matchingCompleted === true ||
   matchingCompleted === 1 ||
   String(matchingCompleted).toLowerCase() === 'true';
+const toFeedbackSession = (
+  session: CreateProjectSessionResponse,
+  currentUserId: number | null,
+  isRehearsalStarted = false,
+): FeedbackSession => {
+  const isMatchingCompleted = isSessionMatchingCompleted(
+    session.matching_completed,
+  );
+  const sessionOwnerId =
+    getSessionOwnerId(session) ?? getStoredSessionOwnerId(session.session_id);
+  const isOwnedByCurrentUser =
+    currentUserId !== null &&
+    sessionOwnerId !== null &&
+    sessionOwnerId === currentUserId;
+
+  return {
+    id: session.session_id,
+    projectId: session.project_id,
+    title: session.title,
+    category: normalizeSessionCategory(session.s_category),
+    date: session.created_at,
+    status: isMatchingCompleted ? 'completed' : 'inProgress',
+    isRehearsalStarted:
+      !isMatchingCompleted && session.in_progress && isRehearsalStarted,
+    isSessionOwner: isOwnedByCurrentUser,
+    sessionOwnerId,
+  };
+};
+const applySessionStatusEvent = (
+  session: FeedbackSession,
+  payload: SessionStatusChangedPayload,
+  currentUserId: number | null,
+): FeedbackSession => {
+  const isMatchingCompleted =
+    payload.matching_completed === undefined
+      ? session.status === 'completed'
+      : isSessionMatchingCompleted(payload.matching_completed);
+  const sessionOwnerId =
+    getSessionOwnerId(payload) ??
+    session.sessionOwnerId ??
+    getStoredSessionOwnerId(payload.session_id);
+  const isOwnedByCurrentUser =
+    currentUserId !== null &&
+    sessionOwnerId !== null &&
+    sessionOwnerId === currentUserId;
+  const isRehearsalStarted =
+    payload.started ??
+    payload.rehearsal_started ??
+    (payload.in_progress === true ? session.isRehearsalStarted : false);
+
+  return {
+    ...session,
+    projectId: payload.project_id ?? session.projectId,
+    title: payload.title ?? session.title,
+    category:
+      payload.s_category !== undefined
+        ? normalizeSessionCategory(payload.s_category)
+        : session.category,
+    date: payload.created_at ?? session.date,
+    status: isMatchingCompleted ? 'completed' : 'inProgress',
+    isRehearsalStarted: isMatchingCompleted
+      ? false
+      : Boolean(isRehearsalStarted),
+    isSessionOwner: isOwnedByCurrentUser,
+    sessionOwnerId,
+  };
+};
 
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -40,6 +111,14 @@ export default function WorkspacePage() {
     useState<SessionCategory | null>(null);
   const { projectTitle } = useProjectBreadcrumb(numericProjectId);
   const currentUserId = getStoredUserId();
+
+  useRealtimeScope(
+    {
+      project_id: numericProjectId,
+      user_id: currentUserId ?? undefined,
+    },
+    !Number.isNaN(numericProjectId),
+  );
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId)) return;
@@ -83,33 +162,13 @@ export default function WorkspacePage() {
         }
 
         setFeedbackSessions(
-          sessions.map((session) => {
-            const isMatchingCompleted = isSessionMatchingCompleted(
-              session.matching_completed,
-            );
-            const sessionOwnerId =
-              getSessionOwnerId(session) ??
-              getStoredSessionOwnerId(session.session_id);
-            const isOwnedByCurrentUser =
-              currentUserId !== null &&
-              sessionOwnerId !== null &&
-              sessionOwnerId === currentUserId;
-
-            return {
-              id: session.session_id,
-              projectId: session.project_id,
-              title: session.title,
-              category: normalizeSessionCategory(session.s_category),
-              date: session.created_at,
-              status: isMatchingCompleted ? 'completed' : 'inProgress',
-              isRehearsalStarted:
-                !isMatchingCompleted &&
-                session.in_progress &&
-                (startedSessionIds.get(session.session_id) ?? false),
-              isSessionOwner: isOwnedByCurrentUser,
-              sessionOwnerId,
-            };
-          }),
+          sessions.map((session) =>
+            toFeedbackSession(
+              session,
+              currentUserId,
+              startedSessionIds.get(session.session_id) ?? false,
+            ),
+          ),
         );
       } catch (error) {
         console.error('Failed to load sessions', error);
@@ -129,6 +188,64 @@ export default function WorkspacePage() {
     return () => {
       ignore = true;
       window.clearInterval(intervalId);
+    };
+  }, [currentUserId, numericProjectId]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId)) {
+      return;
+    }
+
+    const unsubscribeCreated = realtimeClient.subscribe(
+      'session.created',
+      (event) => {
+        if (event.payload.project_id !== numericProjectId) return;
+
+        const nextSession = toFeedbackSession(event.payload, currentUserId);
+
+        setFeedbackSessions((currentSessions) => {
+          if (
+            currentSessions.some((session) => session.id === nextSession.id)
+          ) {
+            return currentSessions.map((session) =>
+              session.id === nextSession.id ? nextSession : session,
+            );
+          }
+
+          return [nextSession, ...currentSessions];
+        });
+      },
+    );
+
+    const unsubscribeStatusChanged = realtimeClient.subscribe(
+      'session.status.changed',
+      (event) => {
+        if (
+          event.scope?.project_id !== undefined &&
+          event.scope.project_id !== numericProjectId
+        ) {
+          return;
+        }
+        if (
+          event.payload.project_id !== undefined &&
+          event.payload.project_id !== numericProjectId
+        ) {
+          return;
+        }
+
+        setFeedbackSessions((currentSessions) =>
+          currentSessions.map((session) =>
+            session.id === event.payload.session_id
+              ? applySessionStatusEvent(session, event.payload, currentUserId)
+              : session,
+          ),
+        );
+      },
+    );
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeStatusChanged();
     };
   }, [currentUserId, numericProjectId]);
 

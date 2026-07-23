@@ -50,9 +50,15 @@ export default function MovementArea({
 
   useEffect(() => {
     if (!content && !timestamp) {
-      setMovementPath([]);
-      setCursorPoint(null);
-      lastAppliedMovementContentRef.current = null;
+      const resetTimer = window.setTimeout(() => {
+        setMovementPath([]);
+        setCursorPoint(null);
+        lastAppliedMovementContentRef.current = null;
+      }, 0);
+
+      return () => {
+        window.clearTimeout(resetTimer);
+      };
     }
   }, [content, timestamp]);
 

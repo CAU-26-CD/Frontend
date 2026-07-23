@@ -17,7 +17,9 @@ import type {
 } from '../apis/session';
 import { listProjectActors } from '../apis/actor';
 import { useFeedback } from '../hooks/useFeedback';
+import { useProjectActorsRealtime } from '../hooks/useProjectActorsRealtime';
 import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
+import { useRealtimeScope } from '../hooks/useRealtimeScope';
 import ActorTagBar from '../components/feedback/ActorTagbar';
 import FeedbackPanel from '../components/feedback/FeedbackPanel';
 import MovementArea from '../components/feedback/MovementArea';
@@ -27,6 +29,7 @@ import CameraSessionModal from '../components/modals/CameraSessionModal';
 import VideoUploadLoadingModal from '../components/modals/VideoUploadLoadingModal';
 import VideoUploadRequestModal from '../components/modals/VideoUploadRequestModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import { realtimeClient } from '../realtime';
 import type { Actor } from '../types/feedback';
 import { getStoredUserId } from '../utils/authStorage';
 import {
@@ -54,7 +57,12 @@ const SESSION_POLL_INTERVAL_MS = 1000;
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
   status.started;
 const isSessionMatchingCompleted = (
-  session: CreateProjectSessionResponse | null | undefined,
+  session:
+    | {
+        matching_completed?: unknown;
+      }
+    | null
+    | undefined,
 ) => {
   if (!session) {
     return false;
@@ -78,7 +86,10 @@ const parseRecordingStartedAt = (value: string | null) => {
   return Number.isNaN(timestamp) ? null : timestamp;
 };
 const normalizeCameraStatus = (status: string | null | undefined) =>
-  status?.trim().toLowerCase().replace(/[\s-]+/g, '_') ?? '';
+  status
+    ?.trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_') ?? '';
 const hasCameraVideoUrl = (status: CameraSessionStatusResponse) =>
   Boolean(status.video_url?.trim());
 const isVideoUploadCompleteStatus = (
@@ -175,6 +186,20 @@ export default function RehearsalFeedbackPage() {
     getCurrentRecordingOffsetSeconds,
     currentUserId,
   );
+  useRealtimeScope(
+    {
+      project_id: numericProjectId,
+      session_id: activeSessionId,
+      user_id: currentUserId ?? undefined,
+    },
+    !Number.isNaN(numericProjectId) && activeSessionId.length > 0,
+  );
+  useProjectActorsRealtime({
+    projectId: numericProjectId,
+    sessionId: activeSessionId,
+    enabled: !Number.isNaN(numericProjectId),
+    setActors,
+  });
   const { handleStartTimestamp } = feedback;
   const { projectTitle, sessionTitle } = useProjectBreadcrumb(
     numericProjectId,
@@ -334,6 +359,100 @@ export default function RehearsalFeedbackPage() {
     sessionStorage.setItem(rehearsalStartedStorageKey, 'true');
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, navigate, rehearsalStartedStorageKey]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {
+      return;
+    }
+
+    const unsubscribe = realtimeClient.subscribe(
+      'session.status.changed',
+      (event) => {
+        if (
+          event.scope?.project_id !== undefined &&
+          event.scope.project_id !== numericProjectId
+        ) {
+          return;
+        }
+        if (String(event.payload.session_id) !== String(numericSessionId)) {
+          return;
+        }
+
+        setCurrentProjectSession((currentSession) =>
+          currentSession
+            ? {
+                ...currentSession,
+                ...event.payload,
+              }
+            : ({
+                project_id: numericProjectId,
+                title: sessionTitle,
+                s_category: '',
+                created_at: '',
+                in_progress: true,
+                ...event.payload,
+              } as CreateProjectSessionResponse),
+        );
+
+        const hasStarted =
+          event.payload.started === true ||
+          event.payload.rehearsal_started === true ||
+          event.payload.status === 'started' ||
+          event.payload.status === 'recording';
+
+        if (hasStarted && isCameraGateOpen) {
+          enterRehearsal();
+        }
+
+        if (isSessionMatchingCompleted(event.payload)) {
+          navigate(
+            `/project/${numericProjectId}/workspace/${numericSessionId}/review`,
+            {
+              replace: true,
+              state: {
+                projectSessionTitle: event.payload.title ?? sessionTitle,
+              },
+            },
+          );
+        }
+      },
+    );
+
+    return unsubscribe;
+  }, [
+    enterRehearsal,
+    isCameraGateOpen,
+    navigate,
+    numericProjectId,
+    numericSessionId,
+    sessionTitle,
+  ]);
+
+  useEffect(() => {
+    if (Number.isNaN(numericSessionId)) {
+      return;
+    }
+
+    const unsubscribe = realtimeClient.subscribe(
+      'camera.status.changed',
+      (event) => {
+        const matchesDbSession =
+          event.payload.db_session_id === numericSessionId ||
+          String(event.scope?.session_id) === String(numericSessionId);
+        const matchesCameraSession =
+          cameraSession !== null &&
+          event.payload.session_id === cameraSession.session_id;
+
+        if (!matchesDbSession && !matchesCameraSession) {
+          return;
+        }
+
+        applyCameraStatus(event.payload);
+      },
+    );
+
+    return unsubscribe;
+  }, [applyCameraStatus, cameraSession, numericSessionId]);
 
   useEffect(() => {
     if (Number.isNaN(numericProjectId) || Number.isNaN(numericSessionId)) {
@@ -900,7 +1019,8 @@ export default function RehearsalFeedbackPage() {
           <div
             className={[
               'h-full min-h-0 transition',
-              shouldShowVideoUploadRequestOverlay || shouldShowVideoUploadOverlay
+              shouldShowVideoUploadRequestOverlay ||
+              shouldShowVideoUploadOverlay
                 ? 'pointer-events-none opacity-45'
                 : '',
             ].join(' ')}

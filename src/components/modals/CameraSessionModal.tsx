@@ -5,6 +5,7 @@ import type {
   CameraSessionStatusResponse,
   CreateCameraSessionResponse,
 } from '../../apis/session';
+import { realtimeClient } from '../../realtime';
 
 type CameraSessionModalProps = {
   session: CreateCameraSessionResponse;
@@ -16,6 +17,7 @@ type CameraSessionModalProps = {
 };
 
 const VIDEO_UPLOAD_STATUSES = new Set(['stop', 'stopped', 'uploading']);
+const CAMERA_STATUS_POLL_INTERVAL_MS = 5000;
 
 export default function CameraSessionModal({
   session,
@@ -115,6 +117,23 @@ export default function CameraSessionModal({
   ];
 
   useEffect(() => {
+    const unsubscribe = realtimeClient.subscribe(
+      'camera.status.changed',
+      (event) => {
+        if (event.payload.session_id !== session.session_id) {
+          return;
+        }
+
+        setCameraStatus(event.payload);
+        onStatusChange?.(event.payload);
+        setStatusError(null);
+      },
+    );
+
+    return unsubscribe;
+  }, [onStatusChange, session.session_id]);
+
+  useEffect(() => {
     const loadStatus = async () => {
       try {
         const nextStatus = await getCameraSessionStatus(session.session_id);
@@ -131,7 +150,7 @@ export default function CameraSessionModal({
     void loadStatus();
     const intervalId = window.setInterval(() => {
       void loadStatus();
-    }, 1000);
+    }, CAMERA_STATUS_POLL_INTERVAL_MS);
 
     return () => {
       window.clearInterval(intervalId);

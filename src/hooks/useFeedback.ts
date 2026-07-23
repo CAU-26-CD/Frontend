@@ -6,6 +6,8 @@ import {
   updateFeedback,
 } from '../apis/feedback';
 import type { FeedbackSessionId } from '../apis/feedback';
+import { realtimeClient } from '../realtime';
+import { useRealtimeScope } from './useRealtimeScope';
 import type { Actor, Feedback } from '../types/feedback';
 
 const URGENT_MARK_PATTERN = /!{3,}/;
@@ -28,6 +30,28 @@ const hasValidSessionId = (
 ): sessionId is FeedbackSessionId =>
   sessionId !== undefined && String(sessionId).trim().length > 0;
 
+type FeedbackResponse = Awaited<ReturnType<typeof getFeedbacks>>[number];
+
+const toFeedback = (feedback: FeedbackResponse): Feedback => ({
+  id: feedback.feedback_id,
+  createdByUserId: feedback.created_by_user_id,
+  timestamp: secondsToTimestamp(feedback.video_offset_seconds),
+  actorIds: feedback.actor_ids,
+  actorNames: feedback.actor_names,
+  content: feedback.content,
+  isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
+  aiTags: [],
+  analysisStatus: 'idle',
+  isPersisted: true,
+});
+
+const isSamePendingFeedback = (feedback: Feedback, nextFeedback: Feedback) =>
+  feedback.isPersisted === false &&
+  feedback.content === nextFeedback.content &&
+  feedback.timestamp === nextFeedback.timestamp &&
+  feedback.actorIds.length === nextFeedback.actorIds.length &&
+  feedback.actorIds.every((actorId) => nextFeedback.actorIds.includes(actorId));
+
 export function useFeedback(
   sessionId?: FeedbackSessionId,
   getCurrentOffsetSeconds: () => number = () => 0,
@@ -44,6 +68,14 @@ export function useFeedback(
   const hasPendingFeedbacks =
     pendingSubmissionCount > 0 ||
     feedbacks.some((feedback) => feedback.isPersisted === false);
+
+  useRealtimeScope(
+    {
+      session_id: sessionId,
+      user_id: currentUserId ?? undefined,
+    },
+    hasValidSessionId(sessionId),
+  );
 
   useEffect(() => {
     if (!hasValidSessionId(sessionId)) return;
@@ -64,20 +96,7 @@ export function useFeedback(
 
         if (ignore) return;
 
-        setFeedbacks(
-          fetchedFeedbacks.map((feedback) => ({
-            id: feedback.feedback_id,
-            createdByUserId: feedback.created_by_user_id,
-            timestamp: secondsToTimestamp(feedback.video_offset_seconds),
-            actorIds: feedback.actor_ids,
-            actorNames: feedback.actor_names,
-            content: feedback.content,
-            isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
-            aiTags: [],
-            analysisStatus: 'idle',
-            isPersisted: true,
-          })),
-        );
+        setFeedbacks(fetchedFeedbacks.map((feedback) => toFeedback(feedback)));
       } catch (error) {
         console.error('Failed to load feedbacks', error);
       } finally {
@@ -93,6 +112,73 @@ export function useFeedback(
       ignore = true;
     };
   }, [currentUserId, sessionId]);
+
+  useEffect(() => {
+    if (!hasValidSessionId(sessionId)) return;
+
+    const unsubscribeCreated = realtimeClient.subscribe(
+      'feedback.created',
+      (event) => {
+        if (String(event.payload.session_id) !== String(sessionId)) return;
+
+        const nextFeedback = toFeedback(event.payload);
+
+        setFeedbacks((prev) => {
+          if (prev.some((feedback) => feedback.id === nextFeedback.id)) {
+            return prev.map((feedback) =>
+              feedback.id === nextFeedback.id ? nextFeedback : feedback,
+            );
+          }
+
+          const pendingIndex = prev.findIndex((feedback) =>
+            isSamePendingFeedback(feedback, nextFeedback),
+          );
+
+          if (pendingIndex === -1) {
+            return [...prev, nextFeedback];
+          }
+
+          return prev.map((feedback, index) =>
+            index === pendingIndex ? nextFeedback : feedback,
+          );
+        });
+      },
+    );
+
+    const unsubscribeUpdated = realtimeClient.subscribe(
+      'feedback.updated',
+      (event) => {
+        if (String(event.payload.session_id) !== String(sessionId)) return;
+
+        const nextFeedback = toFeedback(event.payload);
+
+        setFeedbacks((prev) =>
+          prev.map((feedback) =>
+            feedback.id === nextFeedback.id ? nextFeedback : feedback,
+          ),
+        );
+      },
+    );
+
+    const unsubscribeDeleted = realtimeClient.subscribe(
+      'feedback.deleted',
+      (event) => {
+        if (String(event.payload.session_id) !== String(sessionId)) return;
+
+        setFeedbacks((prev) =>
+          prev.filter(
+            (feedback) => feedback.id !== event.payload.feedback_id,
+          ),
+        );
+      },
+    );
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+    };
+  }, [sessionId]);
 
   const handleStartTimestamp = useCallback(() => {
     setTimestamp(secondsToTimestamp(getCurrentOffsetSeconds()));
@@ -140,17 +226,10 @@ export function useFeedback(
         currentUserId,
       );
 
-      const newFeedback: Feedback = {
-        id: createdFeedback.feedback_id,
-        createdByUserId: createdFeedback.created_by_user_id,
+      const newFeedback = {
+        ...toFeedback(createdFeedback),
         timestamp: feedbackTimestamp,
-        actorIds: createdFeedback.actor_ids,
         actorNames: createdFeedback.actor_names ?? feedbackActorNames,
-        content: createdFeedback.content,
-        isUrgent: URGENT_MARK_PATTERN.test(createdFeedback.content),
-        aiTags: [],
-        analysisStatus: 'idle',
-        isPersisted: true,
       };
 
       setFeedbacks((prev) =>
