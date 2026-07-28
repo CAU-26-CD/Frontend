@@ -115,7 +115,6 @@ export default function WorkspacePage() {
   useRealtimeScope(
     {
       project_id: numericProjectId,
-      user_id: currentUserId ?? undefined,
     },
     !Number.isNaN(numericProjectId),
   );
@@ -221,7 +220,7 @@ export default function WorkspacePage() {
       'session.status.changed',
       (event) => {
         if (
-          event.scope?.project_id !== undefined &&
+          event.scope?.project_id != null &&
           event.scope.project_id !== numericProjectId
         ) {
           return;

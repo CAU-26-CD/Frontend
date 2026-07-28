@@ -76,7 +76,7 @@ export default function ActorMappingWaitingPage() {
       'session.status.changed',
       (event) => {
         if (
-          event.scope?.project_id !== undefined &&
+          event.scope?.project_id != null &&
           event.scope.project_id !== numericProjectId
         ) {
           return;

@@ -22,6 +22,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
 const toFiniteNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+
   const numberValue = Number(value);
 
   return Number.isFinite(numberValue) ? numberValue : undefined;
@@ -58,14 +62,12 @@ const normalizeScope = (scope: unknown): RealtimeScope | undefined => {
 
   const projectId = toFiniteNumber(scope.project_id ?? scope.projectId);
   const sessionId = scope.session_id ?? scope.sessionId;
-  const userId = toFiniteNumber(scope.user_id ?? scope.userId);
 
   return {
     ...(projectId !== undefined ? { project_id: projectId } : {}),
     ...(typeof sessionId === 'string' || typeof sessionId === 'number'
       ? { session_id: sessionId }
       : {}),
-    ...(userId !== undefined ? { user_id: userId } : {}),
   };
 };
 
@@ -130,6 +132,11 @@ const normalizeSessionPayload = (
       ? { matching_completed: matchingCompleted }
       : {}),
     ...(started !== undefined ? { started, rehearsal_started: started } : {}),
+    ...(typeof payload.rehearsal_started_at === 'string'
+      ? { rehearsal_started_at: payload.rehearsal_started_at }
+      : typeof payload.rehearsalStartedAt === 'string'
+        ? { rehearsal_started_at: payload.rehearsalStartedAt }
+        : {}),
     ...(typeof payload.status === 'string' ? { status: payload.status } : {}),
   };
 };
@@ -235,11 +242,27 @@ const normalizePayload = (
   }
 
   if (type === 'actor.merged') {
+    const mergedFrom =
+      toFiniteNumber(
+        payload.merged_from ??
+          payload.mergedFrom ??
+          payload.actor_id ??
+          payload.actorId ??
+          payload.id,
+      ) ?? 0;
+    const mergedInto =
+      toFiniteNumber(
+        payload.merged_into ??
+          payload.mergedInto ??
+          payload.target_actor_id ??
+          payload.targetActorId,
+      ) ?? 0;
+
     return {
-      actor_id:
-        toFiniteNumber(payload.actor_id ?? payload.actorId ?? payload.id) ?? 0,
-      target_actor_id:
-        toFiniteNumber(payload.target_actor_id ?? payload.targetActorId) ?? 0,
+      actor_id: mergedFrom,
+      target_actor_id: mergedInto,
+      merged_from: mergedFrom,
+      merged_into: mergedInto,
       project_id: toFiniteNumber(payload.project_id ?? payload.projectId),
       session_id:
         typeof payload.session_id === 'string' ||
@@ -249,6 +272,7 @@ const normalizePayload = (
               typeof payload.sessionId === 'number'
             ? payload.sessionId
             : undefined,
+      ...(typeof payload.name === 'string' ? { name: payload.name } : {}),
     };
   }
 

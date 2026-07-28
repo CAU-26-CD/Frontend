@@ -90,6 +90,8 @@ const normalizeCameraStatus = (status: string | null | undefined) =>
     ?.trim()
     .toLowerCase()
     .replace(/[\s-]+/g, '_') ?? '';
+const isCameraConnectedStatus = (normalizedStatus: string) =>
+  normalizedStatus === 'connect' || normalizedStatus === 'connected';
 const hasCameraVideoUrl = (status: CameraSessionStatusResponse) =>
   Boolean(status.video_url?.trim());
 const isVideoUploadCompleteStatus = (
@@ -185,12 +187,12 @@ export default function RehearsalFeedbackPage() {
     activeSessionId,
     getCurrentRecordingOffsetSeconds,
     currentUserId,
+    numericProjectId,
   );
   useRealtimeScope(
     {
       project_id: numericProjectId,
       session_id: activeSessionId,
-      user_id: currentUserId ?? undefined,
     },
     !Number.isNaN(numericProjectId) && activeSessionId.length > 0,
   );
@@ -242,7 +244,8 @@ export default function RehearsalFeedbackPage() {
     shouldShowVideoUploadRequestOverlay ||
     isVideoUploadInProgress ||
     (!isRecordingFinalized &&
-      (cameraStatusText === 'connected' || cameraStatusText === 'recording'));
+      (isCameraConnectedStatus(cameraStatusText) ||
+        cameraStatusText === 'recording'));
   const shouldShowRecordingTime = isRecording || isRecordingFinalized;
   const recordingIndicatorColor = isRecordingFinalized ? '#9f9a95' : '#D15757';
   const recordingTime = `${String(
@@ -369,7 +372,7 @@ export default function RehearsalFeedbackPage() {
       'session.status.changed',
       (event) => {
         if (
-          event.scope?.project_id !== undefined &&
+          event.scope?.project_id != null &&
           event.scope.project_id !== numericProjectId
         ) {
           return;

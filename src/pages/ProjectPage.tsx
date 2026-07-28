@@ -1,5 +1,5 @@
-import { ChevronDown, Heart, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Heart, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   getLikedProjects,
@@ -7,6 +7,10 @@ import {
   toggleProjectLike,
 } from '../apis/project';
 import CardSkeleton from '../components/CardSkeleton';
+import {
+  CreateNewProjectForm,
+  EnterCodeProjectForm,
+} from '../components/project/ProjectEntryForms';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
 import addSign from '../images/icon/add_sign.svg';
 import projectCardImage from '../images/icon/ProjectCard.svg';
@@ -18,6 +22,8 @@ type ProjectSkeletonCounts = {
   all: number;
   liked: number;
 };
+
+type ProjectActionModal = 'join' | 'create';
 
 const EMPTY_PROJECT_SKELETON_COUNTS: ProjectSkeletonCounts = {
   all: 0,
@@ -129,6 +135,44 @@ function ProjectTile({
   );
 }
 
+function ProjectActionDialog({
+  mode,
+  onClose,
+  onJoined,
+}: {
+  mode: ProjectActionModal;
+  onClose: () => void;
+  onJoined: () => void;
+}) {
+  return (
+    <div
+      className="reaction-ui-font fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <div
+        className="relative flex w-full justify-center"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="fixed right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/45 bg-[#efe6de]/20 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          aria-label="모달 닫기"
+        >
+          <X size={20} strokeWidth={2.5} aria-hidden="true" />
+        </button>
+
+        {mode === 'join' ? (
+          <EnterCodeProjectForm onJoined={onJoined} />
+        ) : (
+          <CreateNewProjectForm />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -142,10 +186,14 @@ export default function ProjectPage() {
   const [pendingLikeProjectIds, setPendingLikeProjectIds] = useState<
     number[]
   >([]);
+  const [activeProjectAction, setActiveProjectAction] =
+    useState<ProjectActionModal | null>(null);
 
-  useEffect(() => {
-    const loadProjects = async () => {
-      setIsLoadingProjects(true);
+  const loadProjects = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setIsLoadingProjects(true);
+      }
 
       try {
         const storedUserId = getStoredUserId();
@@ -181,12 +229,17 @@ export default function ProjectPage() {
       } catch (error) {
         console.error('Failed to load projects', error);
       } finally {
-        setIsLoadingProjects(false);
+        if (showLoading) {
+          setIsLoadingProjects(false);
+        }
       }
-    };
+    },
+    [navigate],
+  );
 
+  useEffect(() => {
     void loadProjects();
-  }, [navigate]);
+  }, [loadProjects]);
 
   const filteredProjects = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
@@ -262,6 +315,11 @@ export default function ProjectPage() {
     }
   };
 
+  const handleJoinedProject = () => {
+    setActiveProjectAction(null);
+    void loadProjects(false);
+  };
+
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
       <DesignedHeader align="left" />
@@ -288,13 +346,38 @@ export default function ProjectPage() {
             />
           </label>
 
-          <Link
-            to="/project/new"
-            className="flex h-[39px] w-[39px] items-center justify-center rounded-full transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            aria-label="프로젝트 추가"
-          >
-            <img src={addSign} alt="" className="h-full w-full" />
-          </Link>
+          <div className="group relative">
+            <button
+              type="button"
+              className="flex h-[39px] w-[39px] items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              aria-label="프로젝트 추가 메뉴"
+            >
+              <img
+                src={addSign}
+                alt=""
+                className="h-full w-full transition duration-300 group-hover:rotate-90 group-focus-within:rotate-90"
+              />
+            </button>
+
+            <div className="pointer-events-none absolute right-0 top-full z-30 w-[176px] translate-y-1 pt-2 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
+              <div className="overflow-hidden rounded-[8px] border border-white/35 bg-[#efe6de]/92 py-1.5 text-[#2d1715] shadow-[0_16px_36px_rgba(0,0,0,0.24)] backdrop-blur-xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectAction('join')}
+                  className="reaction-ui-font block h-10 w-full px-4 text-left text-[12px] font-bold transition hover:bg-[#6f5752]/14 focus:bg-[#6f5752]/14 focus:outline-none"
+                >
+                  프로젝트에 참가하기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectAction('create')}
+                  className="reaction-ui-font block h-10 w-full px-4 text-left text-[12px] font-bold transition hover:bg-[#6f5752]/14 focus:bg-[#6f5752]/14 focus:outline-none"
+                >
+                  새 프로젝트 생성
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <section className="mt-10">
@@ -363,6 +446,14 @@ export default function ProjectPage() {
           )}
         </section>
       </div>
+
+      {activeProjectAction && (
+        <ProjectActionDialog
+          mode={activeProjectAction}
+          onClose={() => setActiveProjectAction(null)}
+          onJoined={handleJoinedProject}
+        />
+      )}
     </main>
   );
 }

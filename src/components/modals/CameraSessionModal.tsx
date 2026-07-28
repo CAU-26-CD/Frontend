@@ -30,9 +30,14 @@ export default function CameraSessionModal({
   const [cameraStatus, setCameraStatus] =
     useState<CameraSessionStatusResponse | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const normalizedStatus = cameraStatus?.status?.toLowerCase() ?? '';
+  const normalizedStatus =
+    cameraStatus?.status
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_') ?? '';
 
-  const isConnected = normalizedStatus === 'connected';
+  const isConnected =
+    normalizedStatus === 'connect' || normalizedStatus === 'connected';
   const isRecording = normalizedStatus === 'recording';
   const isRecordingEnded = normalizedStatus === 'end';
   const isDone =

@@ -56,6 +56,7 @@ export function useFeedback(
   sessionId?: FeedbackSessionId,
   getCurrentOffsetSeconds: () => number = () => 0,
   currentUserId?: number | null,
+  projectId?: number,
 ) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
@@ -71,8 +72,8 @@ export function useFeedback(
 
   useRealtimeScope(
     {
+      project_id: projectId,
       session_id: sessionId,
-      user_id: currentUserId ?? undefined,
     },
     hasValidSessionId(sessionId),
   );

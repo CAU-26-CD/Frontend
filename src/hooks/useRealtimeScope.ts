@@ -2,9 +2,7 @@ import { useEffect } from 'react';
 import { realtimeClient, type RealtimeScope } from '../realtime';
 
 const hasScopeValue = (scope: RealtimeScope) =>
-  scope.project_id !== undefined ||
-  scope.session_id !== undefined ||
-  scope.user_id !== undefined;
+  scope.project_id != null || scope.session_id != null;
 
 export const useRealtimeScope = (
   scope: RealtimeScope,
@@ -12,13 +10,11 @@ export const useRealtimeScope = (
 ) => {
   const projectId = scope.project_id;
   const sessionId = scope.session_id;
-  const userId = scope.user_id;
 
   useEffect(() => {
     const nextScope = {
-      ...(projectId !== undefined ? { project_id: projectId } : {}),
-      ...(sessionId !== undefined ? { session_id: sessionId } : {}),
-      ...(userId !== undefined ? { user_id: userId } : {}),
+      ...(projectId != null ? { project_id: projectId } : {}),
+      ...(sessionId != null ? { session_id: sessionId } : {}),
     };
 
     if (!enabled || !hasScopeValue(nextScope)) {
@@ -26,5 +22,5 @@ export const useRealtimeScope = (
     }
 
     return realtimeClient.subscribeScope(nextScope);
-  }, [enabled, projectId, sessionId, userId]);
+  }, [enabled, projectId, sessionId]);
 };

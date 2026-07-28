@@ -17,8 +17,12 @@ const getScopeKey = (scope: RealtimeScope) =>
   JSON.stringify({
     project_id: scope.project_id ?? null,
     session_id: scope.session_id ?? null,
-    user_id: scope.user_id ?? null,
   });
+
+const toSubscriptionScope = (scope: RealtimeScope): RealtimeScope => ({
+  project_id: scope.project_id ?? null,
+  session_id: scope.session_id ?? null,
+});
 
 export class RemoteRealtimeClient implements RealtimeClient {
   private readonly url: string;
@@ -27,7 +31,7 @@ export class RemoteRealtimeClient implements RealtimeClient {
     RealtimeEventType,
     Set<Listener<RealtimeEventType>>
   >();
-  private scopes = new Map<string, RealtimeScope>();
+  private scopes = new Map<string, { scope: RealtimeScope; count: number }>();
   private reconnectAttempt = 0;
   private reconnectTimer: number | null = null;
   private heartbeatTimer: number | null = null;
@@ -61,15 +65,39 @@ export class RemoteRealtimeClient implements RealtimeClient {
   }
 
   subscribeScope(scope: RealtimeScope): RealtimeUnsubscribe {
-    const scopeKey = getScopeKey(scope);
+    const subscriptionScope = toSubscriptionScope(scope);
+    const scopeKey = getScopeKey(subscriptionScope);
+    const scopeRegistration = this.scopes.get(scopeKey);
 
-    this.scopes.set(scopeKey, scope);
+    if (scopeRegistration) {
+      scopeRegistration.count += 1;
+    } else {
+      this.scopes.set(scopeKey, {
+        scope: subscriptionScope,
+        count: 1,
+      });
+    }
+
     this.connect();
-    this.send({ type: 'subscribe', scope });
+
+    if (!scopeRegistration) {
+      this.send({ type: 'subscribe', scope: subscriptionScope });
+    }
 
     return () => {
+      const currentRegistration = this.scopes.get(scopeKey);
+
+      if (!currentRegistration) {
+        return;
+      }
+
+      if (currentRegistration.count > 1) {
+        currentRegistration.count -= 1;
+        return;
+      }
+
       this.scopes.delete(scopeKey);
-      this.send({ type: 'unsubscribe', scope });
+      this.send({ type: 'unsubscribe', scope: subscriptionScope }, false);
     };
   }
 
@@ -95,7 +123,7 @@ export class RemoteRealtimeClient implements RealtimeClient {
     this.socket.addEventListener('open', () => {
       this.reconnectAttempt = 0;
       this.startHeartbeat();
-      this.scopes.forEach((scope) => {
+      this.scopes.forEach(({ scope }) => {
         this.send({ type: 'subscribe', scope });
       });
     });
@@ -126,9 +154,14 @@ export class RemoteRealtimeClient implements RealtimeClient {
     });
   }
 
-  private send(message: RealtimeClientMessage | RealtimeEvent) {
+  private send(
+    message: RealtimeClientMessage | RealtimeEvent,
+    connectIfClosed = true,
+  ) {
     if (this.socket?.readyState !== WebSocket.OPEN) {
-      this.connect();
+      if (connectIfClosed) {
+        this.connect();
+      }
       return;
     }
 

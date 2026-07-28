@@ -19,13 +19,13 @@ const scopeMatches = (
   projectId: number,
   sessionId?: number | string,
 ) => {
-  if (scope?.project_id !== undefined && scope.project_id !== projectId) {
+  if (scope?.project_id != null && scope.project_id !== projectId) {
     return false;
   }
 
   if (
     sessionId !== undefined &&
-    scope?.session_id !== undefined &&
+    scope?.session_id != null &&
     String(scope.session_id) !== String(sessionId)
   ) {
     return false;

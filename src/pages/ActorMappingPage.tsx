@@ -112,7 +112,6 @@ export default function ActorMappingPage() {
     {
       project_id: numericProjectId,
       session_id: numericSessionId,
-      user_id: currentUserId ?? undefined,
     },
     !Number.isNaN(numericProjectId) && !Number.isNaN(numericSessionId),
   );
@@ -143,12 +142,12 @@ export default function ActorMappingPage() {
     }
 
     const matchesCurrentScope = (
-      scopeProjectId: number | undefined,
-      scopeSessionId: number | string | undefined,
+      scopeProjectId: number | null | undefined,
+      scopeSessionId: number | string | null | undefined,
       payloadProjectId?: number,
       payloadSessionId?: number | string,
     ) => {
-      if (scopeProjectId !== undefined && scopeProjectId !== numericProjectId) {
+      if (scopeProjectId != null && scopeProjectId !== numericProjectId) {
         return false;
       }
       if (
@@ -158,7 +157,7 @@ export default function ActorMappingPage() {
         return false;
       }
       if (
-        scopeSessionId !== undefined &&
+        scopeSessionId != null &&
         String(scopeSessionId) !== String(numericSessionId)
       ) {
         return false;
@@ -278,7 +277,7 @@ export default function ActorMappingPage() {
       'session.status.changed',
       (event) => {
         if (
-          event.scope?.project_id !== undefined &&
+          event.scope?.project_id != null &&
           event.scope.project_id !== numericProjectId
         ) {
           return;

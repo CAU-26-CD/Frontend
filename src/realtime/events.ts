@@ -6,9 +6,8 @@ import type {
 } from '../apis/session';
 
 export type RealtimeScope = {
-  project_id?: number;
-  session_id?: number | string;
-  user_id?: number;
+  project_id?: number | null;
+  session_id?: number | string | null;
 };
 
 export type FeedbackDeletedPayload = {
@@ -31,8 +30,11 @@ export type ActorDeletedPayload = {
 export type ActorMergedPayload = {
   actor_id: number;
   target_actor_id: number;
+  merged_from: number;
+  merged_into: number;
   project_id?: number;
   session_id?: number | string;
+  name?: string;
 };
 
 export type SessionStatusChangedPayload =
@@ -41,6 +43,7 @@ export type SessionStatusChangedPayload =
     status?: string;
     started?: boolean;
     rehearsal_started?: boolean;
+    rehearsal_started_at?: string;
     matching_completed?: boolean | number | string;
   };
 
