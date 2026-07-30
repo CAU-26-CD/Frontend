@@ -19,6 +19,29 @@ export type CreateFeedbackResponse = {
   created_at: string;
 };
 
+export type FeedbackV2Response = CreateFeedbackResponse & {
+  video_offset_seconds: number | null;
+  script_page: number | null;
+  script_x: number | null;
+  script_y: number | null;
+};
+
+export type CreateFeedbackV2Request = CreateFeedbackRequest & {
+  video_offset_seconds: number | null;
+  script_page?: number | null;
+  script_x?: number | null;
+  script_y?: number | null;
+};
+
+export type UpdateFeedbackV2Request = {
+  content?: string | null;
+  video_offset_seconds?: number | null;
+  actor_ids?: number[] | null;
+  script_page?: number | null;
+  script_x?: number | null;
+  script_y?: number | null;
+};
+
 export type FeedbackPriority =
   | 'required'
   | 'recommended'
@@ -112,6 +135,65 @@ export const getFeedbacks = async (
   const res = await instance.get(`/api/v1/sessions/${sessionId}/feedbacks`, {
     params,
   });
+
+  return res.data;
+};
+
+export const createFeedbackV2 = async (
+  sessionId: FeedbackSessionId,
+  data: CreateFeedbackV2Request,
+  userId: number,
+): Promise<FeedbackV2Response> => {
+  const res = await instance.post(`/api/v2/sessions/${sessionId}/feedbacks`, data, {
+    params: { user_id: userId },
+  });
+
+  return res.data;
+};
+
+export const getFeedbacksV2 = async (
+  sessionId: FeedbackSessionId,
+  filters: GetFeedbacksFilters = {},
+): Promise<FeedbackV2Response[]> => {
+  const params = new URLSearchParams();
+
+  filters.actorIds?.forEach((actorId) => {
+    params.append('actor_ids', String(actorId));
+  });
+  if (filters.userId !== undefined) {
+    params.append('user_id', String(filters.userId));
+  }
+
+  const res = await instance.get(`/api/v2/sessions/${sessionId}/feedbacks`, {
+    params,
+  });
+
+  return res.data;
+};
+
+export const updateFeedbackV2 = async (
+  sessionId: FeedbackSessionId,
+  feedbackId: number,
+  data: UpdateFeedbackV2Request,
+  userId: number,
+): Promise<FeedbackV2Response> => {
+  const res = await instance.patch(
+    `/api/v2/sessions/${sessionId}/feedbacks/${feedbackId}`,
+    data,
+    {
+      params: { user_id: userId },
+    },
+  );
+
+  return res.data;
+};
+
+export const getProjectScriptFeedbacks = async (
+  projectId: number,
+): Promise<FeedbackV2Response[]> => {
+  const res = await instance.get(
+    `/api/v2/projects/${projectId}/script/feedbacks`,
+  );
 
   return res.data;
 };

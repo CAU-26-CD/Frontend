@@ -167,7 +167,7 @@ export default function CameraSessionModal({
       className={
         isPanel
           ? 'reaction-ui-font flex h-full w-full items-stretch justify-end'
-          : 'reaction-ui-font fixed inset-0 z-50 flex items-center justify-center bg-black/48 px-4 backdrop-blur-sm'
+          : 'reaction-ui-font fixed inset-0 z-50 flex items-center justify-center bg-black/18 px-4 backdrop-blur-sm'
       }
     >
       <div

@@ -38,6 +38,9 @@ export interface Feedback {
   isUrgent: boolean;
   priority?: FeedbackPriority[];
   categories?: string[];
+  scriptPage?: number | null;
+  scriptX?: number | null;
+  scriptY?: number | null;
 
   //이쪽 내용은 나중에 AI 카테고리 분류 시 확장 예정 무시 ㄱㄱ
   aiTags?: FeedbackCategory[];

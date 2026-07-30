@@ -1,9 +1,11 @@
 import { isAxiosError } from 'axios';
 import { useState, type FormEvent } from 'react';
+import { FileUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createProjectActor } from '../../apis/actor';
 import { createProject, joinProject } from '../../apis/project';
 import type { ProjectResponse } from '../../apis/project';
+import { uploadProjectScript } from '../../apis/script';
 import { saveProjectActor } from '../../data/actors';
 import createProjectCard from '../../images/icon/create-project-card.svg';
 import loginCard from '../../images/icon/loginCard.svg';
@@ -35,6 +37,14 @@ const getCreateProjectErrorMessage = (error: unknown) => {
   }
 
   return '프로젝트 생성에 실패했습니다.';
+};
+
+const getScriptUploadErrorMessage = (error: unknown) => {
+  if (isAxiosError(error) && error.response?.status === 409) {
+    return '이미 대본 PDF가 등록된 프로젝트입니다.';
+  }
+
+  return '프로젝트는 생성됐지만 PDF 업로드에 실패했습니다.';
 };
 
 type EnterCodeProjectFormProps = {
@@ -130,10 +140,14 @@ export function CreateNewProjectForm() {
   const navigate = useNavigate();
   const [createForm, setCreateForm] =
     useState<CreateProjectForm>(initialCreateForm);
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [createProjectErrorMessage, setCreateProjectErrorMessage] =
     useState('');
   const [createdProject, setCreatedProject] = useState<ProjectResponse | null>(
+    null,
+  );
+  const [scriptUploadMessage, setScriptUploadMessage] = useState<string | null>(
     null,
   );
   const [isCreatingActor, setIsCreatingActor] = useState(false);
@@ -168,8 +182,22 @@ export function CreateNewProjectForm() {
         join_code: createForm.joinCode.trim().toUpperCase(),
       });
 
+      let nextScriptUploadMessage: string | null = null;
+
+      if (selectedPdfFile) {
+        try {
+          await uploadProjectScript(project.project_id, selectedPdfFile, {
+            userId,
+          });
+        } catch (error) {
+          console.error('Failed to upload project script', error);
+          nextScriptUploadMessage = getScriptUploadErrorMessage(error);
+        }
+      }
+
       setCreatedProject(project);
       setActorCreateError(null);
+      setScriptUploadMessage(nextScriptUploadMessage);
     } catch (error) {
       console.error('Failed to create project', error);
       setCreateProjectErrorMessage(getCreateProjectErrorMessage(error));
@@ -230,7 +258,7 @@ export function CreateNewProjectForm() {
           <span className="mt-2 block text-[31px]">NEW Project</span>
         </h2>
 
-        <div className="relative z-10 mt-[92px] space-y-[10px]">
+        <div className="relative z-10 mt-[72px] space-y-[10px]">
           <label className="sr-only" htmlFor="project-name">
             Name
           </label>
@@ -282,12 +310,37 @@ export function CreateNewProjectForm() {
             placeholder="JOIN CODE 생성"
             maxLength={4}
           />
+
+          <label
+            htmlFor="project-pdf"
+            className="reaction-ui-font flex h-[40px] w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-white/85 bg-white/18 px-5 text-[11px] font-bold text-[#5e4741] shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_8px_20px_rgba(67,27,27,0.10)] backdrop-blur-md transition hover:border-white hover:bg-white/30 hover:text-[#431B1B] focus-within:ring-2 focus-within:ring-[#6f1c25]/25"
+          >
+            <FileUp
+              size={15}
+              strokeWidth={2.5}
+              className="text-[#7a5e57]"
+              aria-hidden="true"
+            />
+            <span className="max-w-[190px] truncate">
+              {selectedPdfFile?.name || '[PDF] 대본 파일 업로드'}
+            </span>
+            <input
+              id="project-pdf"
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                setSelectedPdfFile(file ?? null);
+              }}
+            />
+          </label>
         </div>
 
         <button
           type="submit"
           disabled={isCreatingProject}
-          className="reaction-ui-font relative z-10 mt-auto h-[40px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35 disabled:cursor-wait disabled:opacity-60"
+          className="reaction-ui-font relative z-10 mt-5 h-[40px] w-full rounded-full border border-white/85 bg-[#6f5752] text-[11px] font-semibold text-[#f6eee4] transition hover:border-white hover:bg-[#5d4642] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6f1c25]/35 disabled:cursor-wait disabled:opacity-60"
         >
           {isCreatingProject ? 'CREATING...' : 'CREATE'}
         </button>
@@ -297,12 +350,19 @@ export function CreateNewProjectForm() {
       </form>
 
       {createdProject && (
-        <CreateActorModal
-          projectName={createdProject.title}
-          isSubmitting={isCreatingActor}
-          errorMessage={actorCreateError}
-          onSubmit={handleActorSubmit}
-        />
+        <>
+          {scriptUploadMessage && (
+            <div className="reaction-ui-font fixed left-1/2 top-8 z-[60] w-[min(90vw,420px)] -translate-x-1/2 rounded-[8px] border border-[#ffcfbf]/70 bg-[#431B1B]/92 px-5 py-3 text-center text-xs font-bold text-[#ffd9cf] shadow-[0_18px_42px_rgba(0,0,0,0.32)]">
+              {scriptUploadMessage}
+            </div>
+          )}
+          <CreateActorModal
+            projectName={createdProject.title}
+            isSubmitting={isCreatingActor}
+            errorMessage={actorCreateError}
+            onSubmit={handleActorSubmit}
+          />
+        </>
       )}
     </>
   );

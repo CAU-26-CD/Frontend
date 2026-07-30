@@ -9,12 +9,14 @@ import {
   getRehearsalSessionStatus,
   startRehearsalSession,
 } from '../apis/session';
+import { getProjectScript, isScriptNotFoundError } from '../apis/script';
 import type {
   CameraSessionStatusResponse,
   CreateCameraSessionResponse,
   CreateProjectSessionResponse,
   RehearsalSessionStatusResponse,
 } from '../apis/session';
+import type { ProjectScript } from '../apis/script';
 import { listProjectActors } from '../apis/actor';
 import { useFeedback } from '../hooks/useFeedback';
 import { useProjectActorsRealtime } from '../hooks/useProjectActorsRealtime';
@@ -29,8 +31,10 @@ import CameraSessionModal from '../components/modals/CameraSessionModal';
 import VideoUploadLoadingModal from '../components/modals/VideoUploadLoadingModal';
 import VideoUploadRequestModal from '../components/modals/VideoUploadRequestModal';
 import DesignedHeader from '../components/sidebar/DesignedHeader';
+import ScriptFeedbackWorkspacePage from './ScriptFeedbackWorkspacePage';
+import type { SelectedFeedbackTarget } from './ScriptFeedbackWorkspacePage';
 import { realtimeClient } from '../realtime';
-import type { Actor } from '../types/feedback';
+import type { Actor, Feedback } from '../types/feedback';
 import { getStoredUserId } from '../utils/authStorage';
 import {
   getSessionOwnerId,
@@ -53,6 +57,7 @@ const VIDEO_UPLOAD_COMPLETE_STATUSES = new Set([
   'uploaded',
 ]);
 const SESSION_POLL_INTERVAL_MS = 1000;
+type ScriptLookupStatus = 'loading' | 'available' | 'notFound' | 'error';
 
 const isStartedRehearsalStatus = (status: RehearsalSessionStatusResponse) =>
   status.started;
@@ -158,6 +163,17 @@ export default function RehearsalFeedbackPage() {
   const [isLoadingActors, setIsLoadingActors] = useState(false);
   const [actorsError, setActorsError] = useState<string | null>(null);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
+  const [selectedFeedbackTarget, setSelectedFeedbackTarget] =
+    useState<SelectedFeedbackTarget>({
+      feedback: null,
+      version: 0,
+    });
+  const [scriptLookupStatus, setScriptLookupStatus] =
+    useState<ScriptLookupStatus>('loading');
+  const [projectScript, setProjectScript] = useState<ProjectScript | null>(
+    null,
+  );
+  const [scriptLookupMessage, setScriptLookupMessage] = useState('');
   const hasRequestedCameraSessionRef = useRef(false);
   const hasShownUploadCompleteRef = useRef(false);
   const hasCameraRecordingStartedRef = useRef(false);
@@ -188,6 +204,8 @@ export default function RehearsalFeedbackPage() {
     getCurrentRecordingOffsetSeconds,
     currentUserId,
     numericProjectId,
+    scriptLookupStatus === 'available' ? 'v2' : 'v1',
+    scriptLookupStatus !== 'loading',
   );
   useRealtimeScope(
     {
@@ -211,6 +229,56 @@ export default function RehearsalFeedbackPage() {
         routeState?.projectSessionTitle ?? currentProjectSession?.title,
     },
   );
+
+  useEffect(() => {
+    if (Number.isNaN(numericProjectId)) {
+      setProjectScript(null);
+      setScriptLookupStatus('notFound');
+      return;
+    }
+
+    let ignore = false;
+
+    const loadProjectScript = async () => {
+      setScriptLookupStatus('loading');
+      setScriptLookupMessage('');
+      setProjectScript(null);
+
+      try {
+        const nextScript = await getProjectScript(numericProjectId);
+
+        if (ignore) {
+          return;
+        }
+
+        setProjectScript(nextScript);
+        setScriptLookupStatus('available');
+      } catch (error) {
+        if (ignore) {
+          return;
+        }
+
+        setProjectScript(null);
+
+        if (isScriptNotFoundError(error)) {
+          setScriptLookupStatus('notFound');
+          return;
+        }
+
+        setScriptLookupMessage(
+          '대본 정보를 확인하지 못해 기본 레이아웃으로 표시합니다.',
+        );
+        setScriptLookupStatus('error');
+      }
+    };
+
+    void loadProjectScript();
+
+    return () => {
+      ignore = true;
+    };
+  }, [numericProjectId]);
+
   const rehearsalStartedStorageKey = `reaction-camera-started:${activeSessionId}`;
   const hasExplicitSessionOwnerFlag =
     typeof routeState?.isSessionOwner === 'boolean';
@@ -858,19 +926,42 @@ export default function RehearsalFeedbackPage() {
     }
   };
 
-  const cameraSessionSlot = isCameraGateOpen ? (
+  const handleFeedbackSelect = (nextFeedback: Feedback) => {
+    setSelectedFeedbackTarget((currentTarget) => ({
+      feedback: nextFeedback,
+      version: currentTarget.version + 1,
+    }));
+  };
+
+  const isScriptWorkspaceAvailable =
+    scriptLookupStatus === 'available' && projectScript !== null;
+  const shouldDisableWorkspace =
+    shouldShowVideoUploadRequestOverlay || shouldShowVideoUploadOverlay;
+  const feedbackListSlot =
+    !isCameraGateOpen && (feedback.isLoadingFeedbacks || isLoadingActors) ? (
+      <div className="flex h-full w-full items-center justify-center">
+        <LoadingSpinner
+          label={
+            isLoadingActors
+              ? '배우 목록을 불러오는 중입니다'
+              : '피드백을 불러오는 중입니다'
+          }
+        />
+      </div>
+    ) : null;
+
+  const cameraSessionOverlay = isCameraGateOpen ? (
     cameraSession ? (
       <CameraSessionModal
         session={cameraSession}
         sessionName={sessionTitle}
         onStart={startRehearsal}
         onStatusChange={applyCameraStatus}
-        variant="panel"
         isOwner={isSessionOwner}
       />
     ) : (
-      <div className="reaction-ui-font flex h-full w-full items-center justify-center">
-        <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_18px_42px_rgba(0,0,0,0.24)] backdrop-blur-xl">
+      <div className="reaction-ui-font fixed inset-0 z-50 flex items-center justify-center bg-black/18 px-4 backdrop-blur-sm">
+        <div className="w-80 max-w-full rounded-2xl border border-white/35 bg-[#efe6de]/88 p-5 text-center text-[#2d1715] shadow-[0_28px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl">
           <LoadingSpinner
             label="카메라 연결 준비 중"
             size="sm"
@@ -885,16 +976,6 @@ export default function RehearsalFeedbackPage() {
         </div>
       </div>
     )
-  ) : feedback.isLoadingFeedbacks || isLoadingActors ? (
-    <div className="flex h-full w-full items-center justify-center">
-      <LoadingSpinner
-        label={
-          isLoadingActors
-            ? '배우 목록을 불러오는 중입니다'
-            : '피드백을 불러오는 중입니다'
-        }
-      />
-    </div>
   ) : null;
 
   if (isRehearsalEntryBlocked) {
@@ -944,7 +1025,7 @@ export default function RehearsalFeedbackPage() {
       />
       <div className="reaction-top-light absolute right-20 top-[-96px] z-0" />
 
-      <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1320px] flex-col overflow-hidden px-4 pb-7 pt-24 sm:px-6 lg:px-12">
+      <div className="relative z-10 mx-auto flex h-screen w-full max-w-[1320px] flex-col gap-4 overflow-hidden px-4 pb-7 pt-24 sm:px-6 lg:px-12">
         <div className="reaction-ui-font flex shrink-0 items-center justify-between gap-4 text-sm font-semibold text-[#eee7dc]">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate">
@@ -977,6 +1058,11 @@ export default function RehearsalFeedbackPage() {
                 {actorsError}
               </span>
             )}
+            {scriptLookupMessage && (
+              <span className="truncate text-xs font-bold text-[#ffb4a8]">
+                {scriptLookupMessage}
+              </span>
+            )}
             {logoNavigationMessage && (
               <span className="truncate text-xs font-bold text-[#ffb4a8]">
                 {logoNavigationMessage}
@@ -995,64 +1081,90 @@ export default function RehearsalFeedbackPage() {
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
-          <section
-            className={[
-              'grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4 transition',
-              isFeedbackInputDisabled ? 'pointer-events-none opacity-45' : '',
-            ].join(' ')}
-          >
-            <MovementArea
-              actors={actors}
-              selectedActors={feedback.selectedActors}
-              timestamp={feedback.timestamp}
-              content={feedback.content}
-              onTimestampStart={feedback.handleStartTimestamp}
-              onContentChange={feedback.setContent}
-              onSubmit={feedback.handleSubmit}
-            />
-
-            <ActorTagBar
-              actors={actors}
-              selectedActors={feedback.selectedActors}
-              onActorSelect={feedback.toggleSelectedActor}
-            />
-          </section>
-
-          <div
-            className={[
-              'h-full min-h-0 transition',
-              shouldShowVideoUploadRequestOverlay ||
-              shouldShowVideoUploadOverlay
-                ? 'pointer-events-none opacity-45'
-                : '',
-            ].join(' ')}
-          >
-            <FeedbackPanel
-              actors={actors}
-              feedbacks={feedback.feedbacks}
-              selectedActors={feedback.selectedActors}
-              timestamp={feedback.timestamp}
-              content={feedback.content}
-              editingId={feedback.editingId}
-              editingContent={feedback.editingContent}
-              onActorSelect={feedback.addSelectedActor}
-              onActorBackspace={feedback.removeLastSelectedActor}
-              onTimestampStart={feedback.handleStartTimestamp}
-              onContentChange={feedback.setContent}
-              onSubmit={feedback.handleSubmit}
-              onEdit={feedback.handleEdit}
-              onEditContentChange={feedback.setEditingContent}
-              onEditSave={feedback.handleEditSave}
-              onEditCancel={feedback.handleEditCancel}
-              onDelete={feedback.handleDelete}
-              onToggleUrgent={feedback.handleToggleUrgent}
-              feedbackListSlot={cameraSessionSlot}
-              isInteractionDisabled={isFeedbackInputDisabled}
-            />
+        {scriptLookupStatus === 'loading' && (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <LoadingSpinner label="리허설 준비를 시작합니다" />
           </div>
-        </div>
+        )}
+
+        {scriptLookupStatus !== 'loading' && isScriptWorkspaceAvailable && (
+          <ScriptFeedbackWorkspacePage
+            script={projectScript}
+            sessionId={numericSessionId}
+            userId={currentUserId}
+            actors={actors}
+            isLoadingActors={isLoadingActors}
+            feedback={feedback}
+            isFeedbackInputDisabled={isFeedbackInputDisabled}
+            shouldDisableWorkspace={shouldDisableWorkspace}
+            selectedFeedbackTarget={selectedFeedbackTarget}
+            setSelectedFeedbackTarget={setSelectedFeedbackTarget}
+            onFeedbackSelect={handleFeedbackSelect}
+            getCurrentOffsetSeconds={getCurrentRecordingOffsetSeconds}
+          />
+        )}
+
+        {scriptLookupStatus !== 'loading' && !isScriptWorkspaceAvailable && (
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
+            <section
+              className={[
+                'grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(112px,0.18fr)] gap-4 transition',
+                isFeedbackInputDisabled
+                  ? 'pointer-events-none opacity-45'
+                  : '',
+              ].join(' ')}
+            >
+              <MovementArea
+                actors={actors}
+                selectedActors={feedback.selectedActors}
+                timestamp={feedback.timestamp}
+                content={feedback.content}
+                onTimestampStart={feedback.handleStartTimestamp}
+                onContentChange={feedback.setContent}
+                onSubmit={feedback.handleSubmit}
+              />
+
+              <ActorTagBar
+                actors={actors}
+                selectedActors={feedback.selectedActors}
+                onActorSelect={feedback.toggleSelectedActor}
+              />
+            </section>
+
+            <div
+              className={[
+                'h-full min-h-0 transition',
+                shouldDisableWorkspace ? 'pointer-events-none opacity-45' : '',
+              ].join(' ')}
+            >
+              <FeedbackPanel
+                actors={actors}
+                feedbacks={feedback.feedbacks}
+                selectedActors={feedback.selectedActors}
+                timestamp={feedback.timestamp}
+                content={feedback.content}
+                editingId={feedback.editingId}
+                editingContent={feedback.editingContent}
+                onActorSelect={feedback.addSelectedActor}
+                onActorBackspace={feedback.removeLastSelectedActor}
+                onTimestampStart={feedback.handleStartTimestamp}
+                onContentChange={feedback.setContent}
+                onSubmit={feedback.handleSubmit}
+                onEdit={feedback.handleEdit}
+                onEditContentChange={feedback.setEditingContent}
+                onEditSave={feedback.handleEditSave}
+                onEditCancel={feedback.handleEditCancel}
+                onDelete={feedback.handleDelete}
+                onToggleUrgent={feedback.handleToggleUrgent}
+                feedbackListSlot={feedbackListSlot}
+                isInteractionDisabled={isFeedbackInputDisabled}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
+      {cameraSessionOverlay}
 
       {shouldShowVideoUploadOverlay && <VideoUploadLoadingModal />}
 

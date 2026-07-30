@@ -3,9 +3,15 @@ import {
   createFeedback,
   deleteFeedback,
   getFeedbacks,
+  getFeedbacksV2,
   updateFeedback,
+  updateFeedbackV2,
 } from '../apis/feedback';
-import type { FeedbackSessionId } from '../apis/feedback';
+import type {
+  CreateFeedbackResponse,
+  FeedbackSessionId,
+  FeedbackV2Response,
+} from '../apis/feedback';
 import { realtimeClient } from '../realtime';
 import { useRealtimeScope } from './useRealtimeScope';
 import type { Actor, Feedback } from '../types/feedback';
@@ -18,11 +24,23 @@ const timestampToSeconds = (value: string) => {
   return Number(minutes) * 60 + Number(seconds);
 };
 
-const secondsToTimestamp = (value: number) => {
-  const minutes = Math.floor(value / 60);
-  const seconds = value % 60;
+const secondsToTimestamp = (value: number | null | undefined) => {
+  const normalizedValue =
+    typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  const minutes = Math.floor(normalizedValue / 60);
+  const seconds = Math.floor(normalizedValue % 60);
 
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const toFiniteNumberOrNull = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : null;
 };
 
 const hasValidSessionId = (
@@ -30,7 +48,8 @@ const hasValidSessionId = (
 ): sessionId is FeedbackSessionId =>
   sessionId !== undefined && String(sessionId).trim().length > 0;
 
-type FeedbackResponse = Awaited<ReturnType<typeof getFeedbacks>>[number];
+type FeedbackResponse = CreateFeedbackResponse | FeedbackV2Response;
+type FeedbackApiVersion = 'v1' | 'v2';
 
 const toFeedback = (feedback: FeedbackResponse): Feedback => ({
   id: feedback.feedback_id,
@@ -40,9 +59,22 @@ const toFeedback = (feedback: FeedbackResponse): Feedback => ({
   actorNames: feedback.actor_names,
   content: feedback.content,
   isUrgent: URGENT_MARK_PATTERN.test(feedback.content),
+  scriptPage: 'script_page' in feedback ? toFiniteNumberOrNull(feedback.script_page) : null,
+  scriptX: 'script_x' in feedback ? toFiniteNumberOrNull(feedback.script_x) : null,
+  scriptY: 'script_y' in feedback ? toFiniteNumberOrNull(feedback.script_y) : null,
   aiTags: [],
   analysisStatus: 'idle',
   isPersisted: true,
+});
+
+const preserveScriptAnchor = (
+  nextFeedback: Feedback,
+  currentFeedback: Feedback | undefined,
+) => ({
+  ...nextFeedback,
+  scriptPage: nextFeedback.scriptPage ?? currentFeedback?.scriptPage ?? null,
+  scriptX: nextFeedback.scriptX ?? currentFeedback?.scriptX ?? null,
+  scriptY: nextFeedback.scriptY ?? currentFeedback?.scriptY ?? null,
 });
 
 const isSamePendingFeedback = (feedback: Feedback, nextFeedback: Feedback) =>
@@ -57,6 +89,8 @@ export function useFeedback(
   getCurrentOffsetSeconds: () => number = () => 0,
   currentUserId?: number | null,
   projectId?: number,
+  feedbackApiVersion: FeedbackApiVersion = 'v1',
+  isFetchEnabled = true,
 ) {
   const [selectedActors, setSelectedActors] = useState<Actor[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
@@ -79,8 +113,14 @@ export function useFeedback(
   );
 
   useEffect(() => {
+    if (!isFetchEnabled) {
+      setFeedbacks([]);
+      setIsLoadingFeedbacks(false);
+      return;
+    }
+
     if (!hasValidSessionId(sessionId)) return;
-    if (!currentUserId) {
+    if (feedbackApiVersion === 'v1' && !currentUserId) {
       setFeedbacks([]);
       return;
     }
@@ -91,9 +131,12 @@ export function useFeedback(
       setIsLoadingFeedbacks(true);
 
       try {
-        const fetchedFeedbacks = await getFeedbacks(sessionId, {
-          userId: currentUserId,
-        });
+        const fetchedFeedbacks =
+          feedbackApiVersion === 'v2'
+            ? await getFeedbacksV2(sessionId)
+            : await getFeedbacks(sessionId, {
+                userId: currentUserId ?? undefined,
+              });
 
         if (ignore) return;
 
@@ -112,7 +155,7 @@ export function useFeedback(
     return () => {
       ignore = true;
     };
-  }, [currentUserId, sessionId]);
+  }, [currentUserId, feedbackApiVersion, isFetchEnabled, sessionId]);
 
   useEffect(() => {
     if (!hasValidSessionId(sessionId)) return;
@@ -127,7 +170,9 @@ export function useFeedback(
         setFeedbacks((prev) => {
           if (prev.some((feedback) => feedback.id === nextFeedback.id)) {
             return prev.map((feedback) =>
-              feedback.id === nextFeedback.id ? nextFeedback : feedback,
+              feedback.id === nextFeedback.id
+                ? preserveScriptAnchor(nextFeedback, feedback)
+                : feedback,
             );
           }
 
@@ -140,7 +185,9 @@ export function useFeedback(
           }
 
           return prev.map((feedback, index) =>
-            index === pendingIndex ? nextFeedback : feedback,
+            index === pendingIndex
+              ? preserveScriptAnchor(nextFeedback, feedback)
+              : feedback,
           );
         });
       },
@@ -155,7 +202,9 @@ export function useFeedback(
 
         setFeedbacks((prev) =>
           prev.map((feedback) =>
-            feedback.id === nextFeedback.id ? nextFeedback : feedback,
+            feedback.id === nextFeedback.id
+              ? preserveScriptAnchor(nextFeedback, feedback)
+              : feedback,
           ),
         );
       },
@@ -321,34 +370,47 @@ export function useFeedback(
     }
 
     try {
-      const updatedFeedback = await updateFeedback(
-        sessionId,
-        id,
-        {
-          content: nextContent,
-          video_offset_seconds: timestampToSeconds(targetFeedback.timestamp),
-          actor_ids: targetFeedback.actorIds,
-        },
-        currentUserId,
-      );
+      const updatedFeedback =
+        feedbackApiVersion === 'v2'
+          ? await updateFeedbackV2(
+              sessionId,
+              id,
+              {
+                content: nextContent,
+                video_offset_seconds: timestampToSeconds(
+                  targetFeedback.timestamp,
+                ),
+                actor_ids: targetFeedback.actorIds,
+                script_page: targetFeedback.scriptPage ?? null,
+                script_x: targetFeedback.scriptX ?? null,
+                script_y: targetFeedback.scriptY ?? null,
+              },
+              currentUserId,
+            )
+          : await updateFeedback(
+              sessionId,
+              id,
+              {
+                content: nextContent,
+                video_offset_seconds: timestampToSeconds(
+                  targetFeedback.timestamp,
+                ),
+                actor_ids: targetFeedback.actorIds,
+              },
+              currentUserId,
+            );
 
       setFeedbacks((prev) =>
         prev.map((item) =>
           item.id === id
-            ? {
-                ...item,
-                createdByUserId: updatedFeedback.created_by_user_id,
-                content: updatedFeedback.content,
-                timestamp: secondsToTimestamp(
-                  updatedFeedback.video_offset_seconds,
-                ),
-                actorIds: updatedFeedback.actor_ids,
-                actorNames:
-                  updatedFeedback.actor_names ?? targetFeedback.actorNames,
-                isUrgent: URGENT_MARK_PATTERN.test(updatedFeedback.content),
-                analysisStatus: 'idle',
-                isPersisted: true,
-              }
+            ? preserveScriptAnchor(
+                {
+                  ...toFeedback(updatedFeedback),
+                  actorNames:
+                    updatedFeedback.actor_names ?? targetFeedback.actorNames,
+                },
+                item,
+              )
             : item,
         ),
       );
@@ -410,6 +472,22 @@ export function useFeedback(
     );
   };
 
+  const upsertFeedbackResponse = useCallback((response: FeedbackResponse) => {
+    const nextFeedback = toFeedback(response);
+
+    setFeedbacks((currentFeedbacks) =>
+      currentFeedbacks.some((feedback) => feedback.id === nextFeedback.id)
+        ? currentFeedbacks.map((feedback) =>
+            feedback.id === nextFeedback.id
+              ? preserveScriptAnchor(nextFeedback, feedback)
+              : feedback,
+          )
+        : [...currentFeedbacks, nextFeedback],
+    );
+
+    return nextFeedback;
+  }, []);
+
   return {
     selectedActors,
     timestamp,
@@ -434,5 +512,6 @@ export function useFeedback(
     handleEditSave,
     handleDelete,
     handleToggleUrgent,
+    upsertFeedbackResponse,
   };
 }

@@ -35,6 +35,7 @@ type MovementAreaProps = {
   onTimestampStart: () => void;
   onContentChange: (value: string) => void;
   onSubmit: () => void;
+  variant?: 'default' | 'compact';
 };
 
 export default function MovementArea({
@@ -43,6 +44,7 @@ export default function MovementArea({
   onTimestampStart,
   onContentChange,
   onSubmit,
+  variant = 'default',
 }: MovementAreaProps) {
   const [movementPath, setMovementPath] = useState<number[]>([]);
   const [cursorPoint, setCursorPoint] = useState<MovementPoint | null>(null);
@@ -179,7 +181,10 @@ export default function MovementArea({
 
   return (
     <section
-      className="relative h-full min-h-[360px] w-full overflow-hidden"
+      className={[
+        'relative h-full w-full overflow-hidden',
+        variant === 'compact' ? 'min-h-[220px]' : 'min-h-[360px]',
+      ].join(' ')}
       onKeyDown={handleKeyDown}
     >
       <div className="relative z-10 grid h-full min-h-0 w-full grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden p-[clamp(18px,2.2vw,28px)]">
