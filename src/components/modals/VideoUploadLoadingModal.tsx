@@ -3,7 +3,7 @@ import { UploadCloud } from 'lucide-react';
 export default function VideoUploadLoadingModal() {
   return (
     <div
-      className="reaction-ui-font fixed inset-0 z-40 flex items-center justify-center bg-[#1b0708]/58 px-4 backdrop-blur-sm"
+      className="reaction-ui-font fixed inset-0 z-[20000] flex items-center justify-center bg-[#1b0708]/58 px-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="video-upload-loading-title"
