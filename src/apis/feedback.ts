@@ -48,7 +48,24 @@ export type FeedbackPriority =
   | 'discussion'
   | 'praise';
 
+const feedbackPriorities: FeedbackPriority[] = [
+  'required',
+  'recommended',
+  'discussion',
+  'praise',
+];
+
+const normalizeFeedbackPriorities = (priorities: string[]) =>
+  priorities.filter((priority): priority is FeedbackPriority =>
+    feedbackPriorities.includes(priority as FeedbackPriority),
+  );
+
 export type FeedbackWithTagsResponse = CreateFeedbackResponse & {
+  priority: FeedbackPriority[];
+  categories: string[];
+};
+
+export type FeedbackTagsResponse = {
   priority: FeedbackPriority[];
   categories: string[];
 };
@@ -196,6 +213,52 @@ export const getProjectScriptFeedbacks = async (
   );
 
   return res.data;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const getStringArrayField = (
+  data: Record<string, unknown>,
+  keys: string[],
+) => {
+  for (const key of keys) {
+    const value = data[key];
+
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === 'string');
+    }
+
+    if (typeof value === 'string') {
+      return [value];
+    }
+  }
+
+  return [];
+};
+
+export const getFeedbackTags = async (
+  sessionId: FeedbackSessionId,
+  feedbackId: number,
+): Promise<FeedbackTagsResponse> => {
+  const res = await instance.get(
+    `/api/v1/sessions/${sessionId}/feedbacks/${feedbackId}/tags`,
+  );
+  const data = res.data;
+
+  if (!isRecord(data)) {
+    return {
+      priority: [],
+      categories: [],
+    };
+  }
+
+  return {
+    priority: normalizeFeedbackPriorities(
+      getStringArrayField(data, ['priority', 'priorities']),
+    ),
+    categories: getStringArrayField(data, ['categories', 'category']),
+  };
 };
 
 export const filterFeedbacks = async (

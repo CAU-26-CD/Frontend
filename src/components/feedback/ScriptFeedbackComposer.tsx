@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFeedbackV2 } from '../../apis/feedback';
 import type { FeedbackV2Response } from '../../apis/feedback';
 import type { Actor } from '../../types/feedback';
+import { getScriptActorColor } from '../../utils/scriptFeedbackStyle';
 
 export type ScriptFeedbackDraftAnchor = {
   page: number;
@@ -26,19 +27,8 @@ type ScriptFeedbackComposerProps = {
   onCancel: () => void;
 };
 
-const ACTOR_COLORS = [
-  '#1D8FE8',
-  '#18A66A',
-  '#D15757',
-  '#8C6EE8',
-  '#EF9F2D',
-  '#D9578A',
-];
 const RADIAL_DISTANCE = 49;
 const URGENT_MARK_PATTERN = /!{3,}/;
-
-const getActorColor = (index: number) =>
-  ACTOR_COLORS[index % ACTOR_COLORS.length];
 
 type ActorSelectionState = {
   actorIds: number[];
@@ -83,7 +73,7 @@ export default function ScriptFeedbackComposer({
       )
     : 0;
   const activeActorColor = activeActor
-    ? getActorColor(activeActorIndex)
+    ? getScriptActorColor(activeActorIndex)
     : '#431B1B';
 
   useEffect(() => {
@@ -237,7 +227,7 @@ export default function ScriptFeedbackComposer({
             const radians = (angle * Math.PI) / 180;
             const x = Math.cos(radians) * RADIAL_DISTANCE;
             const y = Math.sin(radians) * RADIAL_DISTANCE;
-            const color = getActorColor(index);
+            const color = getScriptActorColor(index);
             const isHovered = hoveredActorId === actor.id;
 
             return (
@@ -254,8 +244,8 @@ export default function ScriptFeedbackComposer({
                   backgroundColor: color,
                   boxShadow:
                     isHovered || selection.actorIds.includes(actor.id)
-                      ? `0 0 0 8px ${color}38, 0 0 30px ${color}cc, 0 16px 34px rgba(0,0,0,0.24)`
-                      : `0 10px 24px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)`,
+                      ? `0 0 10px ${color}, 0 0 26px ${color}d9, 0 0 52px ${color}8c, 0 16px 34px rgba(0,0,0,0.24)`
+                      : `0 0 14px ${color}80, 0 10px 24px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)`,
                   transform: selection.actorIds.includes(actor.id)
                     ? 'translate(-50%, -50%) scale(1.08)'
                     : undefined,
@@ -273,9 +263,14 @@ export default function ScriptFeedbackComposer({
 
       {selection.hasOpenedInput && (
         <div
-          className="script-feedback-bubble absolute left-8 top-[-10px] min-w-[190px] max-w-[320px] rounded-[24px] px-5 py-4 text-white shadow-[0_16px_36px_rgba(0,0,0,0.22)]"
+          className="script-feedback-bubble absolute left-8 top-[-10px] min-w-[190px] max-w-[320px] rounded-[22px] rounded-bl-[8px] px-5 py-4 text-white shadow-[0_16px_36px_rgba(0,0,0,0.22)]"
           style={{ backgroundColor: activeActorColor }}
         >
+          <span
+            className="absolute left-[-9px] top-5 h-5 w-5 rotate-45 rounded-[4px]"
+            style={{ backgroundColor: activeActorColor }}
+            aria-hidden="true"
+          />
           <p className="mb-1 text-sm font-black leading-none">
             {selectedActors.length > 0
               ? selectedActors.map((actor) => actor.name).join(', ')

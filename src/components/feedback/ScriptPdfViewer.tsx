@@ -14,6 +14,7 @@ import type { ProjectScript } from '../../apis/script';
 import LoadingSpinner from '../LoadingSpinner';
 import type { FeedbackV2Response } from '../../apis/feedback';
 import type { Actor, Feedback } from '../../types/feedback';
+import { getScriptActorColorById } from '../../utils/scriptFeedbackStyle';
 import ScriptFeedbackComposer from './ScriptFeedbackComposer';
 import type { ScriptFeedbackDraftAnchor } from './ScriptFeedbackComposer';
 
@@ -79,6 +80,7 @@ function ScriptPdfPage({
   pageNumber,
   containerWidth,
   markers,
+  actors,
   selectedFeedbackId,
   pageRef,
   onSizeChange,
@@ -99,6 +101,7 @@ function ScriptPdfPage({
       scriptY: number;
     }
   >;
+  actors: Actor[];
   selectedFeedbackId: number | null;
   pageRef: (element: HTMLDivElement | null) => void;
   onSizeChange: (pageNumber: number, size: PageRenderSize) => void;
@@ -345,6 +348,10 @@ function ScriptPdfPage({
       {markers.map((feedback) => {
         const isSelected = selectedFeedbackId === feedback.id;
         const isEditing = editingFeedbackId === feedback.id;
+        const feedbackColor = getScriptActorColorById(
+          actors,
+          feedback.actorIds[0],
+        );
 
         return (
           <div
@@ -364,11 +371,17 @@ function ScriptPdfPage({
                 onFeedbackSelect(feedback);
               }}
               className={[
-                'h-3 w-3 rounded-full border border-white bg-[#D15757] transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D15757]/70',
+                'h-3.5 w-3.5 rounded-full border border-white transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
                 isSelected
-                  ? 'scale-125 shadow-[0_0_0_6px_rgba(209,87,87,0.24),0_0_20px_rgba(209,87,87,0.52)]'
-                  : 'shadow-[0_0_0_4px_rgba(209,87,87,0.16)] group-hover:scale-125 group-hover:shadow-[0_0_0_6px_rgba(209,87,87,0.24),0_0_20px_rgba(209,87,87,0.52)]',
+                  ? 'scale-125'
+                  : 'group-hover:scale-125',
               ].join(' ')}
+              style={{
+                backgroundColor: feedbackColor,
+                boxShadow: isSelected
+                  ? `0 0 10px ${feedbackColor}, 0 0 26px ${feedbackColor}d9, 0 0 52px ${feedbackColor}8c`
+                  : `0 0 12px ${feedbackColor}91, 0 0 24px ${feedbackColor}52`,
+              }}
               aria-label="대본 피드백 보기"
             />
 
@@ -382,20 +395,26 @@ function ScriptPdfPage({
 
                 return createPortal(
                   <div
-                    className="pointer-events-auto fixed z-[9999] w-64 origin-left rounded-[8px] border border-[#d5c8bc] bg-[#efe6de] px-3 py-2 text-left text-[#2d1715] opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.22)] transition duration-200"
+                    className="script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 origin-left rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)] transition duration-200"
                     style={{
                       left: position.left,
                       top: position.top,
                       transform: 'translateY(-50%)',
+                      backgroundColor: feedbackColor,
                     }}
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-black">
+                    <span
+                      className="absolute left-[-9px] top-1/2 h-5 w-5 -translate-y-1/2 rotate-45 rounded-[4px]"
+                      style={{ backgroundColor: feedbackColor }}
+                      aria-hidden="true"
+                    />
+                    <div className="relative mb-1 flex min-w-0 items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-black text-white/82">
                         <span>{feedback.timestamp}</span>
                         {feedback.actorNames && feedback.actorNames.length > 0 && (
                           <>
-                            <span>|</span>
+                            <span className="text-white/44">|</span>
                             <span className="truncate">
                               {feedback.actorNames.join(', ')}
                             </span>
@@ -409,7 +428,7 @@ function ScriptPdfPage({
                               type="button"
                               onClick={() => void saveEdit(feedback)}
                               disabled={isMutating || !editingContent.trim()}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2F8F5B] text-white transition hover:scale-105 disabled:opacity-45"
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-[#2F8F5B] transition hover:scale-105 disabled:opacity-45"
                               aria-label="수정 저장"
                             >
                               <Check size={13} strokeWidth={2.5} />
@@ -422,7 +441,7 @@ function ScriptPdfPage({
                                 setMutationError('');
                               }}
                               disabled={isMutating}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#806b61]/18 text-[#604942] transition hover:scale-105 disabled:opacity-45"
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/18 text-white transition hover:scale-105 disabled:opacity-45"
                               aria-label="수정 취소"
                             >
                               <X size={13} strokeWidth={2.5} />
@@ -434,7 +453,7 @@ function ScriptPdfPage({
                               type="button"
                               onClick={() => startEdit(feedback)}
                               disabled={isMutating || userId === null}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#5B6EA6] text-white transition hover:scale-105 disabled:opacity-45"
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/88 text-[#5B6EA6] transition hover:scale-105 disabled:opacity-45"
                               aria-label="피드백 수정"
                             >
                               <Pencil size={12} strokeWidth={2.5} />
@@ -472,16 +491,16 @@ function ScriptPdfPage({
                           }
                         }}
                         disabled={isMutating}
-                        className="max-h-28 min-h-16 w-full resize-none rounded-[8px] border border-[#c8b7aa] bg-[#fff8ef] px-2 py-1.5 text-[11px] font-bold leading-relaxed text-[#2d1715] outline-none focus:border-[#431B1B] focus:ring-2 focus:ring-[#431B1B]/15 disabled:opacity-60"
+                        className="max-h-28 min-h-16 w-full resize-none rounded-[12px] border border-white/28 bg-white/18 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-white outline-none placeholder:text-white/66 focus:border-white/70 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
                       />
                     ) : (
-                      <p className="line-clamp-4 whitespace-pre-wrap text-[11px] font-bold leading-relaxed">
+                      <p className="relative line-clamp-4 whitespace-pre-wrap text-[11px] font-bold leading-relaxed text-white">
                         {feedback.content}
                       </p>
                     )}
 
                     {mutationError && (
-                      <p className="mt-1 text-[10px] font-bold text-[#D15757]">
+                      <p className="relative mt-1 text-[10px] font-bold text-white/82">
                         {mutationError}
                       </p>
                     )}
@@ -833,6 +852,7 @@ export default function ScriptPdfViewer({
                   markers={feedbackMarkers.filter(
                     (feedback) => feedback.scriptPage === pageNumber,
                   )}
+                  actors={actors}
                   selectedFeedbackId={selectedFeedback?.id ?? null}
                   pageRef={setPageRef(pageNumber)}
                   onSizeChange={handleSizeChange}
