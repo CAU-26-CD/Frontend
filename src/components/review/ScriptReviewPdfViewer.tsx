@@ -31,6 +31,8 @@ type PageViewportRect = {
   height: number;
 };
 
+const FEEDBACK_BUBBLE_EXIT_MS = 110;
+
 const hasValidAnchor = (feedback: Feedback): feedback is Feedback & {
   scriptPage: number;
   scriptX: number;
@@ -78,7 +80,34 @@ function ScriptReviewPdfPage({
   const [hoveredFeedbackId, setHoveredFeedbackId] = useState<number | null>(
     null,
   );
+  const [closingBubbleFeedbackId, setClosingBubbleFeedbackId] = useState<
+    number | null
+  >(null);
   const [pageRect, setPageRect] = useState<PageViewportRect | null>(null);
+  const bubbleCloseTimeoutRef = useRef<number | null>(null);
+
+  const clearBubbleCloseTimeout = useCallback(() => {
+    if (bubbleCloseTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(bubbleCloseTimeoutRef.current);
+    bubbleCloseTimeoutRef.current = null;
+  }, []);
+
+  const closeBubbleWithAnimation = useCallback(
+    (feedbackId: number) => {
+      clearBubbleCloseTimeout();
+      setClosingBubbleFeedbackId(feedbackId);
+      bubbleCloseTimeoutRef.current = window.setTimeout(() => {
+        setClosingBubbleFeedbackId((currentId) =>
+          currentId === feedbackId ? null : currentId,
+        );
+        bubbleCloseTimeoutRef.current = null;
+      }, FEEDBACK_BUBBLE_EXIT_MS);
+    },
+    [clearBubbleCloseTimeout],
+  );
 
   const updatePageRect = useCallback(() => {
     const rect = pageElementRef.current?.getBoundingClientRect();
@@ -176,6 +205,8 @@ function ScriptReviewPdfPage({
     };
   }, [isRendering, updatePageRect]);
 
+  useEffect(() => clearBubbleCloseTimeout, [clearBubbleCloseTimeout]);
+
   const getMarkerViewportPosition = (feedback: Feedback) => {
     if (!hasValidAnchor(feedback) || !pageRect) {
       return null;
@@ -205,7 +236,12 @@ function ScriptReviewPdfPage({
           );
           const isPinned = pinnedFeedbackId === feedback.id;
           const isOpen = isPinned || hoveredFeedbackId === feedback.id;
-          const position = isOpen ? getMarkerViewportPosition(feedback) : null;
+          const isBubbleVisible = isOpen || closingBubbleFeedbackId === feedback.id;
+          const isBubbleClosing =
+            closingBubbleFeedbackId === feedback.id && !isOpen;
+          const position = isBubbleVisible
+            ? getMarkerViewportPosition(feedback)
+            : null;
           const actorNames =
             feedback.actorNames && feedback.actorNames.length > 0
               ? feedback.actorNames.join(', ')
@@ -222,17 +258,27 @@ function ScriptReviewPdfPage({
             >
               <button
                 type="button"
-                onMouseEnter={() => setHoveredFeedbackId(feedback.id)}
-                onMouseLeave={() => setHoveredFeedbackId(null)}
+                onMouseEnter={() => {
+                  clearBubbleCloseTimeout();
+                  setClosingBubbleFeedbackId(null);
+                  setHoveredFeedbackId(feedback.id);
+                }}
+                onMouseLeave={() => {
+                  setHoveredFeedbackId(null);
+
+                  if (!isPinned) {
+                    closeBubbleWithAnimation(feedback.id);
+                  }
+                }}
                 onClick={(event) => {
                   event.stopPropagation();
                   onPinnedFeedbackToggle(feedback);
                 }}
                 className={[
-                  'h-3.5 w-3.5 rounded-full border border-white transition duration-200 focus:outline-none focus-visible:ring-2',
+                  'h-3.5 w-3.5 rounded-full border border-white transition duration-150 focus:outline-none focus-visible:ring-2',
                   isOpen
-                    ? 'scale-125'
-                    : 'hover:scale-125',
+                    ? 'scale-110'
+                    : 'hover:scale-110',
                 ].join(' ')}
                 style={{
                   backgroundColor: markerColor,
@@ -245,16 +291,18 @@ function ScriptReviewPdfPage({
                 onPointerEnter={updatePageRect}
               />
 
-              {isOpen &&
+              {isBubbleVisible &&
                 position &&
                 createPortal(
                   <button
                     type="button"
-                    className="script-feedback-bubble reaction-ui-font pointer-events-auto fixed z-[9999] w-72 origin-left rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)] transition duration-200"
+                    className={[
+                      'script-feedback-bubble reaction-ui-font pointer-events-auto fixed z-[9999] w-72 rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      isBubbleClosing ? 'script-feedback-bubble-out' : '',
+                    ].join(' ')}
                     style={{
                       left: position.left,
                       top: position.top,
-                      transform: 'translateY(-50%)',
                       backgroundColor: markerColor,
                     }}
                     onClick={(event) => {

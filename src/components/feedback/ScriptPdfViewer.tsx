@@ -52,6 +52,8 @@ type PageRenderSize = {
   height: number;
 };
 
+const FEEDBACK_BUBBLE_EXIT_MS = 110;
+
 const hasValidAnchor = (feedback: Feedback | null): feedback is Feedback & {
   scriptPage: number;
   scriptX: number;
@@ -126,6 +128,9 @@ function ScriptPdfPage({
   const [hoveredFeedbackId, setHoveredFeedbackId] = useState<number | null>(
     null,
   );
+  const [closingBubbleFeedbackId, setClosingBubbleFeedbackId] = useState<
+    number | null
+  >(null);
   const [editingFeedbackId, setEditingFeedbackId] = useState<number | null>(
     null,
   );
@@ -133,6 +138,30 @@ function ScriptPdfPage({
   const [deleteTarget, setDeleteTarget] = useState<Feedback | null>(null);
   const [isMutating, setIsMutating] = useState(false);
   const [mutationError, setMutationError] = useState('');
+  const bubbleCloseTimeoutRef = useRef<number | null>(null);
+
+  const clearBubbleCloseTimeout = useCallback(() => {
+    if (bubbleCloseTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(bubbleCloseTimeoutRef.current);
+    bubbleCloseTimeoutRef.current = null;
+  }, []);
+
+  const closeBubbleWithAnimation = useCallback(
+    (feedbackId: number) => {
+      clearBubbleCloseTimeout();
+      setClosingBubbleFeedbackId(feedbackId);
+      bubbleCloseTimeoutRef.current = window.setTimeout(() => {
+        setClosingBubbleFeedbackId((currentId) =>
+          currentId === feedbackId ? null : currentId,
+        );
+        bubbleCloseTimeoutRef.current = null;
+      }, FEEDBACK_BUBBLE_EXIT_MS);
+    },
+    [clearBubbleCloseTimeout],
+  );
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget || isMutating) {
@@ -159,6 +188,8 @@ function ScriptPdfPage({
       });
     }
   }, [editingFeedbackId]);
+
+  useEffect(() => clearBubbleCloseTimeout, [clearBubbleCloseTimeout]);
 
   useEffect(() => {
     if (!deleteTarget) {
@@ -348,6 +379,11 @@ function ScriptPdfPage({
       {markers.map((feedback) => {
         const isSelected = selectedFeedbackId === feedback.id;
         const isEditing = editingFeedbackId === feedback.id;
+        const isOpen =
+          isSelected || isEditing || hoveredFeedbackId === feedback.id;
+        const isBubbleVisible = isOpen || closingBubbleFeedbackId === feedback.id;
+        const isBubbleClosing =
+          closingBubbleFeedbackId === feedback.id && !isOpen;
         const feedbackColor = getScriptActorColorById(
           actors,
           feedback.actorIds[0],
@@ -364,17 +400,27 @@ function ScriptPdfPage({
           >
             <button
               type="button"
-              onMouseEnter={() => setHoveredFeedbackId(feedback.id)}
-              onMouseLeave={() => setHoveredFeedbackId(null)}
+              onMouseEnter={() => {
+                clearBubbleCloseTimeout();
+                setClosingBubbleFeedbackId(null);
+                setHoveredFeedbackId(feedback.id);
+              }}
+              onMouseLeave={() => {
+                setHoveredFeedbackId(null);
+
+                if (!isSelected && !isEditing) {
+                  closeBubbleWithAnimation(feedback.id);
+                }
+              }}
               onClick={(event) => {
                 event.stopPropagation();
                 onFeedbackSelect(feedback);
               }}
               className={[
-                'h-3.5 w-3.5 rounded-full border border-white transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+                'h-3.5 w-3.5 rounded-full border border-white transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
                 isSelected
-                  ? 'scale-125'
-                  : 'group-hover:scale-125',
+                  ? 'scale-110'
+                  : 'group-hover:scale-110',
               ].join(' ')}
               style={{
                 backgroundColor: feedbackColor,
@@ -385,7 +431,7 @@ function ScriptPdfPage({
               aria-label="대본 피드백 보기"
             />
 
-            {(isSelected || isEditing || hoveredFeedbackId === feedback.id) &&
+            {isBubbleVisible &&
               (() => {
                 const position = getMarkerViewportPosition(feedback);
 
@@ -395,11 +441,13 @@ function ScriptPdfPage({
 
                 return createPortal(
                   <div
-                    className="script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 origin-left rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)] transition duration-200"
+                    className={[
+                      'script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      isBubbleClosing ? 'script-feedback-bubble-out' : '',
+                    ].join(' ')}
                     style={{
                       left: position.left,
                       top: position.top,
-                      transform: 'translateY(-50%)',
                       backgroundColor: feedbackColor,
                     }}
                     onClick={(event) => event.stopPropagation()}
