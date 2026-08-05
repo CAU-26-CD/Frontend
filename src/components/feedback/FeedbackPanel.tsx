@@ -73,8 +73,14 @@ export default function FeedbackPanel({
     null,
   );
   const [actorRowActive, setActorRowActive] = useState(false);
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const isUrgentMode = URGENT_MARK_PATTERN.test(content);
+  const hasActiveDraft =
+    Boolean(timestamp) ||
+    Boolean(content.trim()) ||
+    selectedActors.length > 0 ||
+    actorMenuOpen;
   const visibleFeedbacks = feedbacks.slice(
     Math.max(feedbacks.length - visibleCount, 0),
   );
@@ -86,9 +92,26 @@ export default function FeedbackPanel({
 
   useEffect(() => {
     if (timestamp) {
+      setIsComposerOpen(true);
       contentTextareaRef.current?.focus();
     }
   }, [timestamp]);
+
+  useEffect(() => {
+    if (hasActiveDraft) {
+      setIsComposerOpen(true);
+    }
+  }, [hasActiveDraft]);
+
+  useEffect(() => {
+    if (!isInteractionDisabled) {
+      return;
+    }
+
+    setActorRowActive(false);
+    closeActorMenu();
+    setIsComposerOpen(false);
+  }, [isInteractionDisabled]);
 
   useEffect(() => {
     const list = feedbackListRef.current;
@@ -163,6 +186,7 @@ export default function FeedbackPanel({
   const openActorCommand = useCallback(
     (commandIndex = content.length) => {
       if (isInteractionDisabled) return;
+      setIsComposerOpen(true);
       if (!timestamp) {
         onTimestampStart();
       }
@@ -188,6 +212,30 @@ export default function FeedbackPanel({
       timestamp,
     ],
   );
+
+  const openComposer = () => {
+    if (isInteractionDisabled) {
+      return;
+    }
+
+    setIsComposerOpen(true);
+
+    if (!timestamp) {
+      onTimestampStart();
+    }
+  };
+
+  const submitAndCloseComposer = () => {
+    if (selectedActors.length === 0 || !timestamp || !content.trim()) {
+      return;
+    }
+
+    closeActorMenu();
+    setActorRowActive(false);
+    setIsComposerOpen(false);
+    contentTextareaRef.current?.blur();
+    onSubmit();
+  };
 
   useEffect(() => {
     if (timestamp || content) return;
@@ -455,10 +503,22 @@ export default function FeedbackPanel({
       {!isListOnly && (
         <div
           className={[
-            'relative right-2.5 h-44 w-80 max-w-full shrink-0 self-end rounded-[10px] bg-transparent transition',
+            'relative right-2.5 w-80 max-w-full shrink-0 self-end rounded-[10px] bg-transparent transition',
+            isComposerOpen ? 'h-44' : 'h-11',
             isInteractionDisabled ? 'pointer-events-none opacity-45' : '',
           ].join(' ')}
         >
+        {!isComposerOpen ? (
+          <button
+            type="button"
+            onClick={openComposer}
+            disabled={isInteractionDisabled}
+            className="h-full w-full rounded-[10px] border border-stone-200/50 bg-[#EEEEEE]/72 px-4 text-left text-xs font-bold text-[#431B1B]/62 shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] transition hover:bg-[#EEEEEE]/88 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          >
+            피드백 입력
+          </button>
+        ) : (
+          <>
         <div
           className="pointer-events-none absolute inset-0 rounded-[10px] border-2 border-stone-200/50"
           style={{
@@ -628,8 +688,7 @@ export default function FeedbackPanel({
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  closeActorMenu();
-                  onSubmit();
+                  submitAndCloseComposer();
                   return;
                 }
 
@@ -704,8 +763,7 @@ export default function FeedbackPanel({
             <button
               type="button"
               onClick={() => {
-                closeActorMenu();
-                onSubmit();
+                submitAndCloseComposer();
               }}
               className="absolute bottom-2 right-2 flex h-17 w-[56px] items-center justify-center rounded-[16px] border border-white/30 bg-[#431B1B]/58 text-[11px] font-bold text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] backdrop-blur-lg transition hover:scale-[1.04] hover:bg-[#431B1B]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:scale-100 disabled:opacity-45"
               disabled={
@@ -719,6 +777,8 @@ export default function FeedbackPanel({
             </button>
           </div>
         </div>
+          </>
+        )}
         </div>
       )}
     </aside>

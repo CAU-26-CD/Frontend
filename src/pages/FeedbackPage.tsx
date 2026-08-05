@@ -172,6 +172,10 @@ export default function RehearsalFeedbackPage() {
   const [isLoadingActors, setIsLoadingActors] = useState(false);
   const [actorsError, setActorsError] = useState<string | null>(null);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
+  const recordingOffsetRef = useRef({
+    recordingStartedAt: null as number | null,
+    recordingElapsedSeconds: 0,
+  });
   const [selectedFeedbackTarget, setSelectedFeedbackTarget] =
     useState<SelectedFeedbackTarget>({
       feedback: null,
@@ -201,13 +205,25 @@ export default function RehearsalFeedbackPage() {
 
     return activeSessionId ? getStoredSessionOwnerId(activeSessionId) : null;
   });
+  useEffect(() => {
+    recordingOffsetRef.current = {
+      recordingStartedAt,
+      recordingElapsedSeconds,
+    };
+  }, [recordingElapsedSeconds, recordingStartedAt]);
+
   const getCurrentRecordingOffsetSeconds = useCallback(() => {
-    if (recordingStartedAt === null) {
-      return recordingElapsedSeconds;
+    const recordingOffset = recordingOffsetRef.current;
+
+    if (recordingOffset.recordingStartedAt === null) {
+      return recordingOffset.recordingElapsedSeconds;
     }
 
-    return Math.max(0, Math.floor((Date.now() - recordingStartedAt) / 1000));
-  }, [recordingElapsedSeconds, recordingStartedAt]);
+    return Math.max(
+      0,
+      Math.floor((Date.now() - recordingOffset.recordingStartedAt) / 1000),
+    );
+  }, []);
   const feedback = useFeedback(
     activeSessionId,
     getCurrentRecordingOffsetSeconds,

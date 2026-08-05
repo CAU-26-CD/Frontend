@@ -123,6 +123,16 @@ type ScriptPdfCanvasProps = {
   onRenderingChange: (isRendering: boolean) => void;
 };
 
+type ScriptPdfDocumentSurfaceProps = Omit<
+  ScriptPdfViewerProps,
+  | 'draftContent'
+  | 'onDraftContentChange'
+  | 'onDraftOpenChange'
+  | 'onFeedbackCreated'
+> & {
+  onDraftOpen: (anchor: ScriptFeedbackDraftAnchor) => void;
+};
+
 const ScriptPdfCanvas = memo(function ScriptPdfCanvas({
   canvasRef,
   document,
@@ -656,7 +666,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
   );
 });
 
-export default function ScriptPdfViewer({
+const ScriptPdfDocumentSurface = memo(function ScriptPdfDocumentSurface({
   script,
   sessionId,
   userId,
@@ -665,15 +675,12 @@ export default function ScriptPdfViewer({
   selectedFeedback,
   selectionVersion,
   feedbacks,
-  draftContent,
   getCurrentOffsetSeconds,
-  onDraftContentChange,
-  onDraftOpenChange,
+  onDraftOpen,
   onFeedbackSelect,
   onFeedbackUpdated,
   onFeedbackDelete,
-  onFeedbackCreated,
-}: ScriptPdfViewerProps) {
+}: ScriptPdfDocumentSurfaceProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pagesWrapperRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef(new Map<number, HTMLDivElement>());
@@ -684,8 +691,6 @@ export default function ScriptPdfViewer({
   const [pageSizes, setPageSizes] = useState(new Map<number, PageRenderSize>());
   const [retryCount, setRetryCount] = useState(0);
   const [, refreshOverlayPosition] = useState(0);
-  const [draftAnchor, setDraftAnchor] =
-    useState<ScriptFeedbackDraftAnchor | null>(null);
 
   const selectedAnchor = useMemo<ScriptAnchor | null>(() => {
     if (!hasValidAnchor(selectedFeedback)) {
@@ -902,7 +907,7 @@ export default function ScriptPdfViewer({
       return;
     }
 
-    setDraftAnchor({
+    onDraftOpen({
       page,
       x,
       y,
@@ -912,22 +917,13 @@ export default function ScriptPdfViewer({
       viewportTop,
       videoOffsetSeconds: getCurrentOffsetSeconds(),
     });
-    onDraftContentChange('');
-    onDraftOpenChange(true);
   }, [
     disabled,
     getCurrentOffsetSeconds,
-    onDraftContentChange,
-    onDraftOpenChange,
+    onDraftOpen,
     pageSizes,
     sessionId,
   ]);
-
-  const closeDraft = useCallback(() => {
-    setDraftAnchor(null);
-    onDraftContentChange('');
-    onDraftOpenChange(false);
-  }, [onDraftContentChange, onDraftOpenChange]);
 
   return (
     <section className="reaction-ui-font flex h-full min-h-0 flex-col overflow-hidden rounded-[8px] border border-white/20 bg-[#1b0708]/24 text-[#eee7dc] shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm">
@@ -991,30 +987,88 @@ export default function ScriptPdfViewer({
               );
             })}
 
-            {draftAnchor &&
-              createPortal(
-                <div className="pointer-events-none fixed inset-0 z-[9999]">
-                  <ScriptFeedbackComposer
-                    anchor={{
-                      ...draftAnchor,
-                      left: draftAnchor.viewportLeft,
-                      top: draftAnchor.viewportTop,
-                    }}
-                    actors={actors}
-                    sessionId={sessionId}
-                    userId={userId}
-                    content={draftContent}
-                    disabled={disabled}
-                    onContentChange={onDraftContentChange}
-                    onCreated={onFeedbackCreated}
-                    onCancel={closeDraft}
-                  />
-                </div>,
-                globalThis.document.body,
-              )}
           </div>
         )}
       </div>
     </section>
+  );
+});
+
+export default function ScriptPdfViewer({
+  script,
+  sessionId,
+  userId,
+  actors,
+  disabled = false,
+  selectedFeedback,
+  selectionVersion,
+  feedbacks,
+  draftContent,
+  getCurrentOffsetSeconds,
+  onDraftContentChange,
+  onDraftOpenChange,
+  onFeedbackSelect,
+  onFeedbackUpdated,
+  onFeedbackDelete,
+  onFeedbackCreated,
+}: ScriptPdfViewerProps) {
+  const [draftAnchor, setDraftAnchor] =
+    useState<ScriptFeedbackDraftAnchor | null>(null);
+
+  const handleDraftOpen = useCallback(
+    (anchor: ScriptFeedbackDraftAnchor) => {
+      setDraftAnchor(anchor);
+      onDraftContentChange('');
+      onDraftOpenChange(true);
+    },
+    [onDraftContentChange, onDraftOpenChange],
+  );
+
+  const closeDraft = useCallback(() => {
+    setDraftAnchor(null);
+    onDraftContentChange('');
+    onDraftOpenChange(false);
+  }, [onDraftContentChange, onDraftOpenChange]);
+
+  return (
+    <>
+      <ScriptPdfDocumentSurface
+        script={script}
+        sessionId={sessionId}
+        userId={userId}
+        actors={actors}
+        disabled={disabled}
+        selectedFeedback={selectedFeedback}
+        selectionVersion={selectionVersion}
+        feedbacks={feedbacks}
+        getCurrentOffsetSeconds={getCurrentOffsetSeconds}
+        onDraftOpen={handleDraftOpen}
+        onFeedbackSelect={onFeedbackSelect}
+        onFeedbackUpdated={onFeedbackUpdated}
+        onFeedbackDelete={onFeedbackDelete}
+      />
+
+      {draftAnchor &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-0 z-[9999]">
+            <ScriptFeedbackComposer
+              anchor={{
+                ...draftAnchor,
+                left: draftAnchor.viewportLeft,
+                top: draftAnchor.viewportTop,
+              }}
+              actors={actors}
+              sessionId={sessionId}
+              userId={userId}
+              content={draftContent}
+              disabled={disabled}
+              onContentChange={onDraftContentChange}
+              onCreated={onFeedbackCreated}
+              onCancel={closeDraft}
+            />
+          </div>,
+          globalThis.document.body,
+        )}
+    </>
   );
 }

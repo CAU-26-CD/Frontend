@@ -428,7 +428,7 @@ export function useFeedback(
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = useCallback(async (id: number) => {
     const deletedFeedback = feedbacks.find((item) => item.id === id);
 
     if (!deletedFeedback) return;
@@ -463,7 +463,7 @@ export function useFeedback(
         setFeedbacks((prev) => [...prev, deletedFeedback]);
       }
     }
-  };
+  }, [currentUserId, editingId, feedbacks, handleEditCancel, sessionId]);
 
   const handleToggleUrgent = (id: number) => {
     setFeedbacks((prev) =>
