@@ -17,7 +17,6 @@ type CameraSessionModalProps = {
 };
 
 const VIDEO_UPLOAD_STATUSES = new Set(['stop', 'stopped', 'uploading']);
-const CAMERA_STATUS_POLL_INTERVAL_MS = 5000;
 
 export default function CameraSessionModal({
   session,
@@ -139,28 +138,35 @@ export default function CameraSessionModal({
   }, [onStatusChange, session.session_id]);
 
   useEffect(() => {
+    let ignore = false;
+
     const loadStatus = async () => {
       try {
         const nextStatus = await getCameraSessionStatus(session.session_id);
+
+        if (ignore) {
+          return;
+        }
 
         setCameraStatus(nextStatus);
         onStatusChange?.(nextStatus);
         setStatusError(null);
       } catch (error) {
+        if (ignore) {
+          return;
+        }
+
         console.error('Failed to get camera session status', error);
         setStatusError('연결 상태를 확인하지 못했습니다');
       }
     };
 
     void loadStatus();
-    const intervalId = window.setInterval(() => {
-      void loadStatus();
-    }, CAMERA_STATUS_POLL_INTERVAL_MS);
 
     return () => {
-      window.clearInterval(intervalId);
+      ignore = true;
     };
-  }, [isOwner, onStatusChange, session.session_id]);
+  }, [onStatusChange, session.session_id]);
 
   return (
     <div

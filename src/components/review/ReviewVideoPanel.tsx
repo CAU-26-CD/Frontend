@@ -1,5 +1,5 @@
 import { Pause, Play } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionVideoAppearance } from '../../apis/session';
 import LoadingSpinner from '../LoadingSpinner';
 import movePanelBg from '../../images/icon/move-pannel-bg.svg';
@@ -11,6 +11,8 @@ const getMetadataVideoDuration = (video: HTMLVideoElement) => {
 
   return 0;
 };
+const SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS = 0.1;
+
 type ReviewVideoPanelProps = {
   videoUrl: string;
   appearances: SessionVideoAppearance[];
@@ -22,8 +24,14 @@ type ReviewVideoPanelProps = {
     feedbackId: number;
     time: number;
   }[];
+  selectedActorIds: number[];
   isVideoLoading: boolean;
   videoMessage: string;
+  actorOnlyPlaybackRequest: number;
+  actorTimelineNavigationRequest: {
+    id: number;
+    direction: 'previous' | 'next';
+  };
   highlightedFeedbackId?: number | null;
   onRequiredFeedbackMarkerClick: (feedbackId: number) => void;
   onPlaybackFeedbackChange: (feedbackId: number | null) => void;
@@ -34,8 +42,11 @@ export default function ReviewVideoPanel({
   appearances,
   feedbackPlaybackMarkers,
   requiredFeedbackMarkers,
+  selectedActorIds,
   isVideoLoading,
   videoMessage,
+  actorOnlyPlaybackRequest,
+  actorTimelineNavigationRequest,
   highlightedFeedbackId = null,
   onRequiredFeedbackMarkerClick,
   onPlaybackFeedbackChange,
@@ -108,6 +119,17 @@ export default function ReviewVideoPanel({
 
     return feedbackIdBySecond;
   }, [normalizedFeedbackPlaybackMarkers]);
+  const selectedActorAppearances = useMemo(
+    () =>
+      selectedActorIds.length === 0
+        ? []
+        : normalizedAppearances
+            .filter((appearance) =>
+              selectedActorIds.includes(appearance.actorId),
+            )
+            .sort((a, b) => a.startSeconds - b.startSeconds),
+    [normalizedAppearances, selectedActorIds],
+  );
   const safeVideoDuration = Number.isFinite(videoDuration)
     ? Math.max(0, videoDuration)
     : 0;
@@ -230,6 +252,93 @@ export default function ReviewVideoPanel({
     video.currentTime = clampedNextTime;
     setCurrentTime(clampedNextTime);
   };
+  const findNextSelectedAppearance = useCallback(
+    (time: number) =>
+      selectedActorAppearances.find(
+        (appearance) =>
+          appearance.startSeconds >
+          time + SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS,
+      ) ?? selectedActorAppearances[0],
+    [selectedActorAppearances],
+  );
+  const findPreviousSelectedAppearance = useCallback(
+    (time: number) => {
+      if (selectedActorAppearances.length === 0) {
+        return undefined;
+      }
+
+      const currentAppearanceIndex = selectedActorAppearances.findIndex(
+        (appearance) =>
+          time >=
+            appearance.startSeconds -
+              SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS &&
+          time <=
+            appearance.endSeconds + SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS,
+      );
+
+      if (currentAppearanceIndex !== -1) {
+        return selectedActorAppearances[
+          (currentAppearanceIndex - 1 + selectedActorAppearances.length) %
+            selectedActorAppearances.length
+        ];
+      }
+
+      return (
+        [...selectedActorAppearances]
+          .reverse()
+          .find(
+            (appearance) =>
+              appearance.startSeconds <
+              time - SELECTED_APPEARANCE_SEEK_TOLERANCE_SECONDS,
+          ) ?? selectedActorAppearances[selectedActorAppearances.length - 1]
+      );
+    },
+    [selectedActorAppearances],
+  );
+  const seekSelectedActorTimeline = useCallback(
+    (direction: 'previous' | 'next') => {
+      const video = videoRef.current;
+
+      if (!video || selectedActorAppearances.length === 0) {
+        return;
+      }
+
+      const targetAppearance =
+        direction === 'previous'
+          ? findPreviousSelectedAppearance(video.currentTime)
+          : findNextSelectedAppearance(video.currentTime);
+
+      if (!targetAppearance) {
+        return;
+      }
+
+      const nextTime = Math.floor(targetAppearance.startSeconds);
+
+      video.currentTime = nextTime;
+      setCurrentTime(nextTime);
+    },
+    [
+      findNextSelectedAppearance,
+      findPreviousSelectedAppearance,
+      selectedActorAppearances.length,
+    ],
+  );
+  const playSelectedActorTimeline = useCallback(() => {
+    const video = videoRef.current;
+
+    if (!video || selectedActorAppearances.length === 0) {
+      return;
+    }
+
+    const nextAppearance = findNextSelectedAppearance(video.currentTime - 0.1);
+
+    if (!nextAppearance) {
+      return;
+    }
+
+    video.currentTime = Math.floor(nextAppearance.startSeconds);
+    void video.play();
+  }, [findNextSelectedAppearance, selectedActorAppearances.length]);
   const togglePlayback = () => {
     const video = videoRef.current;
 
@@ -268,6 +377,24 @@ export default function ReviewVideoPanel({
       setIsPlaying(false);
     });
   }, [videoUrl]);
+
+  useEffect(() => {
+    if (actorOnlyPlaybackRequest === 0) {
+      return;
+    }
+
+    queueMicrotask(playSelectedActorTimeline);
+  }, [actorOnlyPlaybackRequest, playSelectedActorTimeline]);
+
+  useEffect(() => {
+    if (actorTimelineNavigationRequest.id === 0) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      seekSelectedActorTimeline(actorTimelineNavigationRequest.direction);
+    });
+  }, [actorTimelineNavigationRequest, seekSelectedActorTimeline]);
 
   useEffect(() => {
     const nextHighlightedFeedbackId =

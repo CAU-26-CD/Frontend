@@ -1,5 +1,6 @@
 import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import * as pdfjsLib from 'pdfjs-dist';
 import type {
@@ -53,6 +54,13 @@ type PageRenderSize = {
 };
 
 const FEEDBACK_BUBBLE_EXIT_MS = 110;
+const EMPTY_FEEDBACK_MARKERS: Array<
+  Feedback & {
+    scriptPage: number;
+    scriptX: number;
+    scriptY: number;
+  }
+> = [];
 
 const hasValidAnchor = (feedback: Feedback | null): feedback is Feedback & {
   scriptPage: number;
@@ -77,22 +85,7 @@ const timestampToSeconds = (value: string) => {
   return Number(minutes) * 60 + Number(seconds);
 };
 
-function ScriptPdfPage({
-  document,
-  pageNumber,
-  containerWidth,
-  markers,
-  actors,
-  selectedFeedbackId,
-  pageRef,
-  onSizeChange,
-  onPageClick,
-  onFeedbackSelect,
-  onFeedbackUpdated,
-  onFeedbackDelete,
-  sessionId,
-  userId,
-}: {
+type ScriptPdfPageProps = {
   document: PDFDocumentProxy;
   pageNumber: number;
   containerWidth: number;
@@ -105,7 +98,7 @@ function ScriptPdfPage({
   >;
   actors: Actor[];
   selectedFeedbackId: number | null;
-  pageRef: (element: HTMLDivElement | null) => void;
+  onPageRefChange: (pageNumber: number, element: HTMLDivElement | null) => void;
   onSizeChange: (pageNumber: number, size: PageRenderSize) => void;
   onPageClick: (anchor: {
     page: number;
@@ -119,11 +112,127 @@ function ScriptPdfPage({
   onFeedbackDelete: (feedback: Feedback) => Promise<void> | void;
   sessionId: number;
   userId: number | null;
-}) {
+};
+
+type ScriptPdfCanvasProps = {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  document: PDFDocumentProxy;
+  pageNumber: number;
+  containerWidth: number;
+  onSizeChange: (pageNumber: number, size: PageRenderSize) => void;
+  onRenderingChange: (isRendering: boolean) => void;
+};
+
+const ScriptPdfCanvas = memo(function ScriptPdfCanvas({
+  canvasRef,
+  document,
+  pageNumber,
+  containerWidth,
+  onSizeChange,
+  onRenderingChange,
+}: ScriptPdfCanvasProps) {
+  const renderTaskRef = useRef<RenderTask | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas || containerWidth <= 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const renderPage = async () => {
+      onRenderingChange(true);
+
+      try {
+        const page: PDFPageProxy = await document.getPage(pageNumber);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = containerWidth / baseViewport.width;
+        const viewport = page.getViewport({ scale });
+        const outputScale = window.devicePixelRatio || 1;
+        const context = canvas.getContext('2d');
+
+        if (!context || cancelled) {
+          return;
+        }
+
+        renderTaskRef.current?.cancel();
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+
+        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+
+        const renderTask = page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        });
+
+        renderTaskRef.current = renderTask;
+        await renderTask.promise;
+
+        if (!cancelled) {
+          onSizeChange(pageNumber, {
+            width: viewport.width,
+            height: viewport.height,
+          });
+          onRenderingChange(false);
+        }
+      } catch (error) {
+        if (
+          !cancelled &&
+          !(error instanceof Error && error.name === 'RenderingCancelledException')
+        ) {
+          onRenderingChange(false);
+        }
+      }
+    };
+
+    void renderPage();
+
+    return () => {
+      cancelled = true;
+      renderTaskRef.current?.cancel();
+    };
+  }, [
+    canvasRef,
+    containerWidth,
+    document,
+    onRenderingChange,
+    onSizeChange,
+    pageNumber,
+  ]);
+
+  return (
+    <canvas
+      className="block w-full rounded-[8px] bg-white shadow-[0_10px_26px_rgba(0,0,0,0.18)]"
+      ref={canvasRef}
+    />
+  );
+});
+
+const ScriptPdfPage = memo(function ScriptPdfPage({
+  document,
+  pageNumber,
+  containerWidth,
+  markers,
+  actors,
+  selectedFeedbackId,
+  onPageRefChange,
+  onSizeChange,
+  onPageClick,
+  onFeedbackSelect,
+  onFeedbackUpdated,
+  onFeedbackDelete,
+  sessionId,
+  userId,
+}: ScriptPdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pageElementRef = useRef<HTMLDivElement | null>(null);
-  const renderTaskRef = useRef<RenderTask | null>(null);
   const [isRendering, setIsRendering] = useState(true);
   const [hoveredFeedbackId, setHoveredFeedbackId] = useState<number | null>(
     null,
@@ -216,71 +325,9 @@ function ScriptPdfPage({
     };
   }, [deleteTarget, handleDeleteConfirm]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-
-    if (!canvas || containerWidth <= 0) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const renderPage = async () => {
-      setIsRendering(true);
-
-      try {
-        const page: PDFPageProxy = await document.getPage(pageNumber);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const scale = containerWidth / baseViewport.width;
-        const viewport = page.getViewport({ scale });
-        const outputScale = window.devicePixelRatio || 1;
-        const context = canvas.getContext('2d');
-
-        if (!context || cancelled) {
-          return;
-        }
-
-        renderTaskRef.current?.cancel();
-        canvas.width = Math.floor(viewport.width * outputScale);
-        canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-
-        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
-
-        const renderTask = page.render({
-          canvas,
-          canvasContext: context,
-          viewport,
-        });
-
-        renderTaskRef.current = renderTask;
-        await renderTask.promise;
-
-        if (!cancelled) {
-          onSizeChange(pageNumber, {
-            width: viewport.width,
-            height: viewport.height,
-          });
-          setIsRendering(false);
-        }
-      } catch (error) {
-        if (
-          !cancelled &&
-          !(error instanceof Error && error.name === 'RenderingCancelledException')
-        ) {
-          setIsRendering(false);
-        }
-      }
-    };
-
-    void renderPage();
-
-    return () => {
-      cancelled = true;
-      renderTaskRef.current?.cancel();
-    };
-  }, [containerWidth, document, onSizeChange, pageNumber]);
+  const handleRenderingChange = useCallback((nextIsRendering: boolean) => {
+    setIsRendering(nextIsRendering);
+  }, []);
 
   const startEdit = (feedback: Feedback) => {
     setMutationError('');
@@ -343,7 +390,7 @@ function ScriptPdfPage({
     <div
       ref={(element) => {
         pageElementRef.current = element;
-        pageRef(element);
+        onPageRefChange(pageNumber, element);
       }}
       className="relative mx-auto w-full max-w-full"
       onClick={(event) => {
@@ -375,7 +422,14 @@ function ScriptPdfPage({
         });
       }}
     >
-      <canvas className="block w-full rounded-[8px] bg-white shadow-[0_10px_26px_rgba(0,0,0,0.18)]" ref={canvasRef} />
+      <ScriptPdfCanvas
+        canvasRef={canvasRef}
+        document={document}
+        pageNumber={pageNumber}
+        containerWidth={containerWidth}
+        onSizeChange={onSizeChange}
+        onRenderingChange={handleRenderingChange}
+      />
       {markers.map((feedback) => {
         const isSelected = selectedFeedbackId === feedback.id;
         const isEditing = editingFeedbackId === feedback.id;
@@ -600,7 +654,7 @@ function ScriptPdfPage({
         )}
     </div>
   );
-}
+});
 
 export default function ScriptPdfViewer({
   script,
@@ -648,6 +702,18 @@ export default function ScriptPdfViewer({
     () => feedbacks.filter(hasValidAnchor),
     [feedbacks],
   );
+  const feedbackMarkersByPage = useMemo(() => {
+    const markersByPage = new Map<number, typeof feedbackMarkers>();
+
+    feedbackMarkers.forEach((feedback) => {
+      const pageMarkers = markersByPage.get(feedback.scriptPage) ?? [];
+
+      pageMarkers.push(feedback);
+      markersByPage.set(feedback.scriptPage, pageMarkers);
+    });
+
+    return markersByPage;
+  }, [feedbackMarkers]);
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -781,16 +847,19 @@ export default function ScriptPdfViewer({
     });
   }, [pageSizes, selectedAnchor, selectionVersion]);
 
-  const setPageRef = (pageNumber: number) => (element: HTMLDivElement | null) => {
+  const handlePageRefChange = useCallback((
+    pageNumber: number,
+    element: HTMLDivElement | null,
+  ) => {
     if (element) {
       pageRefs.current.set(pageNumber, element);
       return;
     }
 
     pageRefs.current.delete(pageNumber);
-  };
+  }, []);
 
-  const handleSizeChange = (pageNumber: number, size: PageRenderSize) => {
+  const handleSizeChange = useCallback((pageNumber: number, size: PageRenderSize) => {
     setPageSizes((currentSizes) => {
       const currentSize = currentSizes.get(pageNumber);
 
@@ -807,9 +876,9 @@ export default function ScriptPdfViewer({
 
       return nextSizes;
     });
-  };
+  }, []);
 
-  const handlePageClick = ({
+  const handlePageClick = useCallback(({
     page,
     x,
     y,
@@ -845,13 +914,20 @@ export default function ScriptPdfViewer({
     });
     onDraftContentChange('');
     onDraftOpenChange(true);
-  };
+  }, [
+    disabled,
+    getCurrentOffsetSeconds,
+    onDraftContentChange,
+    onDraftOpenChange,
+    pageSizes,
+    sessionId,
+  ]);
 
-  const closeDraft = () => {
+  const closeDraft = useCallback(() => {
     setDraftAnchor(null);
     onDraftContentChange('');
     onDraftOpenChange(false);
-  };
+  }, [onDraftContentChange, onDraftOpenChange]);
 
   return (
     <section className="reaction-ui-font flex h-full min-h-0 flex-col overflow-hidden rounded-[8px] border border-white/20 bg-[#1b0708]/24 text-[#eee7dc] shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm">
@@ -897,12 +973,13 @@ export default function ScriptPdfViewer({
                   document={document}
                   pageNumber={pageNumber}
                   containerWidth={containerWidth}
-                  markers={feedbackMarkers.filter(
-                    (feedback) => feedback.scriptPage === pageNumber,
-                  )}
+                  markers={
+                    feedbackMarkersByPage.get(pageNumber) ??
+                    EMPTY_FEEDBACK_MARKERS
+                  }
                   actors={actors}
                   selectedFeedbackId={selectedFeedback?.id ?? null}
-                  pageRef={setPageRef(pageNumber)}
+                  onPageRefChange={handlePageRefChange}
                   onSizeChange={handleSizeChange}
                   onPageClick={handlePageClick}
                   onFeedbackSelect={onFeedbackSelect}

@@ -2,9 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Settings, Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  getCameraSessionStatus,
   getProjectSessions,
-  getSessionVideo,
   createCameraSession,
   getRehearsalSessionStatus,
   startRehearsalSession,
@@ -56,6 +54,11 @@ const VIDEO_UPLOAD_COMPLETE_STATUSES = new Set([
   'completed',
   'uploaded',
 ]);
+const VIDEO_UPLOAD_IN_PROGRESS_STATUSES = new Set([
+  'stop',
+  'stopped',
+  'uploading',
+]);
 const SESSION_POLL_INTERVAL_MS = 1000;
 type ScriptLookupStatus = 'loading' | 'available' | 'notFound' | 'error';
 
@@ -105,6 +108,12 @@ const isVideoUploadCompleteStatus = (
 ) =>
   VIDEO_UPLOAD_COMPLETE_STATUSES.has(normalizedStatus) ||
   hasCameraVideoUrl(status);
+const isVideoUploadStartedStatus = (
+  normalizedStatus: string,
+  status: CameraSessionStatusResponse,
+) =>
+  VIDEO_UPLOAD_IN_PROGRESS_STATUSES.has(normalizedStatus) ||
+  isVideoUploadCompleteStatus(normalizedStatus, status);
 const hasRecordingEvidence = (
   normalizedStatus: string,
   status: CameraSessionStatusResponse,
@@ -387,6 +396,10 @@ export default function RehearsalFeedbackPage() {
 
       if (hasStartedRecording) {
         hasCameraRecordingStartedRef.current = true;
+      }
+
+      if (isVideoUploadStartedStatus(normalizedStatus, nextStatus)) {
+        setHasVideoUploadStarted(true);
       }
 
       if (normalizedStatus === 'recording') {
@@ -782,76 +795,6 @@ export default function RehearsalFeedbackPage() {
   }, [enterRehearsal, isCameraGateOpen, numericSessionId]);
 
   useEffect(() => {
-    if (
-      !cameraSession ||
-      isCameraGateOpen ||
-      hasShownUploadCompleteRef.current
-    ) {
-      return;
-    }
-
-    const loadStatus = async () => {
-      try {
-        const nextStatus = await getCameraSessionStatus(
-          cameraSession.session_id,
-        );
-        applyCameraStatus(nextStatus);
-      } catch (error) {
-        console.error('Failed to get camera session status', error);
-      }
-    };
-
-    void loadStatus();
-    const intervalId = window.setInterval(() => {
-      void loadStatus();
-    }, 1000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [applyCameraStatus, cameraSession, isCameraGateOpen, isSessionOwner]);
-
-  useEffect(() => {
-    if (
-      isCameraGateOpen ||
-      Number.isNaN(numericSessionId) ||
-      hasShownUploadCompleteRef.current
-    ) {
-      return;
-    }
-
-    let ignore = false;
-
-    const loadVideoUploadStatus = async () => {
-      try {
-        const video = await getSessionVideo(numericSessionId, {
-          refresh: true,
-        });
-
-        if (ignore || hasShownUploadCompleteRef.current) {
-          return;
-        }
-
-        if (video.s3_url) {
-          setHasVideoUploadStarted(true);
-        }
-      } catch {
-        // Video can be absent until the upload is actually created.
-      }
-    };
-
-    void loadVideoUploadStatus();
-    const intervalId = window.setInterval(() => {
-      void loadVideoUploadStatus();
-    }, SESSION_POLL_INTERVAL_MS);
-
-    return () => {
-      ignore = true;
-      window.clearInterval(intervalId);
-    };
-  }, [isCameraGateOpen, numericSessionId]);
-
-  useEffect(() => {
     if (!logoNavigationMessage) {
       return;
     }
@@ -926,17 +869,36 @@ export default function RehearsalFeedbackPage() {
     }
   };
 
-  const handleFeedbackSelect = (nextFeedback: Feedback) => {
+  const handleFeedbackSelect = useCallback((nextFeedback: Feedback) => {
     setSelectedFeedbackTarget((currentTarget) => ({
       feedback: nextFeedback,
       version: currentTarget.version + 1,
     }));
-  };
+  }, []);
 
   const isScriptWorkspaceAvailable =
     scriptLookupStatus === 'available' && projectScript !== null;
   const shouldDisableWorkspace =
     shouldShowVideoUploadRequestOverlay || shouldShowVideoUploadOverlay;
+  const { clearDraft, handleEditCancel } = feedback;
+
+  useEffect(() => {
+    if (!shouldDisableWorkspace) {
+      return;
+    }
+
+    clearDraft();
+    handleEditCancel();
+    setSelectedFeedbackTarget((currentTarget) =>
+      currentTarget.feedback
+        ? {
+            feedback: null,
+            version: currentTarget.version + 1,
+          }
+        : currentTarget,
+    );
+  }, [clearDraft, handleEditCancel, shouldDisableWorkspace]);
+
   const feedbackListSlot =
     !isCameraGateOpen && (feedback.isLoadingFeedbacks || isLoadingActors) ? (
       <div className="flex h-full w-full items-center justify-center">
@@ -1087,7 +1049,9 @@ export default function RehearsalFeedbackPage() {
           </div>
         )}
 
-        {scriptLookupStatus !== 'loading' && isScriptWorkspaceAvailable && (
+        {scriptLookupStatus !== 'loading' &&
+          isScriptWorkspaceAvailable &&
+          !shouldDisableWorkspace && (
           <ScriptFeedbackWorkspacePage
             script={projectScript}
             sessionId={numericSessionId}
@@ -1104,7 +1068,9 @@ export default function RehearsalFeedbackPage() {
           />
         )}
 
-        {scriptLookupStatus !== 'loading' && !isScriptWorkspaceAvailable && (
+        {scriptLookupStatus !== 'loading' &&
+          !isScriptWorkspaceAvailable &&
+          !shouldDisableWorkspace && (
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,0.82fr)] items-stretch gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.72fr)] lg:grid-rows-1">
             <section
               className={[

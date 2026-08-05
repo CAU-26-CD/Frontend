@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { createFeedbackV2 } from '../../apis/feedback';
 import type { FeedbackV2Response } from '../../apis/feedback';
 import type { Actor } from '../../types/feedback';
@@ -53,7 +54,6 @@ export default function ScriptFeedbackComposer({
     activeActorId: null,
     hasOpenedInput: false,
   });
-  const [hoveredActorId, setHoveredActorId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const visibleActors = useMemo(() => actors.slice(0, 6), [actors]);
@@ -228,31 +228,32 @@ export default function ScriptFeedbackComposer({
             const x = Math.cos(radians) * RADIAL_DISTANCE;
             const y = Math.sin(radians) * RADIAL_DISTANCE;
             const color = getScriptActorColor(index);
-            const isHovered = hoveredActorId === actor.id;
+            const isSelected = selection.actorIds.includes(actor.id);
 
             return (
               <button
                 key={actor.id}
                 type="button"
-                onMouseEnter={() => setHoveredActorId(actor.id)}
-                onMouseLeave={() => setHoveredActorId(null)}
                 onClick={() => toggleActor(actor)}
-                className="script-actor-orb absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-sm font-black text-white transition"
+                className={[
+                  'script-actor-orb absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-sm font-black text-white',
+                  isSelected ? 'script-actor-orb-selected' : '',
+                ].join(' ')}
                 style={{
                   left: x,
                   top: y,
                   backgroundColor: color,
-                  boxShadow:
-                    isHovered || selection.actorIds.includes(actor.id)
-                      ? `0 0 10px ${color}, 0 0 26px ${color}d9, 0 0 52px ${color}8c, 0 16px 34px rgba(0,0,0,0.24)`
-                      : `0 0 14px ${color}80, 0 10px 24px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)`,
-                  transform: selection.actorIds.includes(actor.id)
+                  '--script-actor-color': color,
+                  '--script-actor-glow': `${color}8c`,
+                  '--script-actor-glow-strong': `${color}d9`,
+                  '--script-actor-glow-soft': `${color}80`,
+                  transform: isSelected
                     ? 'translate(-50%, -50%) scale(1.08)'
                     : undefined,
                   animationDelay: `${index * 36}ms`,
-                }}
+                } as CSSProperties}
                 aria-label={`${actor.name} 선택`}
-                aria-pressed={selection.actorIds.includes(actor.id)}
+                aria-pressed={isSelected}
                 title={actor.name}
               >
                 {actor.shortcut}

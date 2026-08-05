@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { FeedbackV2Response } from '../apis/feedback';
 import type { ProjectScript } from '../apis/script';
@@ -68,6 +68,45 @@ export default function ScriptFeedbackWorkspacePage({
 }: ScriptFeedbackWorkspacePageProps) {
   const [scriptDraftContent, setScriptDraftContent] = useState('');
   const [isScriptDraftOpen, setIsScriptDraftOpen] = useState(false);
+  const { handleDelete, upsertFeedbackResponse } = feedback;
+  const handleFeedbackUpdated = useCallback(
+    (updatedFeedback: FeedbackV2Response) => {
+      const nextFeedback = upsertFeedbackResponse(updatedFeedback);
+
+      setSelectedFeedbackTarget((currentTarget) => ({
+        feedback: nextFeedback,
+        version: currentTarget.version + 1,
+      }));
+    },
+    [setSelectedFeedbackTarget, upsertFeedbackResponse],
+  );
+  const handleFeedbackDelete = useCallback(
+    async (targetFeedback: Feedback) => {
+      await handleDelete(targetFeedback.id);
+
+      setSelectedFeedbackTarget((currentTarget) =>
+        currentTarget.feedback?.id === targetFeedback.id
+          ? {
+              feedback: null,
+              version: currentTarget.version + 1,
+            }
+          : currentTarget,
+      );
+    },
+    [handleDelete, setSelectedFeedbackTarget],
+  );
+  const handleFeedbackCreated = useCallback(
+    (createdFeedback: FeedbackV2Response) => {
+      const nextFeedback = upsertFeedbackResponse(createdFeedback);
+
+      setSelectedFeedbackTarget((currentTarget) => ({
+        feedback: nextFeedback,
+        version: currentTarget.version + 1,
+      }));
+    },
+    [setSelectedFeedbackTarget, upsertFeedbackResponse],
+  );
+  const ignoreScriptMovementSubmit = useCallback(() => undefined, []);
   const feedbackListSlot: ReactNode =
     feedback.isLoadingFeedbacks || isLoadingActors ? (
       <div className="flex h-full w-full items-center justify-center">
@@ -97,34 +136,9 @@ export default function ScriptFeedbackWorkspacePage({
         onDraftContentChange={setScriptDraftContent}
         onDraftOpenChange={setIsScriptDraftOpen}
         onFeedbackSelect={onFeedbackSelect}
-        onFeedbackUpdated={(updatedFeedback) => {
-          const nextFeedback = feedback.upsertFeedbackResponse(updatedFeedback);
-
-          setSelectedFeedbackTarget((currentTarget) => ({
-            feedback: nextFeedback,
-            version: currentTarget.version + 1,
-          }));
-        }}
-        onFeedbackDelete={async (targetFeedback) => {
-          await feedback.handleDelete(targetFeedback.id);
-
-          setSelectedFeedbackTarget((currentTarget) =>
-            currentTarget.feedback?.id === targetFeedback.id
-              ? {
-                  feedback: null,
-                  version: currentTarget.version + 1,
-                }
-              : currentTarget,
-          );
-        }}
-        onFeedbackCreated={(createdFeedback) => {
-          const nextFeedback = feedback.upsertFeedbackResponse(createdFeedback);
-
-          setSelectedFeedbackTarget((currentTarget) => ({
-            feedback: nextFeedback,
-            version: currentTarget.version + 1,
-          }));
-        }}
+        onFeedbackUpdated={handleFeedbackUpdated}
+        onFeedbackDelete={handleFeedbackDelete}
+        onFeedbackCreated={handleFeedbackCreated}
       />
 
       <section
@@ -143,9 +157,9 @@ export default function ScriptFeedbackWorkspacePage({
             timestamp={isScriptDraftOpen ? '00:00' : null}
             content={scriptDraftContent}
             disabled={isFeedbackInputDisabled || !isScriptDraftOpen}
-            onTimestampStart={() => undefined}
+            onTimestampStart={ignoreScriptMovementSubmit}
             onContentChange={setScriptDraftContent}
-            onSubmit={() => undefined}
+            onSubmit={ignoreScriptMovementSubmit}
           />
         </div>
 

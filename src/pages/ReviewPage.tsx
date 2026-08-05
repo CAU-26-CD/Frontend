@@ -278,6 +278,12 @@ export default function ReviewPage() {
   const [highlightedFeedbackId, setHighlightedFeedbackId] = useState<
     number | null
   >(null);
+  const [actorOnlyPlaybackRequest, setActorOnlyPlaybackRequest] = useState(0);
+  const [actorTimelineNavigationRequest, setActorTimelineNavigationRequest] =
+    useState<{
+      id: number;
+      direction: 'previous' | 'next';
+    }>({ id: 0, direction: 'next' });
   const [isScriptViewEnabled, setIsScriptViewEnabled] = useState(false);
   const [script, setScript] = useState<ProjectScript | null>(null);
   const [scriptStatus, setScriptStatus] =
@@ -373,6 +379,10 @@ export default function ReviewPage() {
       ? actorAppearances
       : parseSessionVideoAppearances(sessionVideo.analysis_result);
   }, [sessionVideo, sessionVideoAppearanceInfo]);
+  const actorIdsWithTimeline = useMemo(
+    () => [...new Set(actorAppearances.map((appearance) => appearance.actorId))],
+    [actorAppearances],
+  );
   const scriptReviewFeedbacks = useMemo(
     () => {
       const selectedTagDefinitions = feedbackTags.filter((tag) =>
@@ -543,10 +553,6 @@ export default function ReviewPage() {
   }, [numericProjectId]);
 
   useEffect(() => {
-    if (!isScriptViewEnabled) {
-      return;
-    }
-
     if (Number.isNaN(numericProjectId)) {
       setScript(null);
       setScriptStatus('error');
@@ -578,6 +584,7 @@ export default function ReviewPage() {
 
         if (isScriptNotFoundError(error)) {
           setScriptStatus('notFound');
+          setIsScriptViewEnabled(false);
           return;
         }
 
@@ -595,7 +602,7 @@ export default function ReviewPage() {
     return () => {
       ignore = true;
     };
-  }, [isScriptViewEnabled, numericProjectId, scriptRetryCount]);
+  }, [numericProjectId, scriptRetryCount]);
 
   useEffect(() => {
     if (
@@ -757,6 +764,17 @@ export default function ReviewPage() {
         ? current.filter((item) => item !== priority)
         : [...current, priority],
     );
+  };
+
+  const requestSelectedActorPlayback = () => {
+    setActorOnlyPlaybackRequest((current) => current + 1);
+  };
+
+  const requestSelectedActorTimelineMove = (direction: 'previous' | 'next') => {
+    setActorTimelineNavigationRequest((current) => ({
+      id: current.id + 1,
+      direction,
+    }));
   };
 
   const highlightFeedback = useCallback((feedbackId: number | null) => {
@@ -928,6 +946,8 @@ export default function ReviewPage() {
         .filter((marker) => Number.isFinite(marker.time) && marker.time >= 0),
     [feedbacks],
   );
+  const canShowScriptViewToggle =
+    scriptStatus === 'ready' || scriptStatus === 'error';
 
   return (
     <main className="reaction-bg relative min-h-screen overflow-hidden text-[#eee7dc]">
@@ -951,20 +971,22 @@ export default function ReviewPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsScriptViewEnabled((enabled) => !enabled)}
-              className={[
-                'inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
-                isScriptViewEnabled
-                  ? 'border-white/85 bg-[var(--reaction-paper)] text-[var(--reaction-wine)] shadow-[0_0_18px_rgba(255,248,239,0.22)]'
-                  : 'border-white/18 bg-white/8 text-[#eee7dc] hover:bg-white/14',
-              ].join(' ')}
-              aria-pressed={isScriptViewEnabled}
-            >
-              <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />
-              <span>대본보기 {isScriptViewEnabled ? 'ON' : 'OFF'}</span>
-            </button>
+            {canShowScriptViewToggle && (
+              <button
+                type="button"
+                onClick={() => setIsScriptViewEnabled((enabled) => !enabled)}
+                className={[
+                  'inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
+                  isScriptViewEnabled
+                    ? 'border-white/85 bg-[var(--reaction-paper)] text-[var(--reaction-wine)] shadow-[0_0_18px_rgba(255,248,239,0.22)]'
+                    : 'border-white/18 bg-white/8 text-[#eee7dc] hover:bg-white/14',
+                ].join(' ')}
+                aria-pressed={isScriptViewEnabled}
+              >
+                <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />
+                <span>대본보기 {isScriptViewEnabled ? 'ON' : 'OFF'}</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -976,7 +998,7 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {isScriptViewEnabled ? (
+        {isScriptViewEnabled && canShowScriptViewToggle ? (
           <div className="min-h-0 flex-1 overflow-hidden">
             {renderScriptReviewContent()}
           </div>
@@ -988,8 +1010,11 @@ export default function ReviewPage() {
                 appearances={actorAppearances}
                 feedbackPlaybackMarkers={feedbackPlaybackMarkers}
                 requiredFeedbackMarkers={requiredFeedbackMarkers}
+                selectedActorIds={selectedActorIds}
                 isVideoLoading={isLoadingVideo}
                 videoMessage={videoMessage}
+                actorOnlyPlaybackRequest={actorOnlyPlaybackRequest}
+                actorTimelineNavigationRequest={actorTimelineNavigationRequest}
                 highlightedFeedbackId={highlightedFeedbackId}
                 onRequiredFeedbackMarkerClick={highlightFeedback}
                 onPlaybackFeedbackChange={highlightFeedback}
@@ -1001,9 +1026,12 @@ export default function ReviewPage() {
                 selectedFeedbackTags={selectedFeedbackTags}
                 selectedPriorityTags={selectedPriorityTags}
                 selectedActorIds={selectedActorIds}
+                actorIdsWithTimeline={actorIdsWithTimeline}
                 onFeedbackTagToggle={toggleFeedbackTag}
                 onPriorityTagToggle={togglePriorityTag}
                 onActorToggle={toggleActor}
+                onSelectedActorPlayback={requestSelectedActorPlayback}
+                onSelectedActorTimelineMove={requestSelectedActorTimelineMove}
               />
             </section>
 

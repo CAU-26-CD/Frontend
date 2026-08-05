@@ -319,15 +319,21 @@ export function useFeedback(
     setSelectedActors((prev) => prev.slice(0, -1));
   };
 
+  const clearDraft = useCallback(() => {
+    setSelectedActors([]);
+    setTimestamp(null);
+    setContent('');
+  }, []);
+
   const handleEdit = (feedback: Feedback) => {
     setEditingId(feedback.id);
     setEditingContent(feedback.content);
   };
 
-  const handleEditCancel = () => {
+  const handleEditCancel = useCallback(() => {
     setEditingId(null);
     setEditingContent('');
-  };
+  }, []);
 
   const handleEditSave = async (id: number) => {
     if (!editingContent.trim()) return;
@@ -502,6 +508,7 @@ export function useFeedback(
     addSelectedActor,
     toggleSelectedActor,
     removeLastSelectedActor,
+    clearDraft,
     setContent,
     setEditingContent,
 

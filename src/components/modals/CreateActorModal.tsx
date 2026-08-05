@@ -17,14 +17,18 @@ export default function CreateActorModal({
   const [actorName, setActorName] = useState('');
   const [actorNames, setActorNames] = useState<string[]>([]);
 
+  const getNextActorNames = () => {
+    const nextName = actorName.trim();
+
+    return nextName && !actorNames.some((name) => name === nextName)
+      ? [...actorNames, nextName]
+      : actorNames;
+  };
+
   const addActorName = () => {
     const nextName = actorName.trim();
 
-    if (
-      !nextName ||
-      isSubmitting ||
-      actorNames.some((name) => name === nextName)
-    ) {
+    if (!nextName || isSubmitting || actorNames.includes(nextName)) {
       return;
     }
 
@@ -42,12 +46,11 @@ export default function CreateActorModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    addActorName();
+  };
 
-    const nextName = actorName.trim();
-    const nextActorNames =
-      nextName && !actorNames.some((name) => name === nextName)
-        ? [...actorNames, nextName]
-        : actorNames;
+  const handleRegisterClick = () => {
+    const nextActorNames = getNextActorNames();
 
     if (nextActorNames.length === 0 || isSubmitting) {
       return;
@@ -82,8 +85,7 @@ export default function CreateActorModal({
             maxLength={20}
           />
           <button
-            type="button"
-            onClick={addActorName}
+            type="submit"
             disabled={!actorName.trim() || isSubmitting}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#c8b7aa] bg-white/30 text-[#431B1B] transition hover:border-[#431B1B] hover:bg-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/20 disabled:opacity-45"
             aria-label="배우 추가"
@@ -120,7 +122,8 @@ export default function CreateActorModal({
         )}
 
         <button
-          type="submit"
+          type="button"
+          onClick={handleRegisterClick}
           disabled={
             (!actorName.trim() && actorNames.length === 0) || isSubmitting
           }
