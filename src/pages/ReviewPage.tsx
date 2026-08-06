@@ -172,6 +172,19 @@ const normalizeFeedbackPriorities = (priority: string[]) =>
     feedbackPriorities.includes(item as FeedbackPriority),
   );
 
+const getTaggedScriptFeedbackFallback = (
+  feedback: FeedbackV2Response,
+): ScriptFeedbackWithTags => {
+  const optionalTags = feedback as FeedbackV2Response &
+    Partial<FeedbackTagsResponse>;
+
+  return {
+    ...feedback,
+    priority: normalizeFeedbackPriorities(optionalTags.priority ?? []),
+    categories: optionalTags.categories ?? [],
+  };
+};
+
 const toFiniteActorId = (value: unknown) => {
   const actorId = Number(value);
 
@@ -638,11 +651,7 @@ export default function ReviewPage() {
                 ...tags,
               };
             } catch {
-              return {
-                ...feedback,
-                priority: [],
-                categories: [],
-              };
+              return getTaggedScriptFeedbackFallback(feedback);
             }
           }),
         );
@@ -834,6 +843,7 @@ export default function ReviewPage() {
             script={script}
             feedbacks={scriptReviewFeedbacks}
             actors={reviewActors}
+            feedbackTags={feedbackTags}
           />
         </div>
 

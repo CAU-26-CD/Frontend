@@ -2,6 +2,12 @@ import { ArrowUp } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import LoadingSpinner from '../LoadingSpinner';
 import type { Actor, Feedback, FeedbackPriority } from '../../types/feedback';
+import {
+  getFeedbackActorNames,
+  getFeedbackPriorityColor,
+  getFeedbackPriorityTextColor,
+  getPrimaryFeedbackPriority,
+} from '../../utils/scriptFeedbackStyle';
 import type { ReviewFeedbackTag, ReviewPriorityTag } from './ReviewFilterBar';
 
 type ReviewFeedbackPanelProps = {
@@ -15,23 +21,6 @@ type ReviewFeedbackPanelProps = {
   highlightedFeedbackId?: number | null;
   isLoading?: boolean;
 };
-
-const priorityColorById: Record<FeedbackPriority, string> = {
-  required: '#ff6b6b',
-  recommended: '#f6d76f',
-  discussion: '#c9c1ba',
-  praise: '#80c7f5',
-};
-
-const priorityOrder: FeedbackPriority[] = [
-  'required',
-  'recommended',
-  'discussion',
-  'praise',
-];
-
-const getPrimaryPriority = (feedback: Feedback) =>
-  priorityOrder.find((priority) => feedback.priority?.includes(priority));
 
 const getFeedbackCategoryTags = (
   feedbackCategories: string[],
@@ -220,21 +209,16 @@ export default function ReviewFeedbackPanel({
                 feedbackTags,
               );
               const primaryCategory = feedbackCategories[0];
-              const primaryPriority = getPrimaryPriority(feedback);
+              const primaryPriority = getPrimaryFeedbackPriority(feedback);
               const isHighlighted = feedback.id === highlightedFeedbackId;
               const isLastFeedback = index === visibleFeedbacks.length - 1;
-              const timelineColor =
-                (primaryPriority ? priorityColorById[primaryPriority] : null) ??
-                '#fff8ef';
-              const feedbackActorNames = feedback.actorIds
-                .map(
-                  (actorId) =>
-                    actors.find((actor) => actor.id === actorId)?.name ??
-                    feedback.actorNames?.[feedback.actorIds.indexOf(actorId)],
-                )
-                .filter(Boolean)
-                .filter((name, index, names) => names.indexOf(name) === index)
-                .join(', ');
+              const bubbleColor = getFeedbackPriorityColor(feedback, '#6f625a');
+              const bubbleTextColor = getFeedbackPriorityTextColor(
+                feedback,
+                '#fff8ef',
+              );
+              const feedbackActorNames =
+                getFeedbackActorNames(feedback, actors) || '배우 미지정';
               const categoryLabel =
                 categoryTags.length === 0
                   ? categoryLabelByValue[primaryCategory]
@@ -251,31 +235,47 @@ export default function ReviewFeedbackPanel({
                     }
                   }}
                   className={[
-                    'grid grid-cols-[18px_minmax(0,1fr)] items-start gap-2 rounded-[7px] px-1.5 py-1.5 text-xs font-semibold leading-relaxed transition',
+                    'grid grid-cols-[16px_minmax(0,1fr)] items-start gap-2 rounded-[7px] px-1 py-1 text-xs font-semibold leading-relaxed transition',
                     isHighlighted
-                      ? 'bg-[#fff8ef]/58 text-[#2d1715] shadow-[0_0_0_1px_rgba(255,255,255,0.42),0_0_18px_rgba(255,255,255,0.2)]'
+                      ? 'bg-[#fff8ef]/24 shadow-[0_0_0_1px_rgba(255,255,255,0.42),0_0_18px_rgba(255,255,255,0.2)]'
                       : 'text-[#eee7dc]',
                   ].join(' ')}
                 >
                   <div className="flex flex-col items-center pt-1">
                     <span
                       className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: timelineColor }}
+                      style={{ backgroundColor: bubbleColor }}
                       aria-hidden="true"
                     />
                     {!isLastFeedback && (
-                      <span className="mt-2 h-5 w-px rounded-full bg-[#eee7dc]/30" />
+                      <span className="mt-2 h-6 w-px rounded-full bg-[#eee7dc]/30" />
                     )}
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <div
+                    className="min-w-0 rounded-[7px] px-3 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.16)] ring-1 ring-white/18"
+                    style={{
+                      backgroundColor: bubbleColor,
+                      color: bubbleTextColor,
+                    }}
+                  >
+                    <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-none">
+                      <span className="max-w-[156px] truncate opacity-[0.86]">
+                        {feedbackActorNames}
+                      </span>
+                      <span className="opacity-45">|</span>
                       <time
-                        className="shrink-0 rounded-full bg-white/18 px-1.5 py-0.5 text-[12px] font-black leading-none shadow-[0_0_10px_rgba(255,255,255,0.18)] ring-1 ring-white/18 backdrop-blur-[1px]"
-                        style={{ color: timelineColor }}
+                        className="shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-black leading-none shadow-[0_0_10px_rgba(255,255,255,0.16)] ring-1 ring-white/18 backdrop-blur-[1px]"
                       >
                         {feedback.timestamp}
                       </time>
+                    </div>
+
+                    <p className="min-w-0 break-words text-[13px] font-black leading-relaxed [overflow-wrap:anywhere]">
+                      {feedback.content}
+                    </p>
+
+                    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
                       {categoryTags.map((tag) => (
                         <span
                           key={tag.id}
@@ -290,26 +290,13 @@ export default function ReviewFeedbackPanel({
                           <span className="truncate">{categoryLabel}</span>
                         </span>
                       )}
+                      {primaryPriority && (
+                        <span className="inline-flex h-5 max-w-full items-center rounded-[5px] bg-white/22 px-2 text-[10px] font-bold">
+                          {priorityTags.find((tag) => tag.id === primaryPriority)
+                            ?.label ?? primaryPriority}
+                        </span>
+                      )}
                     </div>
-                    <p
-                      className={[
-                        'mt-1 min-w-0 break-words text-[12px] font-semibold leading-relaxed [overflow-wrap:anywhere]',
-                        isHighlighted ? 'text-[#2d1715]' : 'text-[#eee7dc]/84',
-                      ].join(' ')}
-                    >
-                      <span
-                        className={[
-                          'font-bold',
-                          isHighlighted
-                            ? 'text-[#431B1B]/82'
-                            : 'text-[#fff8ef]/86',
-                        ].join(' ')}
-                      >
-                        {feedbackActorNames || '배우 미지정'}
-                      </span>
-                      <span className="mx-1 text-current/50">-</span>
-                      <span>{feedback.content}</span>
-                    </p>
                   </div>
                 </article>
               );

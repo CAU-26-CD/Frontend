@@ -15,7 +15,10 @@ import type { ProjectScript } from '../../apis/script';
 import LoadingSpinner from '../LoadingSpinner';
 import type { FeedbackV2Response } from '../../apis/feedback';
 import type { Actor, Feedback } from '../../types/feedback';
-import { getScriptActorColorById } from '../../utils/scriptFeedbackStyle';
+import {
+  getFeedbackActorNames,
+  getScriptActorColorById,
+} from '../../utils/scriptFeedbackStyle';
 import ScriptFeedbackComposer from './ScriptFeedbackComposer';
 import type { ScriptFeedbackDraftAnchor } from './ScriptFeedbackComposer';
 
@@ -452,6 +455,8 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
           actors,
           feedback.actorIds[0],
         );
+        const actorNames =
+          getFeedbackActorNames(feedback, actors) || '배우 미지정';
 
         return (
           <div
@@ -506,7 +511,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                 return createPortal(
                   <div
                     className={[
-                      'script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      'script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 rounded-[20px] rounded-bl-[7px] border border-white/24 px-4 py-3.5 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
                       isBubbleClosing ? 'script-feedback-bubble-out' : '',
                     ].join(' ')}
                     style={{
@@ -521,17 +526,11 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                       style={{ backgroundColor: feedbackColor }}
                       aria-hidden="true"
                     />
-                    <div className="relative mb-1 flex min-w-0 items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-black text-white/82">
+                    <div className="relative mb-2 flex min-w-0 items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight text-white/82">
+                        <span className="truncate">{actorNames}</span>
+                        <span className="text-white/44">|</span>
                         <span>{feedback.timestamp}</span>
-                        {feedback.actorNames && feedback.actorNames.length > 0 && (
-                          <>
-                            <span className="text-white/44">|</span>
-                            <span className="truncate">
-                              {feedback.actorNames.join(', ')}
-                            </span>
-                          </>
-                        )}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {isEditing ? (
@@ -603,10 +602,10 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                           }
                         }}
                         disabled={isMutating}
-                        className="max-h-28 min-h-16 w-full resize-none rounded-[12px] border border-white/28 bg-white/18 px-2 py-1.5 text-[11px] font-bold leading-relaxed text-white outline-none placeholder:text-white/66 focus:border-white/70 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
+                        className="max-h-28 min-h-16 w-full resize-none rounded-[12px] border border-white/28 bg-white/18 px-2 py-1.5 text-[13px] font-bold leading-relaxed text-white outline-none placeholder:text-white/66 focus:border-white/70 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
                       />
                     ) : (
-                      <p className="relative line-clamp-4 whitespace-pre-wrap text-[11px] font-bold leading-relaxed text-white">
+                      <p className="relative line-clamp-4 whitespace-pre-wrap text-[13px] font-black leading-relaxed text-white">
                         {feedback.content}
                       </p>
                     )}

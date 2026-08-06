@@ -1,6 +1,5 @@
-import { RotateCcw } from 'lucide-react';
+import { Pin, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import * as pdfjsLib from 'pdfjs-dist';
 import type {
   PDFDocumentLoadingTask,
@@ -11,8 +10,13 @@ import type {
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import type { ProjectScript } from '../../apis/script';
 import type { Actor, Feedback } from '../../types/feedback';
-import { getScriptActorColorById } from '../../utils/scriptFeedbackStyle';
+import {
+  getFeedbackActorNames,
+  getFeedbackPriorityColor,
+  getFeedbackPriorityTextColor,
+} from '../../utils/scriptFeedbackStyle';
 import LoadingSpinner from '../LoadingSpinner';
+import type { ReviewFeedbackTag } from './ReviewFilterBar';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -20,18 +24,27 @@ type ScriptReviewPdfViewerProps = {
   script: ProjectScript;
   feedbacks: Feedback[];
   actors: Actor[];
+  feedbackTags: ReviewFeedbackTag[];
 };
 
 type ScriptReviewStatus = 'loading' | 'ready' | 'error';
 
-type PageViewportRect = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
 const FEEDBACK_BUBBLE_EXIT_MS = 110;
+const FEEDBACK_BUBBLE_CLOSE_DELAY_MS = 160;
+const FEEDBACK_BUBBLE_WIDTH = 288;
+const FEEDBACK_BUBBLE_MIN_WIDTH = 180;
+const FEEDBACK_BUBBLE_GAP = 14;
+const FEEDBACK_BUBBLE_PAGE_MARGIN = 8;
+
+const getFeedbackCategoryTags = (
+  feedbackCategories: string[],
+  feedbackTags: ReviewFeedbackTag[],
+) =>
+  feedbackTags.filter((tag) =>
+    feedbackCategories.some(
+      (category) => category === tag.id || tag.values.includes(category),
+    ),
+  );
 
 const hasValidAnchor = (feedback: Feedback): feedback is Feedback & {
   scriptPage: number;
@@ -56,6 +69,7 @@ function ScriptReviewPdfPage({
   containerWidth,
   markers,
   actors,
+  feedbackTags,
   pinnedFeedbackId,
   onPinnedFeedbackToggle,
 }: {
@@ -70,6 +84,7 @@ function ScriptReviewPdfPage({
     }
   >;
   actors: Actor[];
+  feedbackTags: ReviewFeedbackTag[];
   pinnedFeedbackId: number | null;
   onPinnedFeedbackToggle: (feedback: Feedback) => void;
 }) {
@@ -83,7 +98,6 @@ function ScriptReviewPdfPage({
   const [closingBubbleFeedbackId, setClosingBubbleFeedbackId] = useState<
     number | null
   >(null);
-  const [pageRect, setPageRect] = useState<PageViewportRect | null>(null);
   const bubbleCloseTimeoutRef = useRef<number | null>(null);
 
   const clearBubbleCloseTimeout = useCallback(() => {
@@ -98,32 +112,21 @@ function ScriptReviewPdfPage({
   const closeBubbleWithAnimation = useCallback(
     (feedbackId: number) => {
       clearBubbleCloseTimeout();
-      setClosingBubbleFeedbackId(feedbackId);
       bubbleCloseTimeoutRef.current = window.setTimeout(() => {
-        setClosingBubbleFeedbackId((currentId) =>
+        setHoveredFeedbackId((currentId) =>
           currentId === feedbackId ? null : currentId,
         );
-        bubbleCloseTimeoutRef.current = null;
-      }, FEEDBACK_BUBBLE_EXIT_MS);
+        setClosingBubbleFeedbackId(feedbackId);
+        bubbleCloseTimeoutRef.current = window.setTimeout(() => {
+          setClosingBubbleFeedbackId((currentId) =>
+            currentId === feedbackId ? null : currentId,
+          );
+          bubbleCloseTimeoutRef.current = null;
+        }, FEEDBACK_BUBBLE_EXIT_MS);
+      }, FEEDBACK_BUBBLE_CLOSE_DELAY_MS);
     },
     [clearBubbleCloseTimeout],
   );
-
-  const updatePageRect = useCallback(() => {
-    const rect = pageElementRef.current?.getBoundingClientRect();
-
-    if (!rect) {
-      setPageRect(null);
-      return;
-    }
-
-    setPageRect({
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-    });
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -168,7 +171,6 @@ function ScriptReviewPdfPage({
 
         if (!cancelled) {
           setIsRendering(false);
-          updatePageRect();
         }
       } catch (error) {
         if (
@@ -186,37 +188,9 @@ function ScriptReviewPdfPage({
       cancelled = true;
       renderTaskRef.current?.cancel();
     };
-  }, [containerWidth, document, pageNumber, updatePageRect]);
-
-  useEffect(() => {
-    if (isRendering) {
-      return;
-    }
-
-    const animationFrameId = window.requestAnimationFrame(updatePageRect);
-
-    window.addEventListener('resize', updatePageRect);
-    window.addEventListener('scroll', updatePageRect, true);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', updatePageRect);
-      window.removeEventListener('scroll', updatePageRect, true);
-    };
-  }, [isRendering, updatePageRect]);
+  }, [containerWidth, document, pageNumber]);
 
   useEffect(() => clearBubbleCloseTimeout, [clearBubbleCloseTimeout]);
-
-  const getMarkerViewportPosition = (feedback: Feedback) => {
-    if (!hasValidAnchor(feedback) || !pageRect) {
-      return null;
-    }
-
-    return {
-      left: pageRect.left + feedback.scriptX * pageRect.width + 18,
-      top: pageRect.top + feedback.scriptY * pageRect.height,
-    };
-  };
 
   return (
     <div
@@ -230,22 +204,51 @@ function ScriptReviewPdfPage({
 
       {!isRendering &&
         markers.map((feedback) => {
-          const markerColor = getScriptActorColorById(
-            actors,
-            feedback.actorIds[0],
+          const markerColor = getFeedbackPriorityColor(feedback, '#6f625a');
+          const bubbleTextColor = getFeedbackPriorityTextColor(
+            feedback,
+            '#fff8ef',
           );
           const isPinned = pinnedFeedbackId === feedback.id;
           const isOpen = isPinned || hoveredFeedbackId === feedback.id;
           const isBubbleVisible = isOpen || closingBubbleFeedbackId === feedback.id;
           const isBubbleClosing =
             closingBubbleFeedbackId === feedback.id && !isOpen;
-          const position = isBubbleVisible
-            ? getMarkerViewportPosition(feedback)
-            : null;
           const actorNames =
-            feedback.actorNames && feedback.actorNames.length > 0
-              ? feedback.actorNames.join(', ')
-              : '배우 미지정';
+            getFeedbackActorNames(feedback, actors) || '배우 미지정';
+          const categoryTags = getFeedbackCategoryTags(
+            feedback.categories ?? [],
+            feedbackTags,
+          );
+          const markerCenterX = feedback.scriptX * containerWidth;
+          const bubbleWidth = Math.min(
+            FEEDBACK_BUBBLE_WIDTH,
+            Math.max(
+              FEEDBACK_BUBBLE_MIN_WIDTH,
+              containerWidth - FEEDBACK_BUBBLE_PAGE_MARGIN * 2,
+            ),
+          );
+          const unclampedBubbleLeft =
+            markerCenterX + FEEDBACK_BUBBLE_GAP + bubbleWidth <= containerWidth
+              ? FEEDBACK_BUBBLE_GAP
+              : -FEEDBACK_BUBBLE_GAP - bubbleWidth;
+          const minBubbleLeft =
+            FEEDBACK_BUBBLE_PAGE_MARGIN - markerCenterX;
+          const maxBubbleLeft =
+            containerWidth -
+            FEEDBACK_BUBBLE_PAGE_MARGIN -
+            markerCenterX -
+            bubbleWidth;
+          const bubbleLeft = Math.min(
+            maxBubbleLeft,
+            Math.max(minBubbleLeft, unclampedBubbleLeft),
+          );
+          const bridgeLeft =
+            bubbleLeft < 0 ? bubbleLeft + bubbleWidth : 0;
+          const bridgeWidth =
+            bubbleLeft < 0
+              ? Math.max(0, 32 - bridgeLeft)
+              : Math.max(0, bubbleLeft);
 
           return (
             <div
@@ -255,21 +258,19 @@ function ScriptReviewPdfPage({
                 left: `${feedback.scriptX * 100}%`,
                 top: `${feedback.scriptY * 100}%`,
               }}
+              onMouseEnter={() => {
+                clearBubbleCloseTimeout();
+                setClosingBubbleFeedbackId(null);
+                setHoveredFeedbackId(feedback.id);
+              }}
+              onMouseLeave={() => {
+                if (!isPinned) {
+                  closeBubbleWithAnimation(feedback.id);
+                }
+              }}
             >
               <button
                 type="button"
-                onMouseEnter={() => {
-                  clearBubbleCloseTimeout();
-                  setClosingBubbleFeedbackId(null);
-                  setHoveredFeedbackId(feedback.id);
-                }}
-                onMouseLeave={() => {
-                  setHoveredFeedbackId(null);
-
-                  if (!isPinned) {
-                    closeBubbleWithAnimation(feedback.id);
-                  }
-                }}
                 onClick={(event) => {
                   event.stopPropagation();
                   onPinnedFeedbackToggle(feedback);
@@ -287,51 +288,81 @@ function ScriptReviewPdfPage({
                     : `0 0 12px ${markerColor}91, 0 0 24px ${markerColor}52`,
                 }}
                 aria-label="대본 피드백 보기"
-                onFocus={updatePageRect}
-                onPointerEnter={updatePageRect}
               />
 
-              {isBubbleVisible &&
-                position &&
-                createPortal(
-                  <button
-                    type="button"
+              {isBubbleVisible && (
+                <>
+                  <span
+                    className="pointer-events-auto absolute top-[-48px] z-20 h-32"
+                    style={{
+                      left: bridgeLeft,
+                      width: bridgeWidth,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div
                     className={[
-                      'script-feedback-bubble reaction-ui-font pointer-events-auto fixed z-[9999] w-72 rounded-[22px] rounded-bl-[8px] border border-white/24 px-4 py-3 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      'script-feedback-bubble reaction-ui-font pointer-events-auto absolute top-1/2 z-30 rounded-[20px] border border-white/24 px-4 py-3.5 text-left opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
                       isBubbleClosing ? 'script-feedback-bubble-out' : '',
                     ].join(' ')}
                     style={{
-                      left: position.left,
-                      top: position.top,
+                      left: bubbleLeft,
+                      width: bubbleWidth,
                       backgroundColor: markerColor,
+                      color: bubbleTextColor,
                     }}
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (isPinned) {
-                        onPinnedFeedbackToggle(feedback);
-                      }
                     }}
                   >
-                    <span
-                      className="absolute left-[-9px] top-1/2 h-5 w-5 -translate-y-1/2 rotate-45 rounded-[4px]"
-                      style={{ backgroundColor: markerColor }}
-                      aria-hidden="true"
-                    />
-                    <div className="relative mb-1 flex min-w-0 items-center gap-1.5 text-[10px] font-black text-white/82">
-                      <time className="shrink-0">{feedback.timestamp}</time>
-                      <span className="text-white/44">|</span>
-                      <span className="truncate">{actorNames}</span>
-                      {isPinned && (
-                        <span className="ml-auto shrink-0 rounded-full bg-white/18 px-1.5 py-0.5 text-[9px] text-white">
-                          고정
-                        </span>
-                      )}
+                    <div className="relative mb-2 flex min-w-0 items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight opacity-[0.85]">
+                        <span className="truncate">{actorNames}</span>
+                        <span className="opacity-45">|</span>
+                        <time className="shrink-0">{feedback.timestamp}</time>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onPinnedFeedbackToggle(feedback);
+                        }}
+                        className={[
+                          'inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[9px] font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                          isPinned
+                            ? 'border-white/46 bg-white/28'
+                            : 'border-white/26 bg-white/14 hover:bg-white/22',
+                        ].join(' ')}
+                        aria-pressed={isPinned}
+                        aria-label={isPinned ? '피드백 고정 해제' : '피드백 고정'}
+                      >
+                        <Pin
+                          size={11}
+                          strokeWidth={2.6}
+                          fill={isPinned ? 'currentColor' : 'none'}
+                          aria-hidden="true"
+                        />
+                        {isPinned ? '해제' : '고정'}
+                      </button>
                     </div>
-                    <p className="relative whitespace-pre-wrap break-words text-[11px] font-bold leading-relaxed text-white [overflow-wrap:anywhere]">
+                    <p className="relative whitespace-pre-wrap break-words text-[13px] font-black leading-relaxed [overflow-wrap:anywhere]">
                       {feedback.content}
                     </p>
-                  </button>,
-                  globalThis.document.body,
+                    {categoryTags.length > 0 && (
+                      <div className="relative mt-2 flex min-w-0 flex-wrap gap-1.5">
+                        {categoryTags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex h-5 max-w-full items-center rounded-[5px] px-2 text-[10px] font-bold text-[#431B1B]"
+                            style={{ backgroundColor: tag.color }}
+                          >
+                            <span className="truncate">{tag.label}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
                 )}
             </div>
           );
@@ -344,6 +375,7 @@ export default function ScriptReviewPdfViewer({
   script,
   feedbacks,
   actors,
+  feedbackTags,
 }: ScriptReviewPdfViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<ScriptReviewStatus>('loading');
@@ -352,7 +384,6 @@ export default function ScriptReviewPdfViewer({
   const [containerWidth, setContainerWidth] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const [pinnedFeedbackId, setPinnedFeedbackId] = useState<number | null>(null);
-  const [, refreshOverlayPosition] = useState(0);
 
   const feedbackMarkers = useMemo(
     () => feedbacks.filter(hasValidAnchor),
@@ -381,33 +412,6 @@ export default function ScriptReviewPdfViewer({
 
     return () => {
       resizeObserver.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-
-    if (!scrollContainer) {
-      return;
-    }
-
-    let animationFrameId = 0;
-    const updateOverlayPosition = () => {
-      window.cancelAnimationFrame(animationFrameId);
-      animationFrameId = window.requestAnimationFrame(() => {
-        refreshOverlayPosition((version) => version + 1);
-      });
-    };
-
-    scrollContainer.addEventListener('scroll', updateOverlayPosition, {
-      passive: true,
-    });
-    window.addEventListener('resize', updateOverlayPosition);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      scrollContainer.removeEventListener('scroll', updateOverlayPosition);
-      window.removeEventListener('resize', updateOverlayPosition);
     };
   }, []);
 
@@ -514,6 +518,7 @@ export default function ScriptReviewPdfViewer({
                     (feedback) => feedback.scriptPage === pageNumber,
                   )}
                   actors={actors}
+                  feedbackTags={feedbackTags}
                   pinnedFeedbackId={pinnedFeedbackId}
                   onPinnedFeedbackToggle={togglePinnedFeedback}
                 />
