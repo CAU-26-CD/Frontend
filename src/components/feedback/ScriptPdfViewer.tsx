@@ -36,13 +36,32 @@ type ScriptPdfViewerProps = {
   selectionVersion: number;
   feedbacks: Feedback[];
   draftContent: string;
+  scrollProgressRequest?: {
+    id: number;
+    progress: number;
+  } | null;
   getCurrentOffsetSeconds: () => number;
   onDraftContentChange: (content: string) => void;
   onDraftOpenChange: (isOpen: boolean) => void;
+  onPageCountChange?: (pageCount: number) => void;
+  onScrollProgressChange?: (progress: number) => void;
   onFeedbackSelect: (feedback: Feedback) => void;
   onFeedbackUpdated: (feedback: FeedbackV2Response) => void;
   onFeedbackDelete: (feedback: Feedback) => Promise<void> | void;
-  onFeedbackCreated: (feedback: FeedbackV2Response) => void;
+  onPendingFeedbackCreate?: (feedback: {
+    actorIds: number[];
+    actorNames: string[];
+    content: string;
+    scriptPage: number;
+    scriptX: number;
+    scriptY: number;
+    videoOffsetSeconds: number;
+  }) => number;
+  onPendingFeedbackRemove?: (feedbackId: number) => void;
+  onFeedbackCreated: (
+    feedback: FeedbackV2Response,
+    pendingFeedbackId?: number,
+  ) => void;
 };
 
 type ScriptAnchor = {
@@ -57,6 +76,7 @@ type PageRenderSize = {
 };
 
 const FEEDBACK_BUBBLE_EXIT_MS = 110;
+const SCRIPT_DRAFT_CLOSE_ANIMATION_MS = 150;
 const EMPTY_FEEDBACK_MARKERS: Array<
   Feedback & {
     scriptPage: number;
@@ -134,7 +154,11 @@ type ScriptPdfDocumentSurfaceProps = Omit<
   | 'onFeedbackCreated'
 > & {
   onDraftOpen: (anchor: ScriptFeedbackDraftAnchor) => void;
+  onSurfaceScroll?: () => void;
 };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 const ScriptPdfCanvas = memo(function ScriptPdfCanvas({
   canvasRef,
@@ -446,8 +470,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
       {markers.map((feedback) => {
         const isSelected = selectedFeedbackId === feedback.id;
         const isEditing = editingFeedbackId === feedback.id;
-        const isOpen =
-          isSelected || isEditing || hoveredFeedbackId === feedback.id;
+        const isOpen = isEditing || hoveredFeedbackId === feedback.id;
         const isBubbleVisible = isOpen || closingBubbleFeedbackId === feedback.id;
         const isBubbleClosing =
           closingBubbleFeedbackId === feedback.id && !isOpen;
@@ -477,7 +500,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
               onMouseLeave={() => {
                 setHoveredFeedbackId(null);
 
-                if (!isSelected && !isEditing) {
+                if (!isEditing) {
                   closeBubbleWithAnimation(feedback.id);
                 }
               }}
@@ -674,8 +697,12 @@ const ScriptPdfDocumentSurface = memo(function ScriptPdfDocumentSurface({
   selectedFeedback,
   selectionVersion,
   feedbacks,
+  scrollProgressRequest,
   getCurrentOffsetSeconds,
+  onPageCountChange,
+  onScrollProgressChange,
   onDraftOpen,
+  onSurfaceScroll,
   onFeedbackSelect,
   onFeedbackUpdated,
   onFeedbackDelete,
@@ -753,6 +780,15 @@ const ScriptPdfDocumentSurface = memo(function ScriptPdfDocumentSurface({
 
     let animationFrameId = 0;
     const updateOverlayPosition = () => {
+      onSurfaceScroll?.();
+      const maxScrollTop = Math.max(
+        0,
+        scrollContainer.scrollHeight - scrollContainer.clientHeight,
+      );
+
+      onScrollProgressChange?.(
+        maxScrollTop === 0 ? 0 : scrollContainer.scrollTop / maxScrollTop,
+      );
       window.cancelAnimationFrame(animationFrameId);
       animationFrameId = window.requestAnimationFrame(() => {
         refreshOverlayPosition((version) => version + 1);
@@ -769,7 +805,7 @@ const ScriptPdfDocumentSurface = memo(function ScriptPdfDocumentSurface({
       scrollContainer.removeEventListener('scroll', updateOverlayPosition);
       window.removeEventListener('resize', updateOverlayPosition);
     };
-  }, []);
+  }, [onScrollProgressChange, onSurfaceScroll]);
 
   useEffect(() => {
     if (!script.url) {
@@ -798,6 +834,7 @@ const ScriptPdfDocumentSurface = memo(function ScriptPdfDocumentSurface({
         }
 
         setDocument(nextDocument);
+        onPageCountChange?.(nextDocument.numPages);
         setStatus('ready');
       } catch (error) {
         if (ignore) {
@@ -820,7 +857,29 @@ const ScriptPdfDocumentSurface = memo(function ScriptPdfDocumentSurface({
       loadingTask?.destroy();
       loadingTask = null;
     };
-  }, [retryCount, script.url]);
+  }, [onPageCountChange, retryCount, script.url]);
+
+  useEffect(() => {
+    if (!scrollProgressRequest || status !== 'ready') {
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(
+      0,
+      scrollContainer.scrollHeight - scrollContainer.clientHeight,
+    );
+
+    scrollContainer.scrollTo({
+      behavior: 'auto',
+      top: maxScrollTop * clamp(scrollProgressRequest.progress, 0, 1),
+    });
+  }, [scrollProgressRequest, status]);
 
   useEffect(() => {
     if (!selectedAnchor || !scrollContainerRef.current) {
@@ -1003,31 +1062,79 @@ export default function ScriptPdfViewer({
   selectionVersion,
   feedbacks,
   draftContent,
+  scrollProgressRequest = null,
   getCurrentOffsetSeconds,
   onDraftContentChange,
   onDraftOpenChange,
+  onPageCountChange,
+  onScrollProgressChange,
   onFeedbackSelect,
   onFeedbackUpdated,
   onFeedbackDelete,
+  onPendingFeedbackCreate,
+  onPendingFeedbackRemove,
   onFeedbackCreated,
 }: ScriptPdfViewerProps) {
   const [draftAnchor, setDraftAnchor] =
     useState<ScriptFeedbackDraftAnchor | null>(null);
+  const [isDraftClosing, setIsDraftClosing] = useState(false);
+  const draftCloseTimeoutRef = useRef<number | null>(null);
+
+  const clearDraftCloseTimeout = useCallback(() => {
+    if (draftCloseTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(draftCloseTimeoutRef.current);
+    draftCloseTimeoutRef.current = null;
+  }, []);
 
   const handleDraftOpen = useCallback(
     (anchor: ScriptFeedbackDraftAnchor) => {
+      clearDraftCloseTimeout();
+      setIsDraftClosing(false);
       setDraftAnchor(anchor);
       onDraftContentChange('');
       onDraftOpenChange(true);
     },
-    [onDraftContentChange, onDraftOpenChange],
+    [clearDraftCloseTimeout, onDraftContentChange, onDraftOpenChange],
   );
 
   const closeDraft = useCallback(() => {
-    setDraftAnchor(null);
+    if (!draftAnchor) {
+      return;
+    }
+
+    clearDraftCloseTimeout();
+    setIsDraftClosing(true);
     onDraftContentChange('');
     onDraftOpenChange(false);
-  }, [onDraftContentChange, onDraftOpenChange]);
+    draftCloseTimeoutRef.current = window.setTimeout(() => {
+      setDraftAnchor(null);
+      setIsDraftClosing(false);
+      draftCloseTimeoutRef.current = null;
+    }, SCRIPT_DRAFT_CLOSE_ANIMATION_MS);
+  }, [
+    clearDraftCloseTimeout,
+    draftAnchor,
+    onDraftContentChange,
+    onDraftOpenChange,
+  ]);
+
+  useEffect(
+    () => () => {
+      clearDraftCloseTimeout();
+    },
+    [clearDraftCloseTimeout],
+  );
+
+  const handleSurfaceScroll = useCallback(() => {
+    if (!draftAnchor || isDraftClosing) {
+      return;
+    }
+
+    closeDraft();
+  }, [closeDraft, draftAnchor, isDraftClosing]);
 
   return (
     <>
@@ -1040,8 +1147,12 @@ export default function ScriptPdfViewer({
         selectedFeedback={selectedFeedback}
         selectionVersion={selectionVersion}
         feedbacks={feedbacks}
+        scrollProgressRequest={scrollProgressRequest}
         getCurrentOffsetSeconds={getCurrentOffsetSeconds}
+        onPageCountChange={onPageCountChange}
+        onScrollProgressChange={onScrollProgressChange}
         onDraftOpen={handleDraftOpen}
+        onSurfaceScroll={handleSurfaceScroll}
         onFeedbackSelect={onFeedbackSelect}
         onFeedbackUpdated={onFeedbackUpdated}
         onFeedbackDelete={onFeedbackDelete}
@@ -1051,6 +1162,7 @@ export default function ScriptPdfViewer({
         createPortal(
           <div className="pointer-events-none fixed inset-0 z-[9999]">
             <ScriptFeedbackComposer
+              key={`${draftAnchor.page}-${draftAnchor.x}-${draftAnchor.y}-${draftAnchor.videoOffsetSeconds}`}
               anchor={{
                 ...draftAnchor,
                 left: draftAnchor.viewportLeft,
@@ -1061,7 +1173,10 @@ export default function ScriptPdfViewer({
               userId={userId}
               content={draftContent}
               disabled={disabled}
+              isClosing={isDraftClosing}
               onContentChange={onDraftContentChange}
+              onPendingCreate={onPendingFeedbackCreate}
+              onPendingRemove={onPendingFeedbackRemove}
               onCreated={onFeedbackCreated}
               onCancel={closeDraft}
             />

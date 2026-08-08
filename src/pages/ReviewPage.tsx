@@ -1,5 +1,12 @@
-import { BookOpen, RotateCcw, Settings, Video } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BookOpen, MessageCircle, RotateCcw, Settings, Video } from 'lucide-react';
+import {
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { listProjectActors } from '../apis/actor';
 import {
@@ -36,6 +43,11 @@ import DesignedHeader from '../components/sidebar/DesignedHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useProjectBreadcrumb } from '../hooks/useProjectBreadcrumb';
 import type { Actor, Feedback, FeedbackPriority } from '../types/feedback';
+import {
+  getFeedbackActorNames,
+  getFeedbackPriorityColor,
+  getFeedbackPriorityTextColor,
+} from '../utils/scriptFeedbackStyle';
 
 const feedbackTags: ReviewFeedbackTag[] = [
   {
@@ -149,6 +161,9 @@ const feedbackPriorities: FeedbackPriority[] = [
   'praise',
 ];
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
 const secondsToTimestamp = (value: number) => {
   const minutes = Math.floor(value / 60);
   const seconds = value % 60;
@@ -219,6 +234,317 @@ const getVideoZeroOffsetSeconds = (video: SessionVideoResponse | null) => {
 
   return Math.max(0, (videoZeroAt - recordingStartedAt) / 1000);
 };
+
+const hasScriptFeedbackAnchor = (feedback: Feedback): feedback is Feedback & {
+  scriptPage: number;
+  scriptX: number;
+  scriptY: number;
+} =>
+  typeof feedback.scriptPage === 'number' &&
+  Number.isFinite(feedback.scriptPage) &&
+  feedback.scriptPage >= 1 &&
+  typeof feedback.scriptX === 'number' &&
+  Number.isFinite(feedback.scriptX) &&
+  feedback.scriptX >= 0 &&
+  feedback.scriptX <= 1 &&
+  typeof feedback.scriptY === 'number' &&
+  Number.isFinite(feedback.scriptY) &&
+  feedback.scriptY >= 0 &&
+  feedback.scriptY <= 1;
+
+function ScriptFeedbackTimeline({
+  feedbacks,
+  pageCount,
+  activeFeedbackId,
+  scrollProgress,
+  onFeedbackSelect,
+  onScrollRequest,
+}: {
+  feedbacks: Feedback[];
+  pageCount: number;
+  activeFeedbackId: number | null;
+  scrollProgress: number;
+  onFeedbackSelect: (feedbackId: number) => void;
+  onScrollRequest: (progress: number) => void;
+}) {
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const anchoredFeedbacks = useMemo(
+    () =>
+      feedbacks
+        .filter(hasScriptFeedbackAnchor)
+        .sort(
+          (left, right) =>
+            left.scriptPage - right.scriptPage || left.scriptY - right.scriptY,
+        ),
+    [feedbacks],
+  );
+  const resolvedPageCount = Math.max(
+    1,
+    pageCount,
+    ...anchoredFeedbacks.map((feedback) => feedback.scriptPage),
+  );
+  const normalizedScrollProgress = clamp(scrollProgress, 0, 1);
+  const getProgressFromPointer = useCallback((clientY: number) => {
+    const timeline = timelineRef.current;
+
+    if (!timeline) {
+      return null;
+    }
+
+    const rect = timeline.getBoundingClientRect();
+    const trackTop = rect.top + 16;
+    const trackHeight = Math.max(1, rect.height - 32);
+
+    return clamp((clientY - trackTop) / trackHeight, 0, 1);
+  }, []);
+
+  const requestScrollFromPointer = useCallback(
+    (clientY: number) => {
+      const nextProgress = getProgressFromPointer(clientY);
+
+      if (nextProgress === null) {
+        return;
+      }
+
+      onScrollRequest(nextProgress);
+    },
+    [getProgressFromPointer, onScrollRequest],
+  );
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    requestScrollFromPointer(event.clientY);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) {
+      return;
+    }
+
+    requestScrollFromPointer(event.clientY);
+  };
+
+  const stopDragging = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) {
+      return;
+    }
+
+    isDraggingRef.current = false;
+    setIsDragging(false);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  return (
+    <aside
+      className="reaction-ui-font flex h-full min-h-0 items-center justify-center"
+      aria-label="대본 피드백 위치"
+    >
+      <div
+        ref={timelineRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDragging}
+        onPointerCancel={stopDragging}
+        className={[
+          'relative h-full min-h-[220px] w-6 touch-none select-none rounded-full border border-white/18 bg-[#fff8ef]/10 px-2.5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_14px_28px_rgba(0,0,0,0.14)] backdrop-blur-sm',
+          isDragging ? 'cursor-grabbing' : 'cursor-grab',
+        ].join(' ')}
+        role="scrollbar"
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(normalizedScrollProgress * 100)}
+        tabIndex={0}
+      >
+        <span
+          className="absolute bottom-4 left-1/2 top-4 w-[3px] -translate-x-1/2 rounded-full bg-[#fff8ef]/28"
+          aria-hidden="true"
+        />
+        <span
+          className="absolute left-1/2 z-10 h-7 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#fff8ef] shadow-[0_0_14px_rgba(255,248,239,0.42)]"
+          style={{
+            top: `calc(16px + ${normalizedScrollProgress * 100}% - ${
+              normalizedScrollProgress * 32
+            }px)`,
+          }}
+          aria-hidden="true"
+        />
+
+        {anchoredFeedbacks.map((feedback) => {
+          const markerTop = clamp(
+            ((feedback.scriptPage - 1 + feedback.scriptY) /
+              resolvedPageCount) *
+              100,
+            4,
+            96,
+          );
+          const markerColor = getFeedbackPriorityColor(feedback, '#6f625a');
+          const isActive = activeFeedbackId === feedback.id;
+
+          return (
+            <button
+              key={feedback.id}
+              type="button"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={() => onFeedbackSelect(feedback.id)}
+              className={[
+                'absolute left-1/2 z-20 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+                isActive ? 'scale-110 bg-white/24' : 'hover:scale-110',
+              ].join(' ')}
+              style={{ top: `${markerTop}%` }}
+              aria-label={`${feedback.scriptPage}페이지 피드백으로 이동`}
+              title={`${feedback.scriptPage}페이지 ${feedback.timestamp}`}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full border border-white/90"
+                style={{
+                  backgroundColor: markerColor,
+                  boxShadow: isActive
+                    ? `0 0 12px ${markerColor}, 0 0 26px ${markerColor}a8`
+                    : `0 0 10px ${markerColor}8c`,
+                }}
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function ScriptFeedbackCollection({
+  feedbacks,
+  actors,
+  activeFeedbackId,
+  onFeedbackSelect,
+}: {
+  feedbacks: Feedback[];
+  actors: Actor[];
+  activeFeedbackId: number | null;
+  onFeedbackSelect: (feedbackId: number) => void;
+}) {
+  const sortedFeedbacks = useMemo(
+    () =>
+      [...feedbacks].sort((left, right) => {
+        const leftHasAnchor = hasScriptFeedbackAnchor(left);
+        const rightHasAnchor = hasScriptFeedbackAnchor(right);
+
+        if (leftHasAnchor && rightHasAnchor) {
+          return (
+            left.scriptPage - right.scriptPage ||
+            left.scriptY - right.scriptY ||
+            timestampToSeconds(left.timestamp) - timestampToSeconds(right.timestamp)
+          );
+        }
+
+        if (leftHasAnchor !== rightHasAnchor) {
+          return leftHasAnchor ? -1 : 1;
+        }
+
+        return timestampToSeconds(left.timestamp) - timestampToSeconds(right.timestamp);
+      }),
+    [feedbacks],
+  );
+
+  return (
+    <aside className="reaction-ui-font flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-3 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/52">
+        <span>Feedback List</span>
+        <span>{sortedFeedbacks.length}</span>
+      </div>
+
+      <div className="reaction-hidden-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        {sortedFeedbacks.length === 0 ? (
+          <div className="flex h-full min-h-[120px] items-center justify-center rounded-[8px] bg-white/28 px-4 text-center text-[12px] font-bold text-[#431B1B]/45">
+            표시할 피드백이 없습니다.
+          </div>
+        ) : (
+          sortedFeedbacks.map((feedback) => {
+            const canNavigate = hasScriptFeedbackAnchor(feedback);
+            const isActive = activeFeedbackId === feedback.id;
+            const bubbleColor = getFeedbackPriorityColor(feedback, '#6f625a');
+            const bubbleTextColor = getFeedbackPriorityTextColor(
+              feedback,
+              '#fff8ef',
+            );
+            const actorNames =
+              getFeedbackActorNames(feedback, actors) || '배우 미지정';
+
+            return (
+              <button
+                key={feedback.id}
+                type="button"
+                onClick={() => {
+                  if (canNavigate) {
+                    onFeedbackSelect(feedback.id);
+                  }
+                }}
+                disabled={!canNavigate}
+                className={[
+                  'group relative w-full min-w-0 rounded-[8px] px-3 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/34',
+                  canNavigate
+                    ? 'hover:-translate-y-0.5 hover:shadow-[0_14px_24px_rgba(67,27,27,0.16)]'
+                    : 'cursor-not-allowed opacity-55',
+                  isActive
+                    ? 'ring-2 ring-[#431B1B]/70 shadow-[0_0_0_3px_rgba(67,27,27,0.12),0_12px_24px_rgba(67,27,27,0.18)]'
+                    : 'ring-1 ring-white/34',
+                ].join(' ')}
+                style={{
+                  backgroundColor: bubbleColor,
+                  color: bubbleTextColor,
+                }}
+                aria-label={
+                  canNavigate
+                    ? '피드백 대본 위치로 이동'
+                    : '대본 위치가 없는 피드백'
+                }
+              >
+                <span
+                  className="absolute -left-1.5 top-5 h-3 w-3 rotate-45 rounded-[2px]"
+                  style={{ backgroundColor: bubbleColor }}
+                  aria-hidden="true"
+                />
+                <span className="relative flex min-w-0 items-start gap-2">
+                  <MessageCircle
+                    size={15}
+                    strokeWidth={2.6}
+                    className="mt-0.5 shrink-0 opacity-80"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center justify-between gap-2 text-[10px] font-black opacity-75">
+                      <span className="truncate">{actorNames}</span>
+                      <span className="shrink-0">{feedback.timestamp}</span>
+                    </span>
+                    <span className="mt-1 block whitespace-pre-wrap break-words text-[12px] font-black leading-relaxed [overflow-wrap:anywhere]">
+                      {feedback.content}
+                    </span>
+                    {!canNavigate && (
+                      <span className="mt-1.5 block text-[10px] font-black opacity-58">
+                        대본 위치 없음
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </aside>
+  );
+}
 
 const toVideoTimelineSeconds = (
   offsetSeconds: number,
@@ -313,6 +639,21 @@ export default function ReviewPage() {
   const [scriptFeedbackErrorMessage, setScriptFeedbackErrorMessage] =
     useState('');
   const [scriptFeedbackRetryCount, setScriptFeedbackRetryCount] = useState(0);
+  const [scriptPageCount, setScriptPageCount] = useState(0);
+  const [scriptScrollProgress, setScriptScrollProgress] = useState(0);
+  const [selectedScriptFeedbackId, setSelectedScriptFeedbackId] = useState<
+    number | null
+  >(null);
+  const [scriptFeedbackNavigationRequest, setScriptFeedbackNavigationRequest] =
+    useState<{
+      id: number;
+      feedbackId: number;
+    } | null>(null);
+  const [scriptScrollProgressRequest, setScriptScrollProgressRequest] =
+    useState<{
+      id: number;
+      progress: number;
+    } | null>(null);
   const numericProjectId = Number(projectId);
   const numericSessionId = Number(sessionId);
   const { projectTitle, sessionTitle } = useProjectBreadcrumb(
@@ -786,6 +1127,22 @@ export default function ReviewPage() {
     }));
   };
 
+  const requestScriptFeedbackNavigation = useCallback((feedbackId: number) => {
+    setSelectedScriptFeedbackId(feedbackId);
+    setScriptFeedbackNavigationRequest((current) => ({
+      id: (current?.id ?? 0) + 1,
+      feedbackId,
+    }));
+  }, []);
+
+  const requestScriptScrollProgress = useCallback((progress: number) => {
+    setSelectedScriptFeedbackId(null);
+    setScriptScrollProgressRequest((current) => ({
+      id: (current?.id ?? 0) + 1,
+      progress,
+    }));
+  }, []);
+
   const highlightFeedback = useCallback((feedbackId: number | null) => {
     setHighlightedFeedbackId(feedbackId);
   }, []);
@@ -837,67 +1194,94 @@ export default function ReviewPage() {
     const isCurrentSessionScope = scriptFeedbackScope === 'session';
 
     return (
-      <div className="relative grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-h-0 justify-center overflow-hidden lg:justify-end lg:pr-2">
+      <div className="relative grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_30px_300px]">
+        <div className="flex min-h-0 justify-center overflow-hidden lg:justify-end">
           <ScriptReviewPdfViewer
             script={script}
             feedbacks={scriptReviewFeedbacks}
             actors={reviewActors}
             feedbackTags={feedbackTags}
+            feedbackNavigationRequest={scriptFeedbackNavigationRequest}
+            scrollProgressRequest={scriptScrollProgressRequest}
+            onPageCountChange={setScriptPageCount}
+            onScrollProgressChange={setScriptScrollProgress}
+            onSelectedFeedbackChange={setSelectedScriptFeedbackId}
           />
         </div>
 
-        <div className="min-h-0 overflow-hidden">
-          <ReviewFilterBar
-            layout="vertical"
-            scopeControl={
-              <button
-                type="button"
-                onClick={() =>
-                  setScriptFeedbackScope((scope) =>
-                    scope === 'session' ? 'project' : 'session',
-                  )
-                }
-                className="flex w-full items-center justify-between gap-3 rounded-[8px] border border-[#431B1B]/14 bg-[#fff8ef]/62 px-3 py-2.5 text-left text-[#431B1B] shadow-[inset_0_1px_0_rgba(255,255,255,0.46)] transition hover:bg-[#fff8ef]/82 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/28"
-                aria-pressed={isCurrentSessionScope}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[12px] font-black">
-                    {isCurrentSessionScope
-                      ? '현재 세션 피드백만 불러오기'
-                      : '누적피드백 확인하기'}
-                  </span>
-                  <span className="mt-0.5 block text-[10px] font-bold text-[#431B1B]/52">
-                    {isCurrentSessionScope
-                      ? 'OFF로 전환하면 프로젝트 전체 피드백을 봅니다'
-                      : 'ON으로 전환하면 현재 세션만 봅니다'}
-                  </span>
-                </span>
-                <span
-                  className={[
-                    'relative h-6 w-11 shrink-0 rounded-full p-0.5 transition',
-                    isCurrentSessionScope ? 'bg-[#431B1B]' : 'bg-[#c9c1ba]',
-                  ].join(' ')}
-                  aria-hidden="true"
+        <div className="hidden min-h-0 overflow-hidden lg:flex">
+          <ScriptFeedbackTimeline
+            feedbacks={scriptReviewFeedbacks}
+            pageCount={scriptPageCount}
+            activeFeedbackId={selectedScriptFeedbackId}
+            scrollProgress={scriptScrollProgress}
+            onFeedbackSelect={requestScriptFeedbackNavigation}
+            onScrollRequest={requestScriptScrollProgress}
+          />
+        </div>
+
+        <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          <div className="shrink-0">
+            <ReviewFilterBar
+              layout="vertical"
+              scopeControl={
+                <button
+                  type="button"
+                  onClick={() =>
+                    setScriptFeedbackScope((scope) =>
+                      scope === 'session' ? 'project' : 'session',
+                    )
+                  }
+                  className="flex w-full items-center justify-between gap-3 rounded-[8px] border border-[#431B1B]/14 bg-[#fff8ef]/62 px-3 py-2.5 text-left text-[#431B1B] shadow-[inset_0_1px_0_rgba(255,255,255,0.46)] transition hover:bg-[#fff8ef]/82 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/28"
+                  aria-pressed={isCurrentSessionScope}
                 >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[12px] font-black">
+                      {isCurrentSessionScope
+                        ? '현재 세션 피드백만 불러오기'
+                        : '누적피드백 확인하기'}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] font-bold text-[#431B1B]/52">
+                      {isCurrentSessionScope
+                        ? 'OFF로 전환하면 프로젝트 전체 피드백을 봅니다'
+                        : 'ON으로 전환하면 현재 세션만 봅니다'}
+                    </span>
+                  </span>
                   <span
                     className={[
-                      'block h-5 w-5 rounded-full bg-[#fff8ef] shadow-[0_3px_8px_rgba(0,0,0,0.18)] transition',
-                      isCurrentSessionScope ? 'translate-x-5' : 'translate-x-0',
+                      'relative h-6 w-11 shrink-0 rounded-full p-0.5 transition',
+                      isCurrentSessionScope ? 'bg-[#431B1B]' : 'bg-[#c9c1ba]',
                     ].join(' ')}
-                  />
-                </span>
-              </button>
-            }
-            feedbackTags={feedbackTags}
-            priorityTags={priorityTags}
+                    aria-hidden="true"
+                  >
+                    <span
+                      className={[
+                        'block h-5 w-5 rounded-full bg-[#fff8ef] shadow-[0_3px_8px_rgba(0,0,0,0.18)] transition',
+                        isCurrentSessionScope
+                          ? 'translate-x-5'
+                          : 'translate-x-0',
+                      ].join(' ')}
+                    />
+                  </span>
+                </button>
+              }
+              feedbackTags={feedbackTags}
+              priorityTags={priorityTags}
+              actors={reviewActors}
+              selectedFeedbackTags={selectedFeedbackTags}
+              selectedPriorityTags={selectedPriorityTags}
+              selectedActorIds={selectedActorIds}
+              onFeedbackTagToggle={toggleFeedbackTag}
+              onPriorityTagToggle={togglePriorityTag}
+              onActorToggle={toggleActor}
+            />
+          </div>
+
+          <ScriptFeedbackCollection
+            feedbacks={scriptReviewFeedbacks}
             actors={reviewActors}
-            selectedFeedbackTags={selectedFeedbackTags}
-            selectedPriorityTags={selectedPriorityTags}
-            selectedActorIds={selectedActorIds}
-            onFeedbackTagToggle={toggleFeedbackTag}
-            onPriorityTagToggle={togglePriorityTag}
-            onActorToggle={toggleActor}
+            activeFeedbackId={selectedScriptFeedbackId}
+            onFeedbackSelect={requestScriptFeedbackNavigation}
           />
         </div>
 

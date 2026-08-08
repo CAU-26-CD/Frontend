@@ -1,4 +1,5 @@
 import type { Actor } from '../../types/feedback.ts';
+import { getScriptActorColor } from '../../utils/scriptFeedbackStyle.ts';
 
 type Props = {
   actors: Actor[];
@@ -6,6 +7,7 @@ type Props = {
   onActorSelect: (actor: Actor) => void;
   disabled?: boolean;
   variant?: 'default' | 'compact';
+  matchScriptColors?: boolean;
 };
 
 export default function ActorTagBar({
@@ -14,6 +16,7 @@ export default function ActorTagBar({
   onActorSelect,
   disabled = false,
   variant = 'default',
+  matchScriptColors = false,
 }: Props) {
   const isCompact = variant === 'compact';
 
@@ -64,10 +67,11 @@ export default function ActorTagBar({
               </p>
             )}
 
-            {actors.map((actor) => {
+            {actors.map((actor, index) => {
               const isSelected = selectedActors.some(
                 (selectedActor) => selectedActor.id === actor.id,
               );
+              const actorColor = getScriptActorColor(index);
 
               return (
                 <button
@@ -81,10 +85,27 @@ export default function ActorTagBar({
                       ? 'min-h-8 min-w-[88px] px-3 py-1.5 text-xs'
                       : 'min-h-10 min-w-[104px] px-4 py-2 text-sm',
                     disabled ? 'cursor-not-allowed' : '',
-                    isSelected
-                      ? 'border-white/35 bg-[#431B1B]/72 text-[#fff8ef] hover:bg-[#431B1B]/84'
-                      : 'border-white/45 bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]',
+                    matchScriptColors
+                      ? isSelected
+                        ? 'text-white'
+                        : 'bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]'
+                      : isSelected
+                        ? 'border-white/35 bg-[#431B1B]/72 text-[#fff8ef] hover:bg-[#431B1B]/84'
+                        : 'border-white/45 bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]',
                   ].join(' ')}
+                  style={
+                    matchScriptColors
+                      ? {
+                          backgroundColor: isSelected
+                            ? actorColor
+                            : undefined,
+                          borderColor: actorColor,
+                          boxShadow: isSelected
+                            ? `0 0 0 2px ${actorColor}33, 0 10px 24px rgba(67,27,27,0.14)`
+                            : `inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -10px 18px rgba(67,27,27,0.08), 0 0 0 1px ${actorColor}33, 0 10px 24px rgba(67,27,27,0.10)`,
+                        }
+                      : undefined
+                  }
                 >
                   <span className="font-semibold leading-none">
                     {actor.name}
@@ -94,8 +115,15 @@ export default function ActorTagBar({
                       'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none',
                       isSelected
                         ? 'border border-white/20 bg-white/18 text-[#fff8ef]'
-                        : 'border border-white/35 bg-white/26 text-[#806b61]',
+                        : matchScriptColors
+                          ? 'border bg-white/32 text-[#2d1715]'
+                          : 'border border-white/35 bg-white/26 text-[#806b61]',
                     ].join(' ')}
+                    style={
+                      matchScriptColors && !isSelected
+                        ? { borderColor: `${actorColor}66` }
+                        : undefined
+                    }
                   >
                     /{actor.shortcut}
                   </span>

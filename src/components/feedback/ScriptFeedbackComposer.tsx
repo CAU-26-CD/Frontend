@@ -23,12 +23,24 @@ type ScriptFeedbackComposerProps = {
   userId: number | null;
   content: string;
   disabled?: boolean;
+  isClosing?: boolean;
   onContentChange: (content: string) => void;
-  onCreated: (feedback: FeedbackV2Response) => void;
+  onPendingCreate?: (feedback: {
+    actorIds: number[];
+    actorNames: string[];
+    content: string;
+    scriptPage: number;
+    scriptX: number;
+    scriptY: number;
+    videoOffsetSeconds: number;
+  }) => number;
+  onPendingRemove?: (feedbackId: number) => void;
+  onCreated: (feedback: FeedbackV2Response, pendingFeedbackId?: number) => void;
   onCancel: () => void;
 };
 
 const RADIAL_DISTANCE = 49;
+const ACTOR_ORB_SIZE = 44;
 const URGENT_MARK_PATTERN = /!{3,}/;
 
 type ActorSelectionState = {
@@ -44,7 +56,10 @@ export default function ScriptFeedbackComposer({
   userId,
   content,
   disabled = false,
+  isClosing = false,
   onContentChange,
+  onPendingCreate,
+  onPendingRemove,
   onCreated,
   onCancel,
 }: ScriptFeedbackComposerProps) {
@@ -72,9 +87,31 @@ export default function ScriptFeedbackComposer({
         visibleActors.findIndex((actor) => actor.id === activeActor.id),
       )
     : 0;
+  const actorOrbPositions = useMemo(() => {
+    return visibleActors.map((actor, index, currentVisibleActors) => {
+      const angle =
+        -90 + (360 / Math.max(currentVisibleActors.length, 1)) * index;
+      const radians = (angle * Math.PI) / 180;
+
+      return {
+        actor,
+        color: getScriptActorColor(index),
+        left: Math.cos(radians) * RADIAL_DISTANCE,
+        top: Math.sin(radians) * RADIAL_DISTANCE,
+      };
+    });
+  }, [visibleActors]);
   const activeActorColor = activeActor
     ? getScriptActorColor(activeActorIndex)
     : '#431B1B';
+  const activeActorPosition =
+    actorOrbPositions.find((position) => position.actor.id === activeActor?.id) ??
+    null;
+  const shouldOpenBubbleToLeft = (activeActorPosition?.left ?? 0) < 0;
+  const bubbleLeft =
+    (activeActorPosition?.left ?? 0) +
+    (shouldOpenBubbleToLeft ? -ACTOR_ORB_SIZE / 2 - 14 : ACTOR_ORB_SIZE / 2 + 14);
+  const bubbleTop = (activeActorPosition?.top ?? 0) - 10;
 
   useEffect(() => {
     if (selection.hasOpenedInput) {
@@ -174,13 +211,26 @@ export default function ScriptFeedbackComposer({
     setIsSubmitting(true);
     setErrorMessage('');
 
+    const feedbackContent = content.trim();
+    const selectedActorIds = selectedActors.map((actor) => actor.id);
+    const selectedActorNames = selectedActors.map((actor) => actor.name);
+    const pendingFeedbackId = onPendingCreate?.({
+      actorIds: selectedActorIds,
+      actorNames: selectedActorNames,
+      content: feedbackContent,
+      scriptPage: anchor.page,
+      scriptX: anchor.x,
+      scriptY: anchor.y,
+      videoOffsetSeconds: anchor.videoOffsetSeconds,
+    });
+
     try {
       const createdFeedback = await createFeedbackV2(
         sessionId,
         {
-          content: content.trim(),
+          content: feedbackContent,
           video_offset_seconds: anchor.videoOffsetSeconds,
-          actor_ids: selectedActors.map((actor) => actor.id),
+          actor_ids: selectedActorIds,
           script_page: anchor.page,
           script_x: anchor.x,
           script_y: anchor.y,
@@ -188,9 +238,12 @@ export default function ScriptFeedbackComposer({
         userId,
       );
 
-      onCreated(createdFeedback);
+      onCreated(createdFeedback, pendingFeedbackId);
       onCancel();
     } catch {
+      if (pendingFeedbackId !== undefined) {
+        onPendingRemove?.(pendingFeedbackId);
+      }
       setErrorMessage('피드백을 등록하지 못했습니다.');
     } finally {
       setIsSubmitting(false);
@@ -210,24 +263,26 @@ export default function ScriptFeedbackComposer({
 
   return (
     <div
-      className="pointer-events-auto absolute z-40"
-      style={{ left: anchor.left, top: anchor.top }}
+      className={[
+        'script-feedback-composer absolute z-40',
+        isClosing
+          ? 'script-feedback-composer-out pointer-events-none'
+          : 'pointer-events-auto',
+      ].join(' ')}
+      style={{
+        left: anchor.left,
+        top: anchor.top,
+      }}
     >
       <button
         type="button"
         onClick={onCancel}
-        className="absolute -left-2 -top-2 h-4 w-4 rounded-full bg-[#431B1B]/70"
+        className="absolute left-0 top-0 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#431B1B]/70"
         aria-label="피드백 입력 취소"
       />
 
-      <div className="relative h-1 w-1">
-        {visibleActors.map((actor, index, currentVisibleActors) => {
-            const angle =
-              -90 + (360 / Math.max(currentVisibleActors.length, 1)) * index;
-            const radians = (angle * Math.PI) / 180;
-            const x = Math.cos(radians) * RADIAL_DISTANCE;
-            const y = Math.sin(radians) * RADIAL_DISTANCE;
-            const color = getScriptActorColor(index);
+      <div className="relative h-0 w-0">
+        {actorOrbPositions.map(({ actor, color, left, top }, index) => {
             const isSelected = selection.actorIds.includes(actor.id);
 
             return (
@@ -236,12 +291,12 @@ export default function ScriptFeedbackComposer({
                 type="button"
                 onClick={() => toggleActor(actor)}
                 className={[
-                  'script-actor-orb absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-sm font-black text-white',
+                  'script-actor-orb absolute flex h-11 w-11 items-center justify-center rounded-full text-sm font-black text-white',
                   isSelected ? 'script-actor-orb-selected' : '',
                 ].join(' ')}
                 style={{
-                  left: x,
-                  top: y,
+                  left,
+                  top,
                   backgroundColor: color,
                   '--script-actor-color': color,
                   '--script-actor-glow': `${color}8c`,
@@ -264,11 +319,23 @@ export default function ScriptFeedbackComposer({
 
       {selection.hasOpenedInput && (
         <div
-          className="script-feedback-bubble absolute left-8 top-[-10px] min-w-[190px] max-w-[320px] rounded-[22px] rounded-bl-[8px] px-5 py-4 text-white shadow-[0_16px_36px_rgba(0,0,0,0.22)]"
-          style={{ backgroundColor: activeActorColor }}
+          className={[
+            'script-feedback-bubble absolute min-w-[190px] max-w-[320px] rounded-[22px] px-5 py-4 text-white shadow-[0_16px_36px_rgba(0,0,0,0.22)]',
+            shouldOpenBubbleToLeft
+              ? 'script-feedback-bubble-left right-auto rounded-br-[8px]'
+              : 'rounded-bl-[8px]',
+          ].join(' ')}
+          style={{
+            backgroundColor: activeActorColor,
+            left: bubbleLeft,
+            top: bubbleTop,
+          }}
         >
           <span
-            className="absolute left-[-9px] top-5 h-5 w-5 rotate-45 rounded-[4px]"
+            className={[
+              'absolute top-5 h-5 w-5 rotate-45 rounded-[4px]',
+              shouldOpenBubbleToLeft ? 'right-[-9px]' : 'left-[-9px]',
+            ].join(' ')}
             style={{ backgroundColor: activeActorColor }}
             aria-hidden="true"
           />

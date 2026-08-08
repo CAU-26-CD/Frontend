@@ -50,6 +50,14 @@ export default function ReviewFilterBar({
 }: ReviewFilterBarProps) {
   const topFeedbackTags = feedbackTags.slice(3, 7);
   const bottomFeedbackTags = feedbackTags.slice(0, 3);
+  const verticalFeedbackTagRows = [
+    feedbackTags.filter((tag) =>
+      ['gesture', 'sync', 'movement'].includes(tag.id),
+    ),
+    feedbackTags.filter(
+      (tag) => !['gesture', 'sync', 'movement'].includes(tag.id),
+    ),
+  ].filter((row) => row.length > 0);
   const selectedActors = actors.filter((actor) =>
     selectedActorIds.includes(actor.id),
   );
@@ -62,7 +70,7 @@ export default function ReviewFilterBar({
 
   if (layout === 'vertical') {
     return (
-      <aside className="reaction-ui-font flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-3 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
+      <aside className="reaction-ui-font flex min-h-0 flex-col gap-3 overflow-hidden rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-3 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
         {scopeControl}
 
         <section className="min-w-0 rounded-[8px] bg-white/28 px-3 py-2">
@@ -106,27 +114,44 @@ export default function ReviewFilterBar({
             <span>{selectedFeedbackTags.length}</span>
           </div>
 
-          <div className="grid min-w-0 grid-cols-2 gap-1.5">
-            {feedbackTags.map((tag) => {
-              const isSelected = selectedFeedbackTags.includes(tag.id);
+          <div className="grid min-w-0 gap-1.5">
+            {verticalFeedbackTagRows.map((tagRow, rowIndex) => (
+              <div
+                key={rowIndex}
+                className={[
+                  'grid gap-1.5',
+                  rowIndex === 0 ? 'grid-cols-3' : 'grid-cols-4',
+                ].join(' ')}
+              >
+                {tagRow.map((tag) => {
+                  const isSelected = selectedFeedbackTags.includes(tag.id);
 
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => onFeedbackTagToggle(tag.id)}
-                  className={[
-                    'h-7 min-w-0 rounded-[5px] px-1.5 text-[11px] font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
-                    isSelected
-                      ? 'text-[#431B1B] ring-2 ring-[#431B1B]/35'
-                      : 'text-[#431B1B]/70',
-                  ].join(' ')}
-                  style={{ backgroundColor: tag.color }}
-                >
-                  <span className="block truncate">{tag.label}</span>
-                </button>
-              );
-            })}
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => onFeedbackTagToggle(tag.id)}
+                      className={[
+                        'h-7 min-w-0 rounded-[5px] px-1.5 text-[11px] font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                        isSelected
+                          ? 'brightness-[0.92] saturate-[1.35] text-[#431B1B] ring-2 ring-[#431B1B]/76 shadow-[inset_0_0_0_1px_rgba(67,27,27,0.22),0_0_0_3px_rgba(67,27,27,0.12),0_8px_16px_rgba(67,27,27,0.16)]'
+                          : 'text-[#431B1B]/70',
+                      ].join(' ')}
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      <span
+                        className={[
+                          'block truncate',
+                          isSelected ? 'font-black' : '',
+                        ].join(' ')}
+                      >
+                        {tag.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </section>
 
@@ -136,7 +161,7 @@ export default function ReviewFilterBar({
             <span>{selectedPriorityTags.length}</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-4 gap-1">
             {priorityTags.map((priority) => {
               const isSelected = selectedPriorityTags.includes(priority.id);
 
@@ -146,12 +171,14 @@ export default function ReviewFilterBar({
                   type="button"
                   onClick={() => onPriorityTagToggle(priority.id)}
                   className={[
-                    'h-7 rounded-[5px] border bg-white/28 px-1.5 text-[11px] font-bold text-[#431B1B] transition hover:scale-[1.03] hover:bg-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
-                    isSelected ? 'border-[2px] bg-white/52' : 'border',
+                    'h-7 min-w-0 rounded-[5px] border bg-white/28 px-1 text-[10px] font-bold text-[#431B1B] transition hover:scale-[1.03] hover:bg-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                    isSelected
+                      ? 'border-[2px] bg-[#fff8ef] font-black ring-2 ring-[#431B1B]/48 shadow-[inset_0_0_0_1px_rgba(67,27,27,0.12),0_0_0_3px_rgba(67,27,27,0.1),0_8px_16px_rgba(67,27,27,0.14)]'
+                      : 'border',
                   ].join(' ')}
                   style={{ borderColor: priority.color }}
                 >
-                  {priority.label}
+                  <span className="block truncate">{priority.label}</span>
                 </button>
               );
             })}
@@ -232,14 +259,21 @@ export default function ReviewFilterBar({
                         type="button"
                         onClick={() => onFeedbackTagToggle(tag.id)}
                         className={[
-                          'h-6 min-w-0 rounded-[5px] px-1 text-[11px] font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                          'relative h-6 min-w-0 rounded-[5px] px-1 text-[11px] font-bold transition hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
                           isSelected
-                            ? 'text-[#431B1B] ring-2 ring-[#431B1B]/35'
+                            ? 'brightness-[0.92] saturate-[1.35] text-[#431B1B] ring-2 ring-[#431B1B]/76 shadow-[inset_0_0_0_1px_rgba(67,27,27,0.22),0_0_0_3px_rgba(67,27,27,0.12),0_8px_16px_rgba(67,27,27,0.16)]'
                             : 'text-[#431B1B]/70',
                         ].join(' ')}
                         style={{ backgroundColor: tag.color }}
                       >
-                        <span className="block truncate">{tag.label}</span>
+                        <span
+                          className={[
+                            'block truncate',
+                            isSelected ? 'font-black' : '',
+                          ].join(' ')}
+                        >
+                          {tag.label}
+                        </span>
                       </button>
                     );
                   })}
@@ -271,14 +305,14 @@ export default function ReviewFilterBar({
                     type="button"
                     onClick={() => onPriorityTagToggle(priority.id)}
                     className={[
-                      'h-6 rounded-[5px] border bg-white/28 px-1.5 text-[11px] font-bold text-[#431B1B] transition hover:scale-[1.03] hover:bg-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
+                      'relative h-6 rounded-[5px] border bg-white/28 px-1.5 text-[11px] font-bold text-[#431B1B] transition hover:scale-[1.03] hover:bg-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/30',
                       isSelected
-                        ? 'border-[2px] bg-white/52'
+                        ? 'border-[2px] bg-[#fff8ef] font-black ring-2 ring-[#431B1B]/48 shadow-[inset_0_0_0_1px_rgba(67,27,27,0.12),0_0_0_3px_rgba(67,27,27,0.1),0_8px_16px_rgba(67,27,27,0.14)]'
                         : 'border text-[#431B1B]/70',
                     ].join(' ')}
                     style={{ borderColor: priority.color }}
                   >
-                    {priority.label}
+                    <span className="block truncate">{priority.label}</span>
                   </button>
                 );
               })}

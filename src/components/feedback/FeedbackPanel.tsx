@@ -75,6 +75,10 @@ export default function FeedbackPanel({
   const [actorRowActive, setActorRowActive] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const previousFeedbackIdsRef = useRef<Set<number> | null>(null);
+  const [recentFeedbackIds, setRecentFeedbackIds] = useState<Set<number>>(
+    () => new Set(),
+  );
   const isUrgentMode = URGENT_MARK_PATTERN.test(content);
   const hasActiveDraft =
     Boolean(timestamp) ||
@@ -112,6 +116,48 @@ export default function FeedbackPanel({
     closeActorMenu();
     setIsComposerOpen(false);
   }, [isInteractionDisabled]);
+
+  useEffect(() => {
+    const nextFeedbackIds = new Set(feedbacks.map((feedback) => feedback.id));
+    const previousFeedbackIds = previousFeedbackIdsRef.current;
+
+    if (previousFeedbackIds === null) {
+      previousFeedbackIdsRef.current = nextFeedbackIds;
+      return;
+    }
+
+    const addedFeedbackIds = feedbacks
+      .map((feedback) => feedback.id)
+      .filter((feedbackId) => !previousFeedbackIds.has(feedbackId));
+
+    previousFeedbackIdsRef.current = nextFeedbackIds;
+
+    if (addedFeedbackIds.length === 0) {
+      return;
+    }
+
+    setRecentFeedbackIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      addedFeedbackIds.forEach((feedbackId) => nextIds.add(feedbackId));
+
+      return nextIds;
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      setRecentFeedbackIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+
+        addedFeedbackIds.forEach((feedbackId) => nextIds.delete(feedbackId));
+
+        return nextIds;
+      });
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [feedbacks]);
 
   useEffect(() => {
     const list = feedbackListRef.current;
@@ -311,6 +357,7 @@ export default function FeedbackPanel({
               {visibleFeedbacks.map((feedback) => {
                 const isEditing = canShowItemActions && editingId === feedback.id;
                 const isSelected = selectedFeedbackId === feedback.id;
+                const isRecentlyAdded = recentFeedbackIds.has(feedback.id);
                 const feedbackActorNames = feedback.actorIds
                   .map(
                     (actorId) =>
@@ -338,6 +385,7 @@ export default function FeedbackPanel({
                     }}
                     className={[
                       'group relative shrink-0 overflow-hidden rounded-md border px-3 py-2.5 text-sm transition-colors',
+                      isRecentlyAdded ? 'feedback-list-item-reveal' : '',
                       isFluidList ? 'w-full' : 'w-80 max-w-full',
                       onFeedbackSelect
                         ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60'

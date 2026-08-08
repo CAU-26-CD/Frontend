@@ -25,6 +25,17 @@ type ScriptReviewPdfViewerProps = {
   feedbacks: Feedback[];
   actors: Actor[];
   feedbackTags: ReviewFeedbackTag[];
+  feedbackNavigationRequest?: {
+    id: number;
+    feedbackId: number;
+  } | null;
+  scrollProgressRequest?: {
+    id: number;
+    progress: number;
+  } | null;
+  onPageCountChange?: (pageCount: number) => void;
+  onScrollProgressChange?: (progress: number) => void;
+  onSelectedFeedbackChange?: (feedbackId: number | null) => void;
 };
 
 type ScriptReviewStatus = 'loading' | 'ready' | 'error';
@@ -35,6 +46,9 @@ const FEEDBACK_BUBBLE_WIDTH = 288;
 const FEEDBACK_BUBBLE_MIN_WIDTH = 180;
 const FEEDBACK_BUBBLE_GAP = 14;
 const FEEDBACK_BUBBLE_PAGE_MARGIN = 8;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 const getFeedbackCategoryTags = (
   feedbackCategories: string[],
@@ -71,7 +85,10 @@ function ScriptReviewPdfPage({
   actors,
   feedbackTags,
   pinnedFeedbackId,
+  transientFeedbackId,
   onPinnedFeedbackToggle,
+  onTransientFeedbackOpen,
+  onTransientFeedbackClose,
 }: {
   document: PDFDocumentProxy;
   pageNumber: number;
@@ -86,7 +103,10 @@ function ScriptReviewPdfPage({
   actors: Actor[];
   feedbackTags: ReviewFeedbackTag[];
   pinnedFeedbackId: number | null;
+  transientFeedbackId: number | null;
   onPinnedFeedbackToggle: (feedback: Feedback) => void;
+  onTransientFeedbackOpen: (feedback: Feedback) => void;
+  onTransientFeedbackClose: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageElementRef = useRef<HTMLDivElement | null>(null);
@@ -195,7 +215,9 @@ function ScriptReviewPdfPage({
   return (
     <div
       ref={pageElementRef}
+      data-script-review-page={pageNumber}
       className="relative mx-auto w-full max-w-full"
+      onClick={onTransientFeedbackClose}
     >
       <canvas
         ref={canvasRef}
@@ -210,7 +232,9 @@ function ScriptReviewPdfPage({
             '#fff8ef',
           );
           const isPinned = pinnedFeedbackId === feedback.id;
-          const isOpen = isPinned || hoveredFeedbackId === feedback.id;
+          const isTransient = transientFeedbackId === feedback.id;
+          const isOpen =
+            isPinned || isTransient || hoveredFeedbackId === feedback.id;
           const isBubbleVisible = isOpen || closingBubbleFeedbackId === feedback.id;
           const isBubbleClosing =
             closingBubbleFeedbackId === feedback.id && !isOpen;
@@ -253,6 +277,7 @@ function ScriptReviewPdfPage({
           return (
             <div
               key={feedback.id}
+              data-script-feedback-marker-id={feedback.id}
               className="absolute z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
               style={{
                 left: `${feedback.scriptX * 100}%`,
@@ -264,16 +289,19 @@ function ScriptReviewPdfPage({
                 setHoveredFeedbackId(feedback.id);
               }}
               onMouseLeave={() => {
-                if (!isPinned) {
+                if (!isPinned && !isTransient) {
                   closeBubbleWithAnimation(feedback.id);
                 }
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
               }}
             >
               <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onPinnedFeedbackToggle(feedback);
+                  onTransientFeedbackOpen(feedback);
                 }}
                 className={[
                   'h-3.5 w-3.5 rounded-full border border-white transition duration-150 focus:outline-none focus-visible:ring-2',
@@ -302,7 +330,7 @@ function ScriptReviewPdfPage({
                   />
                   <div
                     className={[
-                      'script-feedback-bubble reaction-ui-font pointer-events-auto absolute top-1/2 z-30 rounded-[20px] border border-white/24 px-4 py-3.5 text-left opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      'script-feedback-bubble reaction-ui-font pointer-events-auto absolute top-1/2 z-30 rounded-[16px] border border-white/24 px-3 py-2.5 text-left opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
                       isBubbleClosing ? 'script-feedback-bubble-out' : '',
                     ].join(' ')}
                     style={{
@@ -315,7 +343,15 @@ function ScriptReviewPdfPage({
                       event.stopPropagation();
                     }}
                   >
-                    <div className="relative mb-2 flex min-w-0 items-start justify-between gap-2">
+                    <span
+                      className={[
+                        'absolute top-1/2 h-4 w-4 -translate-y-1/2 rotate-45 rounded-[3px]',
+                        bubbleLeft < 0 ? 'right-[-7px]' : 'left-[-7px]',
+                      ].join(' ')}
+                      style={{ backgroundColor: markerColor }}
+                      aria-hidden="true"
+                    />
+                    <div className="relative mb-1 flex min-w-0 items-start justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight opacity-[0.85]">
                         <span className="truncate">{actorNames}</span>
                         <span className="opacity-45">|</span>
@@ -328,32 +364,32 @@ function ScriptReviewPdfPage({
                           onPinnedFeedbackToggle(feedback);
                         }}
                         className={[
-                          'inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[9px] font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                          'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
                           isPinned
                             ? 'border-white/46 bg-white/28'
                             : 'border-white/26 bg-white/14 hover:bg-white/22',
                         ].join(' ')}
                         aria-pressed={isPinned}
                         aria-label={isPinned ? '피드백 고정 해제' : '피드백 고정'}
+                        title={isPinned ? '피드백 고정 해제' : '피드백 고정'}
                       >
                         <Pin
-                          size={11}
+                          size={12}
                           strokeWidth={2.6}
                           fill={isPinned ? 'currentColor' : 'none'}
                           aria-hidden="true"
                         />
-                        {isPinned ? '해제' : '고정'}
                       </button>
                     </div>
-                    <p className="relative whitespace-pre-wrap break-words text-[13px] font-black leading-relaxed [overflow-wrap:anywhere]">
+                    <p className="relative whitespace-pre-wrap break-words text-[12px] font-black leading-snug [overflow-wrap:anywhere]">
                       {feedback.content}
                     </p>
                     {categoryTags.length > 0 && (
-                      <div className="relative mt-2 flex min-w-0 flex-wrap gap-1.5">
+                      <div className="relative mt-1 flex min-w-0 flex-wrap justify-end gap-1">
                         {categoryTags.map((tag) => (
                           <span
                             key={tag.id}
-                            className="inline-flex h-5 max-w-full items-center rounded-[5px] px-2 text-[10px] font-bold text-[#431B1B]"
+                            className="inline-flex h-4 max-w-full items-center rounded-[4px] px-1.5 text-[9px] font-bold text-[#431B1B]"
                             style={{ backgroundColor: tag.color }}
                           >
                             <span className="truncate">{tag.label}</span>
@@ -376,6 +412,11 @@ export default function ScriptReviewPdfViewer({
   feedbacks,
   actors,
   feedbackTags,
+  feedbackNavigationRequest = null,
+  scrollProgressRequest = null,
+  onPageCountChange,
+  onScrollProgressChange,
+  onSelectedFeedbackChange,
 }: ScriptReviewPdfViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<ScriptReviewStatus>('loading');
@@ -384,6 +425,9 @@ export default function ScriptReviewPdfViewer({
   const [containerWidth, setContainerWidth] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const [pinnedFeedbackId, setPinnedFeedbackId] = useState<number | null>(null);
+  const [transientFeedbackId, setTransientFeedbackId] = useState<number | null>(
+    null,
+  );
 
   const feedbackMarkers = useMemo(
     () => feedbacks.filter(hasValidAnchor),
@@ -428,6 +472,7 @@ export default function ScriptReviewPdfViewer({
       setErrorMessage('');
       setDocument(null);
       setPinnedFeedbackId(null);
+      setTransientFeedbackId(null);
 
       loadingTask = pdfjsLib.getDocument({
         url: script.url,
@@ -442,6 +487,7 @@ export default function ScriptReviewPdfViewer({
         }
 
         setDocument(nextDocument);
+        onPageCountChange?.(nextDocument.numPages);
         setStatus('ready');
       } catch (error) {
         if (ignore) {
@@ -464,18 +510,165 @@ export default function ScriptReviewPdfViewer({
       loadingTask?.destroy();
       loadingTask = null;
     };
-  }, [retryCount, script.url]);
+  }, [onPageCountChange, retryCount, script.url]);
+
+  useEffect(() => {
+    if (!feedbackNavigationRequest || status !== 'ready') {
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+    const targetFeedback = feedbackMarkers.find(
+      (feedback) => feedback.id === feedbackNavigationRequest.feedbackId,
+    );
+
+    if (!scrollContainer || !targetFeedback) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setTransientFeedbackId(targetFeedback.id);
+      onSelectedFeedbackChange?.(targetFeedback.id);
+
+      const pageElement = scrollContainer.querySelector<HTMLElement>(
+        `[data-script-review-page="${targetFeedback.scriptPage}"]`,
+      );
+
+      if (!pageElement) {
+        return;
+      }
+
+      const targetTop =
+        pageElement.offsetTop +
+        pageElement.clientHeight * targetFeedback.scriptY -
+        scrollContainer.clientHeight * 0.38;
+      const maxScrollTop = Math.max(
+        0,
+        scrollContainer.scrollHeight - scrollContainer.clientHeight,
+      );
+
+      scrollContainer.scrollTo({
+        behavior: 'smooth',
+        top: clamp(targetTop, 0, maxScrollTop),
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [
+    feedbackMarkers,
+    feedbackNavigationRequest,
+    onSelectedFeedbackChange,
+    status,
+  ]);
+
+  useEffect(() => {
+    if (!scrollProgressRequest || status !== 'ready') {
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(
+      0,
+      scrollContainer.scrollHeight - scrollContainer.clientHeight,
+    );
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setTransientFeedbackId(null);
+      scrollContainer.scrollTo({
+        behavior: 'auto',
+        top: maxScrollTop * clamp(scrollProgressRequest.progress, 0, 1),
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [scrollProgressRequest, status]);
+
+  useEffect(() => {
+    if (!onScrollProgressChange) {
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    const updateScrollProgress = () => {
+      const maxScrollTop = Math.max(
+        0,
+        scrollContainer.scrollHeight - scrollContainer.clientHeight,
+      );
+
+      onScrollProgressChange(
+        maxScrollTop === 0 ? 0 : scrollContainer.scrollTop / maxScrollTop,
+      );
+    };
+
+    updateScrollProgress();
+
+    const resizeObserver = new ResizeObserver(updateScrollProgress);
+    resizeObserver.observe(scrollContainer);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [document, onScrollProgressChange, status]);
 
   const togglePinnedFeedback = (feedback: Feedback) => {
     setPinnedFeedbackId((currentId) =>
       currentId === feedback.id ? null : feedback.id,
     );
+    setTransientFeedbackId((currentId) =>
+      currentId === feedback.id ? null : currentId,
+    );
+    onSelectedFeedbackChange?.(
+      pinnedFeedbackId === feedback.id ? null : feedback.id,
+    );
+  };
+
+  const openTransientFeedback = (feedback: Feedback) => {
+    setTransientFeedbackId(feedback.id);
+    onSelectedFeedbackChange?.(feedback.id);
+  };
+
+  const handleScroll = () => {
+    const scrollContainer = scrollContainerRef.current;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(
+      0,
+      scrollContainer.scrollHeight - scrollContainer.clientHeight,
+    );
+
+    onScrollProgressChange?.(
+      maxScrollTop === 0 ? 0 : scrollContainer.scrollTop / maxScrollTop,
+    );
+  };
+
+  const closeTransientFeedback = () => {
+    setTransientFeedbackId(null);
   };
 
   return (
     <section className="reaction-ui-font flex h-full min-h-0 w-full max-w-[940px] flex-col overflow-hidden rounded-[8px] border border-white/20 bg-[#1b0708]/24 text-[#eee7dc] shadow-[0_18px_48px_rgba(0,0,0,0.18)] backdrop-blur-sm">
       <div
         ref={scrollContainerRef}
+        onScroll={handleScroll}
+        onWheel={closeTransientFeedback}
+        onTouchStart={closeTransientFeedback}
         className="reaction-hidden-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5"
       >
         {status === 'loading' && (
@@ -520,7 +713,10 @@ export default function ScriptReviewPdfViewer({
                   actors={actors}
                   feedbackTags={feedbackTags}
                   pinnedFeedbackId={pinnedFeedbackId}
+                  transientFeedbackId={transientFeedbackId}
                   onPinnedFeedbackToggle={togglePinnedFeedback}
+                  onTransientFeedbackOpen={openTransientFeedback}
+                  onTransientFeedbackClose={closeTransientFeedback}
                 />
               );
             })}
