@@ -73,7 +73,7 @@ const getFilterPanelHeight = (
     return 0;
   }
 
-  const panelVerticalPaddingAndBorder = 6;
+  const panelVerticalPaddingAndBorder = 14;
 
   if (activeMenu === 'actor') {
     return panelVerticalPaddingAndBorder + getOptionRowsHeight(getBalancedRowCount(actorCount));
@@ -274,24 +274,11 @@ export default function ReviewFilterBar({
     return null;
   };
 
-  const filterControl = (
-    <div className="grid min-w-0 gap-1">
-      <div
-        className={[
-          'overflow-hidden transition-[height,opacity,transform] duration-[220ms] ease-out',
-          activeMenu
-            ? 'opacity-100 translate-y-0'
-            : 'pointer-events-none -translate-y-1 opacity-0',
-        ].join(' ')}
-        style={{ height: activeMenu ? filterPanelHeight : 0 }}
-      >
-        <div className="overflow-hidden">
-          <div className="rounded-[9px] border border-[#431B1B]/10 bg-white/34 px-2.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.56)]">
-            {renderActiveOptions()}
-          </div>
-        </div>
-      </div>
-
+  const verticalFilterControl = (
+    <div
+      className="relative z-40 min-w-0"
+      onMouseLeave={() => setActiveMenu(null)}
+    >
       <div className="grid h-9 grid-cols-3 overflow-hidden rounded-[9px] border border-[#431B1B]/10 bg-white/30">
         {filterMenus.map((menu) => {
           const isActive = activeMenu === menu.id;
@@ -300,6 +287,8 @@ export default function ReviewFilterBar({
             <button
               key={menu.id}
               type="button"
+              onMouseEnter={() => setActiveMenu(menu.id)}
+              onFocus={() => setActiveMenu(menu.id)}
               onClick={() =>
                 setActiveMenu((currentMenu) =>
                   currentMenu === menu.id ? null : menu.id,
@@ -330,6 +319,24 @@ export default function ReviewFilterBar({
           );
         })}
       </div>
+
+      <div
+        className={[
+          'pointer-events-auto absolute left-1.5 right-1.5 top-full z-40 pt-1.5 transition-[opacity,transform] duration-[220ms] ease-out',
+          activeMenu
+            ? 'opacity-100 translate-y-0'
+            : 'pointer-events-none -translate-y-1 opacity-0',
+        ].join(' ')}
+      >
+        <div
+          className="overflow-hidden transition-[height] duration-[220ms] ease-out"
+          style={{ height: activeMenu ? filterPanelHeight : 0 }}
+        >
+          <div className="rounded-[9px] border border-[#431B1B]/10 bg-[#efe6de]/96 p-1.5 shadow-[0_14px_28px_rgba(67,27,27,0.18),inset_0_1px_0_rgba(255,255,255,0.56)] backdrop-blur-sm">
+            {renderActiveOptions()}
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -337,10 +344,10 @@ export default function ReviewFilterBar({
     return (
       <aside
         ref={rootRef}
-        className="reaction-ui-font flex min-h-0 flex-col gap-1 overflow-visible rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-2 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]"
+        className="reaction-ui-font relative z-30 flex min-h-0 flex-col gap-1 overflow-visible rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-2 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]"
       >
         {scopeControl}
-        {filterControl}
+        {verticalFilterControl}
       </aside>
     );
   }
