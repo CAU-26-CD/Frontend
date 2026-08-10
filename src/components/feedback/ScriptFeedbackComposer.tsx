@@ -24,6 +24,7 @@ type ScriptFeedbackComposerProps = {
   content: string;
   disabled?: boolean;
   isClosing?: boolean;
+  focusRequestVersion?: number;
   onContentChange: (content: string) => void;
   onPendingCreate?: (feedback: {
     actorIds: number[];
@@ -39,9 +40,13 @@ type ScriptFeedbackComposerProps = {
   onCancel: () => void;
 };
 
-const RADIAL_DISTANCE = 49;
-const ACTOR_ORB_SIZE = 44;
+const MIN_RADIAL_DISTANCE = 24;
+const RADIAL_DISTANCE_STEP = 6;
+const MAX_RADIAL_DISTANCE = 42;
+const ACTOR_ORB_SIZE = 31;
 const URGENT_MARK_PATTERN = /!{3,}/;
+const ACTOR_ORB_BASE = '#FFF8EFE6';
+const FEEDBACK_BUBBLE_BASE = 'rgba(255, 248, 239, 0.28)';
 
 type ActorSelectionState = {
   actorIds: number[];
@@ -57,6 +62,7 @@ export default function ScriptFeedbackComposer({
   content,
   disabled = false,
   isClosing = false,
+  focusRequestVersion = 0,
   onContentChange,
   onPendingCreate,
   onPendingRemove,
@@ -88,6 +94,12 @@ export default function ScriptFeedbackComposer({
       )
     : 0;
   const actorOrbPositions = useMemo(() => {
+    const radialDistance = Math.min(
+      MAX_RADIAL_DISTANCE,
+      MIN_RADIAL_DISTANCE +
+        Math.max(0, visibleActors.length - 3) * RADIAL_DISTANCE_STEP,
+    );
+
     return visibleActors.map((actor, index, currentVisibleActors) => {
       const angle =
         -90 + (360 / Math.max(currentVisibleActors.length, 1)) * index;
@@ -96,8 +108,8 @@ export default function ScriptFeedbackComposer({
       return {
         actor,
         color: getScriptActorColor(index),
-        left: Math.cos(radians) * RADIAL_DISTANCE,
-        top: Math.sin(radians) * RADIAL_DISTANCE,
+        left: Math.cos(radians) * radialDistance,
+        top: Math.sin(radians) * radialDistance,
       };
     });
   }, [visibleActors]);
@@ -120,6 +132,16 @@ export default function ScriptFeedbackComposer({
       });
     }
   }, [selection.hasOpenedInput]);
+
+  useEffect(() => {
+    if (!selection.hasOpenedInput || isClosing) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, [focusRequestVersion, isClosing, selection.hasOpenedInput]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -224,6 +246,8 @@ export default function ScriptFeedbackComposer({
       videoOffsetSeconds: anchor.videoOffsetSeconds,
     });
 
+    onCancel();
+
     try {
       const createdFeedback = await createFeedbackV2(
         sessionId,
@@ -239,12 +263,10 @@ export default function ScriptFeedbackComposer({
       );
 
       onCreated(createdFeedback, pendingFeedbackId);
-      onCancel();
     } catch {
       if (pendingFeedbackId !== undefined) {
         onPendingRemove?.(pendingFeedbackId);
       }
-      setErrorMessage('피드백을 등록하지 못했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -263,6 +285,7 @@ export default function ScriptFeedbackComposer({
 
   return (
     <div
+      data-script-feedback-composer="true"
       className={[
         'script-feedback-composer absolute z-40',
         isClosing
@@ -277,7 +300,7 @@ export default function ScriptFeedbackComposer({
       <button
         type="button"
         onClick={onCancel}
-        className="absolute left-0 top-0 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#431B1B]/70"
+        className="absolute left-0 top-0 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#431B1B]/70"
         aria-label="피드백 입력 취소"
       />
 
@@ -291,13 +314,15 @@ export default function ScriptFeedbackComposer({
                 type="button"
                 onClick={() => toggleActor(actor)}
                 className={[
-                  'script-actor-orb absolute flex h-11 w-11 items-center justify-center rounded-full text-sm font-black text-white',
+                  'script-actor-orb absolute flex h-[31px] w-[31px] items-center justify-center rounded-full border-2 text-xs font-black',
                   isSelected ? 'script-actor-orb-selected' : '',
                 ].join(' ')}
                 style={{
                   left,
                   top,
-                  backgroundColor: color,
+                  backgroundColor: isSelected ? color : ACTOR_ORB_BASE,
+                  borderColor: color,
+                  color: isSelected ? '#fff8ef' : color,
                   '--script-actor-color': color,
                   '--script-actor-glow': `${color}8c`,
                   '--script-actor-glow-strong': `${color}d9`,
@@ -321,12 +346,14 @@ export default function ScriptFeedbackComposer({
         <div
           className={[
             'script-feedback-bubble absolute min-w-[190px] max-w-[320px] rounded-[22px] px-5 py-4 text-white shadow-[0_16px_36px_rgba(0,0,0,0.22)]',
+            'border',
             shouldOpenBubbleToLeft
               ? 'script-feedback-bubble-left right-auto rounded-br-[8px]'
               : 'rounded-bl-[8px]',
           ].join(' ')}
           style={{
-            backgroundColor: activeActorColor,
+            backgroundColor: FEEDBACK_BUBBLE_BASE,
+            borderColor: activeActorColor,
             left: bubbleLeft,
             top: bubbleTop,
           }}
@@ -336,16 +363,16 @@ export default function ScriptFeedbackComposer({
               'absolute top-5 h-5 w-5 rotate-45 rounded-[4px]',
               shouldOpenBubbleToLeft ? 'right-[-9px]' : 'left-[-9px]',
             ].join(' ')}
-            style={{ backgroundColor: activeActorColor }}
+            style={{ backgroundColor: FEEDBACK_BUBBLE_BASE }}
             aria-hidden="true"
           />
-          <p className="mb-1 text-sm font-black leading-none">
+          <p className="mb-1 text-sm font-black leading-none text-[#2d1715]">
             {selectedActors.length > 0
               ? selectedActors.map((actor) => actor.name).join(', ')
               : '배우를 선택해 주세요'}
           </p>
           {URGENT_MARK_PATTERN.test(content) && (
-            <span className="mb-1 inline-flex rounded-full border border-white/35 bg-white/18 px-2 py-0.5 text-[10px] font-black text-white">
+            <span className="mb-1 inline-flex rounded-full border border-[#D15757]/30 bg-[#D15757]/14 px-2 py-0.5 text-[10px] font-black text-[#9b3030]">
               긴급
             </span>
           )}
@@ -374,7 +401,7 @@ export default function ScriptFeedbackComposer({
               }
             }}
             disabled={disabled || isSubmitting}
-            className="block max-h-[132px] min-h-[24px] w-full resize-none overflow-y-auto bg-transparent text-[15px] font-bold leading-snug text-white outline-none placeholder:text-white/68"
+            className="block max-h-[132px] min-h-[24px] w-full resize-none overflow-y-auto bg-transparent text-[15px] font-bold leading-snug text-[#2d1715] outline-none placeholder:text-[#2d1715]/58"
             placeholder={
               selectedActors.length > 0
                 ? '피드백 입력'
@@ -383,7 +410,7 @@ export default function ScriptFeedbackComposer({
             rows={1}
           />
           {errorMessage && (
-            <p className="mt-2 text-[11px] font-bold text-white/82">
+            <p className="mt-2 text-[11px] font-bold text-[#9b3030]">
               {errorMessage}
             </p>
           )}

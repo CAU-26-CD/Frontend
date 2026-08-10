@@ -397,6 +397,14 @@ export default function ScriptFeedbackWorkspacePage({
     () => [...feedback.feedbacks, ...pendingScriptFeedbacks],
     [feedback.feedbacks, pendingScriptFeedbacks],
   );
+  const ownScriptFeedbacks = useMemo(
+    () =>
+      visibleScriptFeedbacks.filter(
+        (scriptFeedback) =>
+          userId !== null && scriptFeedback.createdByUserId === userId,
+      ),
+    [userId, visibleScriptFeedbacks],
+  );
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden lg:grid-cols-[minmax(0,1.72fr)_30px_minmax(360px,0.9fr)]">
@@ -458,10 +466,10 @@ export default function ScriptFeedbackWorkspacePage({
           />
         </div>
 
-        <div className="h-full min-h-0 pt-[30px]">
+        <div className="h-full min-h-0 pt-1">
           <FeedbackPanel
             actors={actors}
-            feedbacks={visibleScriptFeedbacks}
+            feedbacks={ownScriptFeedbacks}
             selectedActors={feedback.selectedActors}
             timestamp={feedback.timestamp}
             content={feedback.content}

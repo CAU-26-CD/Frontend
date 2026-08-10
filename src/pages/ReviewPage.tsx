@@ -458,13 +458,8 @@ function ScriptFeedbackCollection({
   );
 
   return (
-    <aside className="reaction-ui-font flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-3 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.04em] text-[#431B1B]/52">
-        <span>Feedback List</span>
-        <span>{sortedFeedbacks.length}</span>
-      </div>
-
-      <div className="reaction-hidden-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+    <aside className="reaction-ui-font flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[#d3c3b7] bg-[#efe6de] p-1.5 text-[#431B1B] shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
+      <div className="reaction-hidden-scrollbar relative isolate min-h-0 flex-1 space-y-2 overflow-y-auto px-0.5 py-1">
         {sortedFeedbacks.length === 0 ? (
           <div className="flex h-full min-h-[120px] items-center justify-center rounded-[8px] bg-white/28 px-4 text-center text-[12px] font-bold text-[#431B1B]/45">
             표시할 피드백이 없습니다.
@@ -492,13 +487,13 @@ function ScriptFeedbackCollection({
                 }}
                 disabled={!canNavigate}
                 className={[
-                  'group relative w-full min-w-0 rounded-[8px] px-3 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/34',
+                  'group relative w-full min-w-0 rounded-[8px] border px-3 py-2.5 text-left transition focus:outline-none focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-[#431B1B]/34',
                   canNavigate
-                    ? 'hover:-translate-y-0.5 hover:shadow-[0_14px_24px_rgba(67,27,27,0.16)]'
+                    ? 'hover:z-20 hover:-translate-y-0.5 hover:shadow-[0_14px_24px_rgba(67,27,27,0.16)]'
                     : 'cursor-not-allowed opacity-55',
                   isActive
-                    ? 'ring-2 ring-[#431B1B]/70 shadow-[0_0_0_3px_rgba(67,27,27,0.12),0_12px_24px_rgba(67,27,27,0.18)]'
-                    : 'ring-1 ring-white/34',
+                    ? 'z-10 border-[#431B1B]/58 shadow-[inset_0_0_0_2px_rgba(67,27,27,0.24),0_10px_22px_rgba(67,27,27,0.14)]'
+                    : 'z-0 border-white/34',
                 ].join(' ')}
                 style={{
                   backgroundColor: bubbleColor,
@@ -1290,12 +1285,18 @@ export default function ReviewPage() {
           <div className="reaction-ui-font pointer-events-none absolute bottom-7 left-1/2 z-20 -translate-x-1/2 px-4">
             <div
               className={[
-                'pointer-events-auto flex items-center gap-3 rounded-full border px-4 py-2 text-xs font-bold shadow-[0_18px_42px_rgba(0,0,0,0.22)] backdrop-blur-sm',
+                'pointer-events-auto flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-bold shadow-[0_18px_42px_rgba(0,0,0,0.22)] backdrop-blur-sm',
                 scriptFeedbackStatus === 'error'
                   ? 'border-[#D15757]/35 bg-[#D15757]/16 text-[#ffd8d8]'
-                  : 'border-white/18 bg-white/12 text-[#eee7dc]/72',
+                  : 'border-[#431B1B]/22 bg-[#fff8ef]/78 text-[#431B1B]',
               ].join(' ')}
             >
+              {scriptFeedbackStatus === 'loading' && (
+                <span
+                  className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#431B1B]/22 border-t-[#431B1B]"
+                  aria-hidden="true"
+                />
+              )}
               <span>
                 {scriptFeedbackStatus === 'error'
                   ? scriptFeedbackErrorMessage

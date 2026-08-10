@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Actor } from '../../types/feedback.ts';
 import { getScriptActorColor } from '../../utils/scriptFeedbackStyle.ts';
 
@@ -16,7 +17,6 @@ export default function ActorTagBar({
   onActorSelect,
   disabled = false,
   variant = 'default',
-  matchScriptColors = false,
 }: Props) {
   const isCompact = variant === 'compact';
 
@@ -80,31 +80,22 @@ export default function ActorTagBar({
                   disabled={disabled}
                   key={actor.id}
                   className={[
-                    'flex flex-1 items-center justify-center gap-2 rounded-full border shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_-10px_18px_rgba(67,27,27,0.08),0_10px_24px_rgba(67,27,27,0.10)] backdrop-blur-xl backdrop-saturate-150 transition md:flex-none',
+                    'flex flex-1 items-center justify-center gap-2 rounded-full border text-[#fff8ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.72),inset_0_-10px_18px_rgba(67,27,27,0.08),0_10px_24px_rgba(67,27,27,0.10)] backdrop-blur-xl backdrop-saturate-150 transition hover:brightness-110 md:flex-none',
                     isCompact
                       ? 'min-h-8 min-w-[88px] px-3 py-1.5 text-xs'
                       : 'min-h-10 min-w-[104px] px-4 py-2 text-sm',
                     disabled ? 'cursor-not-allowed' : '',
-                    matchScriptColors
-                      ? isSelected
-                        ? 'text-white'
-                        : 'bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]'
-                      : isSelected
-                        ? 'border-white/35 bg-[#431B1B]/72 text-[#fff8ef] hover:bg-[#431B1B]/84'
-                        : 'border-white/45 bg-white/24 text-[#2d1715] hover:bg-white/36 hover:text-[#431B1B]',
+                    isSelected ? 'actor-tag-button-selected' : '',
                   ].join(' ')}
                   style={
-                    matchScriptColors
-                      ? {
-                          backgroundColor: isSelected
-                            ? actorColor
-                            : undefined,
-                          borderColor: actorColor,
-                          boxShadow: isSelected
-                            ? `0 0 0 2px ${actorColor}33, 0 10px 24px rgba(67,27,27,0.14)`
-                            : `inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -10px 18px rgba(67,27,27,0.08), 0 0 0 1px ${actorColor}33, 0 10px 24px rgba(67,27,27,0.10)`,
-                        }
-                      : undefined
+                    {
+                      backgroundColor: actorColor,
+                      borderColor: actorColor,
+                      '--actor-tag-glow': `${actorColor}8c`,
+                      '--actor-tag-glow-strong': `${actorColor}5c`,
+                      '--actor-tag-glow-soft': `${actorColor}33`,
+                      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -10px 18px rgba(67,27,27,0.08), 0 0 0 1px ${actorColor}33, 0 10px 24px rgba(67,27,27,0.10)`,
+                    } as CSSProperties
                   }
                 >
                   <span className="font-semibold leading-none">
@@ -113,17 +104,8 @@ export default function ActorTagBar({
                   <span
                     className={[
                       'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none',
-                      isSelected
-                        ? 'border border-white/20 bg-white/18 text-[#fff8ef]'
-                        : matchScriptColors
-                          ? 'border bg-white/32 text-[#2d1715]'
-                          : 'border border-white/35 bg-white/26 text-[#806b61]',
+                      'border border-white/36 bg-white/24 text-[#fff8ef]',
                     ].join(' ')}
-                    style={
-                      matchScriptColors && !isSelected
-                        ? { borderColor: `${actorColor}66` }
-                        : undefined
-                    }
                   >
                     /{actor.shortcut}
                   </span>

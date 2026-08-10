@@ -534,25 +534,30 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                 return createPortal(
                   <div
                     className={[
-                      'script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 rounded-[20px] rounded-bl-[7px] border border-white/24 px-4 py-3.5 text-left text-white opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      'script-feedback-bubble pointer-events-auto fixed z-[9999] w-64 rounded-[20px] rounded-bl-[7px] border px-4 py-3.5 text-left text-[#2d1715] opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
                       isBubbleClosing ? 'script-feedback-bubble-out' : '',
                     ].join(' ')}
                     style={{
                       left: position.left,
                       top: position.top,
-                      backgroundColor: feedbackColor,
+                      backgroundColor: 'rgba(255, 248, 239, 0.28)',
+                      borderColor: feedbackColor,
                     }}
                     onClick={(event) => event.stopPropagation()}
                   >
                     <span
                       className="absolute left-[-9px] top-1/2 h-5 w-5 -translate-y-1/2 rotate-45 rounded-[4px]"
-                      style={{ backgroundColor: feedbackColor }}
+                      style={{
+                        backgroundColor: 'rgba(255, 248, 239, 0.28)',
+                        borderBottom: `1px solid ${feedbackColor}`,
+                        borderLeft: `1px solid ${feedbackColor}`,
+                      }}
                       aria-hidden="true"
                     />
                     <div className="relative mb-2 flex min-w-0 items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight text-white/82">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight text-[#2d1715]/72">
                         <span className="truncate">{actorNames}</span>
-                        <span className="text-white/44">|</span>
+                        <span className="text-[#2d1715]/36">|</span>
                         <span>{feedback.timestamp}</span>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
@@ -575,7 +580,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                                 setMutationError('');
                               }}
                               disabled={isMutating}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/18 text-white transition hover:scale-105 disabled:opacity-45"
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#431B1B]/12 text-[#431B1B] transition hover:scale-105 disabled:opacity-45"
                               aria-label="수정 취소"
                             >
                               <X size={13} strokeWidth={2.5} />
@@ -625,16 +630,16 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                           }
                         }}
                         disabled={isMutating}
-                        className="max-h-28 min-h-16 w-full resize-none rounded-[12px] border border-white/28 bg-white/18 px-2 py-1.5 text-[13px] font-bold leading-relaxed text-white outline-none placeholder:text-white/66 focus:border-white/70 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
+                        className="max-h-28 min-h-16 w-full resize-none rounded-[12px] border border-[#431B1B]/18 bg-[#fff8ef]/22 px-2 py-1.5 text-[13px] font-bold leading-relaxed text-[#2d1715] outline-none placeholder:text-[#2d1715]/48 focus:border-[#431B1B]/42 focus:ring-2 focus:ring-[#431B1B]/12 disabled:opacity-60"
                       />
                     ) : (
-                      <p className="relative line-clamp-4 whitespace-pre-wrap text-[13px] font-black leading-relaxed text-white">
+                      <p className="relative line-clamp-4 whitespace-pre-wrap text-[13px] font-black leading-relaxed text-[#2d1715]">
                         {feedback.content}
                       </p>
                     )}
 
                     {mutationError && (
-                      <p className="relative mt-1 text-[10px] font-bold text-white/82">
+                      <p className="relative mt-1 text-[10px] font-bold text-[#9b3030]">
                         {mutationError}
                       </p>
                     )}
@@ -1078,6 +1083,7 @@ export default function ScriptPdfViewer({
   const [draftAnchor, setDraftAnchor] =
     useState<ScriptFeedbackDraftAnchor | null>(null);
   const [isDraftClosing, setIsDraftClosing] = useState(false);
+  const [draftFocusRequestVersion, setDraftFocusRequestVersion] = useState(0);
   const draftCloseTimeoutRef = useRef<number | null>(null);
 
   const clearDraftCloseTimeout = useCallback(() => {
@@ -1136,6 +1142,41 @@ export default function ScriptPdfViewer({
     closeDraft();
   }, [closeDraft, draftAnchor, isDraftClosing]);
 
+  useEffect(() => {
+    if (!draftAnchor || isDraftClosing) {
+      return;
+    }
+
+    const handlePointerDown = (event: globalThis.PointerEvent) => {
+      if (!(event.target instanceof Element)) {
+        return;
+      }
+
+      if (event.target.closest('[data-script-feedback-composer="true"]')) {
+        return;
+      }
+
+      if (event.target.closest('[data-script-draft-movement-area="true"]')) {
+        window.setTimeout(() => {
+          setDraftFocusRequestVersion((version) => version + 1);
+        }, 0);
+        return;
+      }
+
+      closeDraft();
+    };
+
+    globalThis.document.addEventListener('pointerdown', handlePointerDown, true);
+
+    return () => {
+      globalThis.document.removeEventListener(
+        'pointerdown',
+        handlePointerDown,
+        true,
+      );
+    };
+  }, [closeDraft, draftAnchor, isDraftClosing]);
+
   return (
     <>
       <ScriptPdfDocumentSurface
@@ -1174,6 +1215,7 @@ export default function ScriptPdfViewer({
               content={draftContent}
               disabled={disabled}
               isClosing={isDraftClosing}
+              focusRequestVersion={draftFocusRequestVersion}
               onContentChange={onDraftContentChange}
               onPendingCreate={onPendingFeedbackCreate}
               onPendingRemove={onPendingFeedbackRemove}

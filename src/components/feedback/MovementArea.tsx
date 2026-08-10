@@ -6,12 +6,12 @@ import type { Actor } from '../../types/feedback';
 const MOVEMENT_POINTS = [
   { id: 1, x: 22, y: 36 },
   { id: 2, x: 16.5, y: 55 },
-  { id: 3, x: 15, y: 77 },
+  { id: 3, x: 18, y: 77 },
   { id: 4, x: 25.5, y: 77 },
   { id: 5, x: 39, y: 77 },
   { id: 6, x: 52, y: 63 },
   { id: 7, x: 43.5, y: 38 },
-  { id: 8, x: 57, y: 15 },
+  { id: 8, x: 44, y: 10.5 },
   { id: 9, x: 74, y: 58 },
   { id: 10, x: 81.5, y: 69 },
 ];
@@ -68,6 +68,27 @@ export default function MovementArea({
     return `동선: ${nextPath.join(' -> ')}`;
   };
 
+  const replaceLastAppliedMovementContent = (
+    value: string,
+    nextMovementContent: string,
+  ) => {
+    const lastAppliedMovementContent = lastAppliedMovementContentRef.current;
+
+    if (!lastAppliedMovementContent) {
+      return null;
+    }
+
+    const movementStartIndex = value.lastIndexOf(lastAppliedMovementContent);
+
+    if (movementStartIndex === -1) {
+      return null;
+    }
+
+    return `${value.slice(0, movementStartIndex)}${nextMovementContent}${value.slice(
+      movementStartIndex + lastAppliedMovementContent.length,
+    )}`;
+  };
+
   const removeLastAppliedMovementContent = (value: string) => {
     const lastAppliedMovementContent = lastAppliedMovementContentRef.current;
 
@@ -75,17 +96,26 @@ export default function MovementArea({
       return value;
     }
 
-    const movementSuffix = `\n${lastAppliedMovementContent}`;
+    const movementStartIndex = value.lastIndexOf(lastAppliedMovementContent);
 
-    if (value.endsWith(movementSuffix)) {
-      return value.slice(0, -movementSuffix.length).trimEnd();
+    if (movementStartIndex === -1) {
+      return value;
     }
 
-    if (value === lastAppliedMovementContent) {
-      return '';
+    const beforeMovement = value.slice(0, movementStartIndex);
+    const afterMovement = value.slice(
+      movementStartIndex + lastAppliedMovementContent.length,
+    );
+
+    if (!afterMovement) {
+      return beforeMovement.trimEnd();
     }
 
-    return value;
+    if (!beforeMovement) {
+      return afterMovement.trimStart();
+    }
+
+    return `${beforeMovement}${afterMovement}`;
   };
 
   const appendMovementContent = (
@@ -104,9 +134,14 @@ export default function MovementArea({
 
     if (nextPath.length > 0) {
       const movementContent = buildMovementContent(nextPath);
-      const baseContent = removeLastAppliedMovementContent(content);
+      const replacedContent = replaceLastAppliedMovementContent(
+        content,
+        movementContent,
+      );
 
-      onContentChange(appendMovementContent(baseContent, movementContent));
+      onContentChange(
+        replacedContent ?? appendMovementContent(content, movementContent),
+      );
       lastAppliedMovementContentRef.current = movementContent;
       return;
     }

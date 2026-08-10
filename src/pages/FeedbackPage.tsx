@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Settings, Video } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -231,6 +231,13 @@ export default function RehearsalFeedbackPage() {
     numericProjectId,
     scriptLookupStatus === 'available' ? 'v2' : 'v1',
     scriptLookupStatus !== 'loading',
+  );
+  const ownFeedbacks = useMemo(
+    () =>
+      feedback.feedbacks.filter(
+        (item) => currentUserId !== null && item.createdByUserId === currentUserId,
+      ),
+    [currentUserId, feedback.feedbacks],
   );
   useRealtimeScope(
     {
@@ -1121,7 +1128,7 @@ export default function RehearsalFeedbackPage() {
             >
               <FeedbackPanel
                 actors={actors}
-                feedbacks={feedback.feedbacks}
+                feedbacks={ownFeedbacks}
                 selectedActors={feedback.selectedActors}
                 timestamp={feedback.timestamp}
                 content={feedback.content}

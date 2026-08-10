@@ -8,6 +8,19 @@ import type { Actor, Feedback } from '../../types/feedback';
 
 const FEEDBACK_PAGE_SIZE = 15;
 const URGENT_MARK_PATTERN = /!{3,}/;
+const FEEDBACK_REVEAL_SIGNATURE_TTL_MS = 5000;
+
+const getFeedbackRevealSignature = (feedback: Feedback) => {
+  const actorIds = [...feedback.actorIds].sort((a, b) => a - b).join(',');
+  const actorNames = [...(feedback.actorNames ?? [])].sort().join(',');
+
+  return [
+    feedback.timestamp,
+    feedback.content,
+    actorIds,
+    actorNames,
+  ].join('::');
+};
 
 type FeedbackPanelProps = {
   actors: Actor[];
@@ -76,6 +89,7 @@ export default function FeedbackPanel({
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const previousFeedbackIdsRef = useRef<Set<number> | null>(null);
+  const revealedFeedbackSignaturesRef = useRef(new Map<string, number>());
   const [recentFeedbackIds, setRecentFeedbackIds] = useState<Set<number>>(
     () => new Set(),
   );
@@ -126,29 +140,59 @@ export default function FeedbackPanel({
       return;
     }
 
-    const addedFeedbackIds = feedbacks
-      .map((feedback) => feedback.id)
-      .filter((feedbackId) => !previousFeedbackIds.has(feedbackId));
+    const seenSignatures = new Set(revealedFeedbackSignaturesRef.current.keys());
+    const addedFeedbacks = feedbacks.filter(
+      (feedback) => !previousFeedbackIds.has(feedback.id),
+    );
+    const revealFeedbackIds: number[] = [];
+    const revealSignatures: string[] = [];
+
+    addedFeedbacks.forEach((feedback) => {
+      const signature = getFeedbackRevealSignature(feedback);
+
+      if (seenSignatures.has(signature)) {
+        return;
+      }
+
+      seenSignatures.add(signature);
+      revealFeedbackIds.push(feedback.id);
+      revealSignatures.push(signature);
+    });
 
     previousFeedbackIdsRef.current = nextFeedbackIds;
 
-    if (addedFeedbackIds.length === 0) {
+    if (revealFeedbackIds.length === 0) {
       return;
     }
 
     setRecentFeedbackIds((currentIds) => {
       const nextIds = new Set(currentIds);
 
-      addedFeedbackIds.forEach((feedbackId) => nextIds.add(feedbackId));
+      revealFeedbackIds.forEach((feedbackId) => nextIds.add(feedbackId));
 
       return nextIds;
+    });
+
+    revealSignatures.forEach((signature) => {
+      const existingTimeoutId =
+        revealedFeedbackSignaturesRef.current.get(signature);
+
+      if (existingTimeoutId !== undefined) {
+        window.clearTimeout(existingTimeoutId);
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        revealedFeedbackSignaturesRef.current.delete(signature);
+      }, FEEDBACK_REVEAL_SIGNATURE_TTL_MS);
+
+      revealedFeedbackSignaturesRef.current.set(signature, timeoutId);
     });
 
     const timeoutId = window.setTimeout(() => {
       setRecentFeedbackIds((currentIds) => {
         const nextIds = new Set(currentIds);
 
-        addedFeedbackIds.forEach((feedbackId) => nextIds.delete(feedbackId));
+        revealFeedbackIds.forEach((feedbackId) => nextIds.delete(feedbackId));
 
         return nextIds;
       });
@@ -158,6 +202,17 @@ export default function FeedbackPanel({
       window.clearTimeout(timeoutId);
     };
   }, [feedbacks]);
+
+  useEffect(() => {
+    const revealedFeedbackSignatures = revealedFeedbackSignaturesRef.current;
+
+    return () => {
+      revealedFeedbackSignatures.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      revealedFeedbackSignatures.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const list = feedbackListRef.current;
@@ -579,12 +634,12 @@ export default function FeedbackPanel({
         />
         <div className="relative flex h-full flex-col gap-2 rounded-[10px] bg-transparent px-2.5 py-2.5">
           {actorMenuOpen && (
-            <div className="absolute bottom-full left-0 z-10 mb-2 w-64 overflow-hidden rounded-xl border border-[#c8b7aa] bg-[#fff8ef] text-sm shadow-lg">
-              <div className="border-b border-[#e2d5cb] px-3 py-2 text-xs font-semibold text-[#806b61]">
+            <div className="absolute bottom-full left-0 z-10 mb-1.5 w-52 overflow-hidden rounded-[10px] border border-[#c8b7aa] bg-[#fff8ef] text-[12px] shadow-lg">
+              <div className="border-b border-[#e2d5cb] px-2.5 py-1.5 text-[11px] font-semibold text-[#806b61]">
                 배우 선택
               </div>
 
-              <div className="max-h-56 overflow-y-auto py-1">
+              <div className="max-h-44 overflow-y-auto py-0.5">
                 {actors.map((actor) => (
                   <button
                     key={actor.id}
@@ -595,17 +650,19 @@ export default function FeedbackPanel({
                       closeActorMenu();
                       contentTextareaRef.current?.focus();
                     }}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-[#2d1715] hover:bg-[#eadbd0]"
+                    className="flex min-h-8 w-full items-center justify-between px-2.5 py-1.5 text-left text-[#2d1715] hover:bg-[#eadbd0]"
                   >
-                    <span className="font-medium">{actor.name}</span>
-                    <span className="rounded-full bg-[#efe6de] px-2 py-0.5 text-xs text-[#806b61]">
+                    <span className="min-w-0 truncate font-semibold">
+                      {actor.name}
+                    </span>
+                    <span className="ml-2 shrink-0 rounded-full bg-[#efe6de] px-1.5 py-0.5 text-[11px] text-[#806b61]">
                       {actor.shortcut}
                     </span>
                   </button>
                 ))}
               </div>
 
-              <div className="border-t border-[#e2d5cb] px-3 py-2 text-xs text-[#9b8a80]">
+              <div className="border-t border-[#e2d5cb] px-2.5 py-1.5 text-[11px] text-[#9b8a80]">
                 Space로 닫고 "/ " 입력
               </div>
             </div>

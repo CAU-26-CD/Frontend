@@ -13,7 +13,6 @@ import type { Actor, Feedback } from '../../types/feedback';
 import {
   getFeedbackActorNames,
   getFeedbackPriorityColor,
-  getFeedbackPriorityTextColor,
 } from '../../utils/scriptFeedbackStyle';
 import LoadingSpinner from '../LoadingSpinner';
 import type { ReviewFeedbackTag } from './ReviewFilterBar';
@@ -44,8 +43,18 @@ const FEEDBACK_BUBBLE_EXIT_MS = 110;
 const FEEDBACK_BUBBLE_CLOSE_DELAY_MS = 160;
 const FEEDBACK_BUBBLE_WIDTH = 288;
 const FEEDBACK_BUBBLE_MIN_WIDTH = 180;
-const FEEDBACK_BUBBLE_GAP = 14;
+const FEEDBACK_MARKER_CONTAINER_SIZE = 32;
+const FEEDBACK_MARKER_DOT_SIZE = 14;
+const FEEDBACK_BUBBLE_GAP = 8;
 const FEEDBACK_BUBBLE_PAGE_MARGIN = 8;
+const FEEDBACK_BUBBLE_RIGHT_OFFSET =
+  FEEDBACK_MARKER_CONTAINER_SIZE / 2 +
+  FEEDBACK_MARKER_DOT_SIZE / 2 +
+  FEEDBACK_BUBBLE_GAP;
+const FEEDBACK_BUBBLE_LEFT_OFFSET =
+  FEEDBACK_MARKER_CONTAINER_SIZE / 2 -
+  FEEDBACK_MARKER_DOT_SIZE / 2 -
+  FEEDBACK_BUBBLE_GAP;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -84,7 +93,7 @@ function ScriptReviewPdfPage({
   markers,
   actors,
   feedbackTags,
-  pinnedFeedbackId,
+  pinnedFeedbackIds,
   transientFeedbackId,
   onPinnedFeedbackToggle,
   onTransientFeedbackOpen,
@@ -102,7 +111,7 @@ function ScriptReviewPdfPage({
   >;
   actors: Actor[];
   feedbackTags: ReviewFeedbackTag[];
-  pinnedFeedbackId: number | null;
+  pinnedFeedbackIds: number[];
   transientFeedbackId: number | null;
   onPinnedFeedbackToggle: (feedback: Feedback) => void;
   onTransientFeedbackOpen: (feedback: Feedback) => void;
@@ -227,11 +236,7 @@ function ScriptReviewPdfPage({
       {!isRendering &&
         markers.map((feedback) => {
           const markerColor = getFeedbackPriorityColor(feedback, '#6f625a');
-          const bubbleTextColor = getFeedbackPriorityTextColor(
-            feedback,
-            '#fff8ef',
-          );
-          const isPinned = pinnedFeedbackId === feedback.id;
+          const isPinned = pinnedFeedbackIds.includes(feedback.id);
           const isTransient = transientFeedbackId === feedback.id;
           const isOpen =
             isPinned || isTransient || hoveredFeedbackId === feedback.id;
@@ -253,9 +258,10 @@ function ScriptReviewPdfPage({
             ),
           );
           const unclampedBubbleLeft =
-            markerCenterX + FEEDBACK_BUBBLE_GAP + bubbleWidth <= containerWidth
-              ? FEEDBACK_BUBBLE_GAP
-              : -FEEDBACK_BUBBLE_GAP - bubbleWidth;
+            markerCenterX + FEEDBACK_BUBBLE_RIGHT_OFFSET + bubbleWidth <=
+            containerWidth
+              ? FEEDBACK_BUBBLE_RIGHT_OFFSET
+              : FEEDBACK_BUBBLE_LEFT_OFFSET - bubbleWidth;
           const minBubbleLeft =
             FEEDBACK_BUBBLE_PAGE_MARGIN - markerCenterX;
           const maxBubbleLeft =
@@ -267,6 +273,17 @@ function ScriptReviewPdfPage({
             maxBubbleLeft,
             Math.max(minBubbleLeft, unclampedBubbleLeft),
           );
+          const markerDotLeft =
+            FEEDBACK_MARKER_CONTAINER_SIZE / 2 - FEEDBACK_MARKER_DOT_SIZE / 2;
+          const markerDotRight =
+            FEEDBACK_MARKER_CONTAINER_SIZE / 2 + FEEDBACK_MARKER_DOT_SIZE / 2;
+          const bubbleRight = bubbleLeft + bubbleWidth;
+          const connectorLeft =
+            bubbleLeft >= markerDotRight ? markerDotRight : bubbleRight;
+          const connectorWidth =
+            bubbleLeft >= markerDotRight
+              ? bubbleLeft - markerDotRight
+              : Math.max(0, markerDotLeft - bubbleRight);
           const bridgeLeft =
             bubbleLeft < 0 ? bubbleLeft + bubbleWidth : 0;
           const bridgeWidth =
@@ -329,74 +346,78 @@ function ScriptReviewPdfPage({
                     aria-hidden="true"
                   />
                   <div
+                    className="pointer-events-none absolute top-1/2 z-20 h-px -translate-y-1/2 rounded-full"
+                    style={{
+                      left: connectorLeft,
+                      width: connectorWidth,
+                      backgroundColor: markerColor,
+                      boxShadow: `0 0 6px ${markerColor}8c`,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div
                     className={[
-                      'script-feedback-bubble reaction-ui-font pointer-events-auto absolute top-1/2 z-30 rounded-[16px] border border-white/24 px-3 py-2.5 text-left opacity-100 shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
+                      'script-feedback-bubble reaction-ui-font pointer-events-auto absolute top-1/2 z-30 rounded-[14px] border text-left text-[#2d1715] opacity-100 shadow-[0_16px_34px_rgba(0,0,0,0.22)]',
                       isBubbleClosing ? 'script-feedback-bubble-out' : '',
                     ].join(' ')}
                     style={{
                       left: bubbleLeft,
                       width: bubbleWidth,
-                      backgroundColor: markerColor,
-                      color: bubbleTextColor,
+                      backgroundColor: 'rgba(255, 248, 239, 0.28)',
+                      borderColor: markerColor,
                     }}
                     onClick={(event) => {
                       event.stopPropagation();
                     }}
                   >
-                    <span
-                      className={[
-                        'absolute top-1/2 h-4 w-4 -translate-y-1/2 rotate-45 rounded-[3px]',
-                        bubbleLeft < 0 ? 'right-[-7px]' : 'left-[-7px]',
-                      ].join(' ')}
-                      style={{ backgroundColor: markerColor }}
-                      aria-hidden="true"
-                    />
-                    <div className="relative mb-1 flex min-w-0 items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight opacity-[0.85]">
-                        <span className="truncate">{actorNames}</span>
-                        <span className="opacity-45">|</span>
-                        <time className="shrink-0">{feedback.timestamp}</time>
+                    <div className="relative" style={{ margin: '8px' }}>
+                      <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-black leading-tight opacity-[0.85]">
+                          <span className="truncate">{actorNames}</span>
+                          <span className="opacity-45">|</span>
+                          <time className="shrink-0">{feedback.timestamp}</time>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onPinnedFeedbackToggle(feedback);
+                          }}
+                          className={[
+                            'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                            isPinned
+                              ? 'border-white/46 bg-white/28'
+                              : 'border-white/26 bg-white/14 hover:bg-white/22',
+                          ].join(' ')}
+                          aria-pressed={isPinned}
+                          aria-label={isPinned ? '피드백 고정 해제' : '피드백 고정'}
+                          title={isPinned ? '피드백 고정 해제' : '피드백 고정'}
+                        >
+                          <Pin
+                            size={10}
+                            strokeWidth={2.6}
+                            fill={isPinned ? 'currentColor' : 'none'}
+                            aria-hidden="true"
+                          />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onPinnedFeedbackToggle(feedback);
-                        }}
-                        className={[
-                          'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
-                          isPinned
-                            ? 'border-white/46 bg-white/28'
-                            : 'border-white/26 bg-white/14 hover:bg-white/22',
-                        ].join(' ')}
-                        aria-pressed={isPinned}
-                        aria-label={isPinned ? '피드백 고정 해제' : '피드백 고정'}
-                        title={isPinned ? '피드백 고정 해제' : '피드백 고정'}
-                      >
-                        <Pin
-                          size={12}
-                          strokeWidth={2.6}
-                          fill={isPinned ? 'currentColor' : 'none'}
-                          aria-hidden="true"
-                        />
-                      </button>
+                      <p className="relative whitespace-pre-wrap break-words text-[12px] font-black leading-tight [overflow-wrap:anywhere]">
+                        {feedback.content}
+                      </p>
+                      {categoryTags.length > 0 && (
+                        <div className="relative mt-0.5 flex min-w-0 flex-wrap justify-end gap-1">
+                          {categoryTags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="inline-flex h-3.5 max-w-full items-center rounded-[4px] px-1.5 text-[9px] font-bold leading-none text-[#431B1B]"
+                              style={{ backgroundColor: tag.color }}
+                            >
+                              <span className="truncate">{tag.label}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <p className="relative whitespace-pre-wrap break-words text-[12px] font-black leading-snug [overflow-wrap:anywhere]">
-                      {feedback.content}
-                    </p>
-                    {categoryTags.length > 0 && (
-                      <div className="relative mt-1 flex min-w-0 flex-wrap justify-end gap-1">
-                        {categoryTags.map((tag) => (
-                          <span
-                            key={tag.id}
-                            className="inline-flex h-4 max-w-full items-center rounded-[4px] px-1.5 text-[9px] font-bold text-[#431B1B]"
-                            style={{ backgroundColor: tag.color }}
-                          >
-                            <span className="truncate">{tag.label}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </>
                 )}
@@ -424,7 +445,7 @@ export default function ScriptReviewPdfViewer({
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
-  const [pinnedFeedbackId, setPinnedFeedbackId] = useState<number | null>(null);
+  const [pinnedFeedbackIds, setPinnedFeedbackIds] = useState<number[]>([]);
   const [transientFeedbackId, setTransientFeedbackId] = useState<number | null>(
     null,
   );
@@ -471,7 +492,7 @@ export default function ScriptReviewPdfViewer({
       setStatus('loading');
       setErrorMessage('');
       setDocument(null);
-      setPinnedFeedbackId(null);
+      setPinnedFeedbackIds([]);
       setTransientFeedbackId(null);
 
       loadingTask = pdfjsLib.getDocument({
@@ -625,15 +646,17 @@ export default function ScriptReviewPdfViewer({
   }, [document, onScrollProgressChange, status]);
 
   const togglePinnedFeedback = (feedback: Feedback) => {
-    setPinnedFeedbackId((currentId) =>
-      currentId === feedback.id ? null : feedback.id,
+    const isCurrentlyPinned = pinnedFeedbackIds.includes(feedback.id);
+
+    setPinnedFeedbackIds((currentIds) =>
+      currentIds.includes(feedback.id)
+        ? currentIds.filter((feedbackId) => feedbackId !== feedback.id)
+        : [...currentIds, feedback.id],
     );
     setTransientFeedbackId((currentId) =>
       currentId === feedback.id ? null : currentId,
     );
-    onSelectedFeedbackChange?.(
-      pinnedFeedbackId === feedback.id ? null : feedback.id,
-    );
+    onSelectedFeedbackChange?.(isCurrentlyPinned ? null : feedback.id);
   };
 
   const openTransientFeedback = (feedback: Feedback) => {
@@ -712,7 +735,7 @@ export default function ScriptReviewPdfViewer({
                   )}
                   actors={actors}
                   feedbackTags={feedbackTags}
-                  pinnedFeedbackId={pinnedFeedbackId}
+                  pinnedFeedbackIds={pinnedFeedbackIds}
                   transientFeedbackId={transientFeedbackId}
                   onPinnedFeedbackToggle={togglePinnedFeedback}
                   onTransientFeedbackOpen={openTransientFeedback}

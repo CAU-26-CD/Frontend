@@ -41,7 +41,7 @@ export default function CameraSessionModal({
   const isRecordingEnded = normalizedStatus === 'end';
   const isDone =
     normalizedStatus === 'done' || Boolean(cameraStatus?.video_url);
-  const canStartRehearsal = isOwner && (isConnected || isRecording);
+  const canStartRehearsal = isOwner && isRecording;
   const isPanel = variant === 'panel';
   const isVideoUploadInProgress =
     VIDEO_UPLOAD_STATUSES.has(normalizedStatus) && !isDone;
@@ -226,17 +226,6 @@ export default function CameraSessionModal({
               />
             </div>
 
-            {!isPanel && (
-              <a
-                href={session.camera_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 block break-all text-center text-xs font-semibold text-[#806b61] underline underline-offset-2"
-              >
-                QR 대상 URL: {session.camera_url}
-              </a>
-            )}
-
             <div
               className={
                 isPanel
@@ -262,7 +251,7 @@ export default function CameraSessionModal({
                     휴대폰 연결이 확인되었습니다.
                   </p>
                   <p className="mt-1 text-[#806b61]">
-                    리허설 시작 버튼을 누르면 피드백 입력을 시작합니다.
+                    카메라에서 녹화를 시작하면 피드백 입력을 시작할 수 있습니다.
                   </p>
                 </div>
               )}

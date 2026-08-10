@@ -253,7 +253,7 @@ export default function ReviewFeedbackPanel({
                   </div>
 
                   <div
-                    className="min-w-0 rounded-[7px] px-3 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.16)] ring-1 ring-white/18"
+                    className="min-w-0 rounded-[7px] border border-white/28 px-3 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
                     style={{
                       backgroundColor: bubbleColor,
                       color: bubbleTextColor,
@@ -265,7 +265,7 @@ export default function ReviewFeedbackPanel({
                       </span>
                       <span className="opacity-45">|</span>
                       <time
-                        className="shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-black leading-none shadow-[0_0_10px_rgba(255,255,255,0.16)] ring-1 ring-white/18 backdrop-blur-[1px]"
+                        className="shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-black leading-none ring-1 ring-white/18"
                       >
                         {feedback.timestamp}
                       </time>

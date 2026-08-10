@@ -22,6 +22,7 @@ const initialCreateForm: CreateProjectForm = {
   description: '',
   joinCode: '',
 };
+const MAX_PROJECT_ACTOR_COUNT = 6;
 
 const getCreateProjectErrorMessage = (error: unknown) => {
   if (isAxiosError(error)) {
@@ -211,7 +212,13 @@ export function CreateNewProjectForm() {
       return;
     }
 
+    if (names.length > MAX_PROJECT_ACTOR_COUNT) {
+      setActorCreateError('배우는 최대 6명까지 등록할 수 있습니다.');
+      return;
+    }
+
     setIsCreatingActor(true);
+    setActorCreateError(null);
 
     try {
       const createdActors = await Promise.all(

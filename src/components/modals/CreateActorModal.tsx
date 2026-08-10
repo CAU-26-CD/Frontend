@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 
+const MAX_ACTOR_COUNT = 6;
+
 type CreateActorModalProps = {
   projectName: string;
   isSubmitting: boolean;
@@ -16,9 +18,15 @@ export default function CreateActorModal({
 }: CreateActorModalProps) {
   const [actorName, setActorName] = useState('');
   const [actorNames, setActorNames] = useState<string[]>([]);
+  const [limitMessage, setLimitMessage] = useState('');
+  const hasReachedActorLimit = actorNames.length >= MAX_ACTOR_COUNT;
 
   const getNextActorNames = () => {
     const nextName = actorName.trim();
+
+    if (actorNames.length >= MAX_ACTOR_COUNT) {
+      return actorNames;
+    }
 
     return nextName && !actorNames.some((name) => name === nextName)
       ? [...actorNames, nextName]
@@ -32,8 +40,14 @@ export default function CreateActorModal({
       return;
     }
 
+    if (hasReachedActorLimit) {
+      setLimitMessage('배우는 최대 6명까지 등록할 수 있습니다.');
+      return;
+    }
+
     setActorNames((names) => [...names, nextName]);
     setActorName('');
+    setLimitMessage('');
   };
 
   const removeActorName = (targetName: string) => {
@@ -42,6 +56,7 @@ export default function CreateActorModal({
     }
 
     setActorNames((names) => names.filter((name) => name !== targetName));
+    setLimitMessage('');
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -53,6 +68,11 @@ export default function CreateActorModal({
     const nextActorNames = getNextActorNames();
 
     if (nextActorNames.length === 0 || isSubmitting) {
+      return;
+    }
+
+    if (nextActorNames.length > MAX_ACTOR_COUNT) {
+      setLimitMessage('배우는 최대 6명까지 등록할 수 있습니다.');
       return;
     }
 
@@ -78,15 +98,21 @@ export default function CreateActorModal({
           <input
             id="actor-name"
             value={actorName}
-            onChange={(event) => setActorName(event.target.value)}
+            onChange={(event) => {
+              setActorName(event.target.value);
+              setLimitMessage('');
+            }}
+            disabled={isSubmitting || hasReachedActorLimit}
             autoFocus
             className="h-11 min-w-0 flex-1 rounded-full border border-[#c8b7aa] bg-white/30 px-5 text-center text-sm font-bold text-[#431B1B] outline-none transition placeholder:text-[#806b61]/60 focus:border-[#431B1B] focus:bg-white/45 focus:ring-2 focus:ring-[#431B1B]/15"
-            placeholder="배우 이름"
+            placeholder={
+              hasReachedActorLimit ? '최대 6명까지 등록 가능' : '배우 이름'
+            }
             maxLength={20}
           />
           <button
             type="submit"
-            disabled={!actorName.trim() || isSubmitting}
+            disabled={!actorName.trim() || isSubmitting || hasReachedActorLimit}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#c8b7aa] bg-white/30 text-[#431B1B] transition hover:border-[#431B1B] hover:bg-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#431B1B]/20 disabled:opacity-45"
             aria-label="배우 추가"
           >
@@ -115,9 +141,9 @@ export default function CreateActorModal({
           </div>
         )}
 
-        {errorMessage && (
+        {(limitMessage || errorMessage) && (
           <p className="mt-3 text-xs font-bold text-[#A94444]">
-            {errorMessage}
+            {limitMessage || errorMessage}
           </p>
         )}
 
