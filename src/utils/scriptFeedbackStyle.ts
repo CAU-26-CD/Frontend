@@ -24,6 +24,9 @@ export const getScriptActorColorById = (
   return getScriptActorColor(actorIndex >= 0 ? actorIndex : 0);
 };
 
+export const SCRIPT_FEEDBACK_BUBBLE_BACKGROUND =
+  'rgba(255, 248, 239, 0.62)';
+
 export const FEEDBACK_PRIORITY_COLORS: Record<FeedbackPriority, string> = {
   required: '#ff6b6b',
   recommended: '#f6d76f',
