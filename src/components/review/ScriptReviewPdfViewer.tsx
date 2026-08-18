@@ -11,6 +11,7 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import type { ProjectScript } from '../../apis/script';
 import type { Actor, Feedback } from '../../types/feedback';
 import {
+  SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
   getFeedbackActorNames,
   getFeedbackPriorityColor,
 } from '../../utils/scriptFeedbackStyle';
@@ -363,7 +364,7 @@ function ScriptReviewPdfPage({
                     style={{
                       left: bubbleLeft,
                       width: bubbleWidth,
-                      backgroundColor: 'rgba(255, 248, 239, 0.28)',
+                      backgroundColor: SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
                       borderColor: markerColor,
                     }}
                     onClick={(event) => {

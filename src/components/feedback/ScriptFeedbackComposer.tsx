@@ -3,7 +3,10 @@ import type { CSSProperties } from 'react';
 import { createFeedbackV2 } from '../../apis/feedback';
 import type { FeedbackV2Response } from '../../apis/feedback';
 import type { Actor } from '../../types/feedback';
-import { getScriptActorColor } from '../../utils/scriptFeedbackStyle';
+import {
+  SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
+  getScriptActorColor,
+} from '../../utils/scriptFeedbackStyle';
 
 export type ScriptFeedbackDraftAnchor = {
   page: number;
@@ -46,7 +49,6 @@ const MAX_RADIAL_DISTANCE = 42;
 const ACTOR_ORB_SIZE = 31;
 const URGENT_MARK_PATTERN = /!{3,}/;
 const ACTOR_ORB_BASE = '#FFF8EFE6';
-const FEEDBACK_BUBBLE_BASE = 'rgba(255, 248, 239, 0.28)';
 
 type ActorSelectionState = {
   actorIds: number[];
@@ -352,7 +354,7 @@ export default function ScriptFeedbackComposer({
               : 'rounded-bl-[8px]',
           ].join(' ')}
           style={{
-            backgroundColor: FEEDBACK_BUBBLE_BASE,
+            backgroundColor: SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
             borderColor: activeActorColor,
             left: bubbleLeft,
             top: bubbleTop,
@@ -363,7 +365,7 @@ export default function ScriptFeedbackComposer({
               'absolute top-5 h-5 w-5 rotate-45 rounded-[4px]',
               shouldOpenBubbleToLeft ? 'right-[-9px]' : 'left-[-9px]',
             ].join(' ')}
-            style={{ backgroundColor: FEEDBACK_BUBBLE_BASE }}
+            style={{ backgroundColor: SCRIPT_FEEDBACK_BUBBLE_BACKGROUND }}
             aria-hidden="true"
           />
           <p className="mb-1 text-sm font-black leading-none text-[#2d1715]">
