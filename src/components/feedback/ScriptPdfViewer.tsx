@@ -16,7 +16,6 @@ import LoadingSpinner from '../LoadingSpinner';
 import type { FeedbackV2Response } from '../../apis/feedback';
 import type { Actor, Feedback } from '../../types/feedback';
 import {
-  SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
   getFeedbackActorNames,
   getScriptActorColorById,
 } from '../../utils/scriptFeedbackStyle';
@@ -541,7 +540,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                     style={{
                       left: position.left,
                       top: position.top,
-                      backgroundColor: SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
+                      backgroundColor: 'rgba(255, 248, 239, 0.28)',
                       borderColor: feedbackColor,
                     }}
                     onClick={(event) => event.stopPropagation()}
@@ -549,7 +548,7 @@ const ScriptPdfPage = memo(function ScriptPdfPage({
                     <span
                       className="absolute left-[-9px] top-1/2 h-5 w-5 -translate-y-1/2 rotate-45 rounded-[4px]"
                       style={{
-                        backgroundColor: SCRIPT_FEEDBACK_BUBBLE_BACKGROUND,
+                        backgroundColor: 'rgba(255, 248, 239, 0.28)',
                         borderBottom: `1px solid ${feedbackColor}`,
                         borderLeft: `1px solid ${feedbackColor}`,
                       }}
